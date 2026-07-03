@@ -1,0 +1,28 @@
+# Binaries
+/vidgen
+/bin/
+/dist/
+
+# Generated media
+/output/
+*.mp4
+*.wav
+*.mp3
+*.ass
+*.srt
+
+# Env / secrets
+.env
+.env.*
+*.local
+
+# OS
+.DS_Store
+
+# Go
+*.test
+*.out
+coverage.*
+
+# Run state
+.okra/runs/
