@@ -88,6 +88,45 @@ func TestBuildMixedScenes(t *testing.T) {
 	}
 }
 
+func TestBuildLoopsShortClips(t *testing.T) {
+	tests := []struct {
+		name      string
+		media     float64
+		scene     float64
+		wantLoops string
+	}{
+		{"clip shorter than narration", 9, 10.8, "-stream_loop 1"},
+		{"clip much shorter", 5, 12, "-stream_loop 2"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			graph, err := NewFilterGraphBuilder().Build([]SceneInput{
+				{MediaPath: "/a/c.mp4", AudioPath: "/a/v.mp3", DurationSec: tt.scene, MediaDurationSec: tt.media},
+			}, "")
+			if err != nil {
+				t.Fatalf("Build: %v", err)
+			}
+			joined := strings.Join(graph.InputArgs, " ")
+			if !strings.Contains(joined, tt.wantLoops) {
+				t.Errorf("InputArgs = %q, want %q", joined, tt.wantLoops)
+			}
+		})
+	}
+}
+
+func TestBuildNoLoopWhenClipLongEnough(t *testing.T) {
+	graph, err := NewFilterGraphBuilder().Build([]SceneInput{
+		{MediaPath: "/a/c.mp4", AudioPath: "/a/v.mp3", DurationSec: 5, MediaDurationSec: 11},
+		{MediaPath: "/a/c2.mp4", AudioPath: "/a/v2.mp3", DurationSec: 5}, // unknown media duration
+	}, "")
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if strings.Contains(strings.Join(graph.InputArgs, " "), "-stream_loop") {
+		t.Errorf("should not loop: %v", graph.InputArgs)
+	}
+}
+
 func TestBuildNoScenes(t *testing.T) {
 	if _, err := NewFilterGraphBuilder().Build(nil, "/a/c.ass"); err == nil {
 		t.Fatal("want error for zero scenes")

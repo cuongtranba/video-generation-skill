@@ -2,6 +2,8 @@ package render
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 )
 
@@ -16,6 +18,9 @@ type SceneInput struct {
 	AudioPath   string
 	IsImage     bool
 	DurationSec float64
+	// MediaDurationSec is the source clip's own length; when shorter than
+	// DurationSec the input is looped so the scene never runs out of video.
+	MediaDurationSec float64
 }
 
 // FilterGraph is a fully assembled ffmpeg invocation plan.
@@ -59,6 +64,11 @@ func (b *FilterGraphBuilder) Build(scenes []SceneInput, assPath string) (FilterG
 
 		// Images enter as a single frame; zoompan's d= extends it to the
 		// scene duration (looping the input would multiply frames instead).
+		if !s.IsImage {
+			if loops := extraLoops(s); loops > 0 {
+				inputArgs = append(inputArgs, "-stream_loop", strconv.Itoa(loops))
+			}
+		}
 		inputArgs = append(inputArgs, "-i", s.MediaPath)
 		inputArgs = append(inputArgs, "-i", s.AudioPath)
 		inputPaths = append(inputPaths, s.MediaPath, s.AudioPath)
@@ -108,6 +118,15 @@ func sceneFilter(mediaIdx, sceneIdx int, s SceneInput) string {
 		outWidth, outHeight, outWidth, outHeight,
 		outFPS, sceneIdx,
 	)
+}
+
+// extraLoops returns how many additional input repetitions are needed so the
+// clip covers the scene duration (0 when the clip is long enough or unknown).
+func extraLoops(s SceneInput) int {
+	if s.MediaDurationSec <= 0 || s.MediaDurationSec >= s.DurationSec {
+		return 0
+	}
+	return int(math.Ceil(s.DurationSec/s.MediaDurationSec)) - 1
 }
 
 // escapeFilterPath escapes characters that break ffmpeg filter arguments.

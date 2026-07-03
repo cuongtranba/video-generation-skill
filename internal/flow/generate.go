@@ -161,10 +161,11 @@ func (f *Flow) runRender(ctx context.Context, b *bus.Bus, p *domain.Project, out
 	var scenes []render.SceneInput
 	for _, scene := range p.Scenes {
 		scenes = append(scenes, render.SceneInput{
-			MediaPath:   scene.Material.LocalPath,
-			AudioPath:   scene.AudioPath,
-			IsImage:     scene.Material.Type == domain.MaterialImage || (scene.Material.Type == domain.MaterialLocal && isImagePath(scene.Material.LocalPath)),
-			DurationSec: scene.DurationSec,
+			MediaPath:        scene.Material.LocalPath,
+			AudioPath:        scene.AudioPath,
+			IsImage:          scene.Material.Type == domain.MaterialImage || (scene.Material.Type == domain.MaterialLocal && isImagePath(scene.Material.LocalPath)),
+			DurationSec:      scene.DurationSec,
+			MediaDurationSec: scene.Material.DurationSec,
 		})
 	}
 
