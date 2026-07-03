@@ -169,10 +169,24 @@ func (f *Flow) runRender(ctx context.Context, b *bus.Bus, p *domain.Project, out
 		})
 	}
 
+	var music *render.MusicInput
+	if p.Style.MusicPath != "" {
+		musicDuration, err := f.probe(ctx, p.Style.MusicPath)
+		if err != nil {
+			return fmt.Errorf("probe music %s: %w", p.Style.MusicPath, err)
+		}
+		music = &render.MusicInput{
+			Path:        p.Style.MusicPath,
+			DurationSec: musicDuration,
+			Volume:      p.Style.MusicVolume,
+		}
+	}
+
 	job := worker.RenderJob{
 		ProjectID:  p.ID,
 		Scenes:     scenes,
 		ASSPath:    captionPath(p),
+		Music:      music,
 		OutputPath: outputPath,
 	}
 	if err := bus.PublishJSON(ctx, b, bus.JobSubject(bus.KindRender, p.ID, 0), job); err != nil {

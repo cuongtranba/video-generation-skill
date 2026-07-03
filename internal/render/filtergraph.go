@@ -42,7 +42,14 @@ func NewFilterGraphBuilder() *FilterGraphBuilder {
 	return &FilterGraphBuilder{}
 }
 
-func (b *FilterGraphBuilder) Build(scenes []SceneInput, assPath string) (FilterGraph, error) {
+// MusicInput is an optional background music track mixed under the voiceover.
+type MusicInput struct {
+	Path        string
+	DurationSec float64 // source track length, for loop computation
+	Volume      float64 // linear gain, e.g. 0.15
+}
+
+func (b *FilterGraphBuilder) Build(scenes []SceneInput, assPath string, music *MusicInput) (FilterGraph, error) {
 	if len(scenes) == 0 {
 		return FilterGraph{}, fmt.Errorf("no scenes to render")
 	}
@@ -79,10 +86,43 @@ func (b *FilterGraphBuilder) Build(scenes []SceneInput, assPath string) (FilterG
 	}
 
 	n := len(scenes)
+	var totalDuration float64
+	for _, s := range scenes {
+		totalDuration += s.DurationSec
+	}
+
+	voiceLabel := "[aout]"
+	if music != nil {
+		voiceLabel = "[voice]"
+	}
 	filters = append(filters,
 		fmt.Sprintf("%sconcat=n=%d:v=1:a=0[vcat]", videoRefs.String(), n),
-		fmt.Sprintf("%sconcat=n=%d:v=0:a=1[aout]", audioRefs.String(), n),
+		fmt.Sprintf("%sconcat=n=%d:v=0:a=1%s", audioRefs.String(), n, voiceLabel),
 	)
+
+	if music != nil {
+		musicIdx := 2 * n
+		if music.DurationSec > 0 && music.DurationSec < totalDuration {
+			loops := int(math.Ceil(totalDuration/music.DurationSec)) - 1
+			inputArgs = append(inputArgs, "-stream_loop", strconv.Itoa(loops))
+		}
+		inputArgs = append(inputArgs, "-i", music.Path)
+		inputPaths = append(inputPaths, music.Path)
+
+		volume := music.Volume
+		if volume <= 0 {
+			volume = 0.15
+		}
+		fadeStart := totalDuration - 2
+		if fadeStart < 0 {
+			fadeStart = 0
+		}
+		filters = append(filters,
+			fmt.Sprintf("[%d:a]atrim=duration=%.3f,asetpts=PTS-STARTPTS,volume=%.3f,afade=t=out:st=%.3f:d=2[bgm]",
+				musicIdx, totalDuration, volume, fadeStart),
+			"[voice][bgm]amix=inputs=2:duration=first:normalize=0[aout]",
+		)
+	}
 
 	videoOut := "[vcat]"
 	if assPath != "" {

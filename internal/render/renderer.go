@@ -12,6 +12,7 @@ import (
 type RenderRequest struct {
 	Scenes     []SceneInput
 	ASSPath    string
+	Music      *MusicInput
 	OutputPath string
 }
 
@@ -42,7 +43,7 @@ func NewFFmpegRenderer(ffmpegBin, ffprobeBin string) *FFmpegRenderer {
 }
 
 func (r *FFmpegRenderer) Render(ctx context.Context, req RenderRequest) (RenderResult, error) {
-	graph, err := r.builder.Build(req.Scenes, req.ASSPath)
+	graph, err := r.builder.Build(req.Scenes, req.ASSPath, req.Music)
 	if err != nil {
 		return RenderResult{}, fmt.Errorf("build filter graph: %w", err)
 	}

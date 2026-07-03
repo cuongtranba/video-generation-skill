@@ -63,6 +63,7 @@ type RenderJob struct {
 	ProjectID  string              `json:"project_id"`
 	Scenes     []render.SceneInput `json:"scenes"`
 	ASSPath    string              `json:"ass_path"`
+	Music      *render.MusicInput  `json:"music,omitempty"`
 	OutputPath string              `json:"output_path"`
 }
 

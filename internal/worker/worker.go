@@ -227,6 +227,7 @@ func (w *RenderWorker) handle(ctx context.Context, job RenderJob) RenderResult {
 	out, err := w.renderer.Render(ctx, render.RenderRequest{
 		Scenes:     job.Scenes,
 		ASSPath:    job.ASSPath,
+		Music:      job.Music,
 		OutputPath: job.OutputPath,
 	})
 	if err != nil {

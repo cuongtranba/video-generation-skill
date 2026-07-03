@@ -186,19 +186,26 @@ func newMaterialCmd(a *app) *cobra.Command {
 }
 
 func newTuneCmd(a *app) *cobra.Command {
-	var projectID, voice, fontName string
+	var projectID, voice, fontName, musicPath string
 	var speed, fontSize int
+	var musicVolume float64
 
 	cmd := &cobra.Command{
 		Use:   "tune",
-		Short: "Step 3: adjust voice, speed, and caption style",
+		Short: "Step 3: adjust voice, speed, caption style, and background music",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p, err := a.loadProject(projectID)
 			if err != nil {
 				return err
 			}
 
-			opts := flow.TuneOptions{Voice: domain.Voice(voice), FontName: fontName, FontSize: fontSize}
+			opts := flow.TuneOptions{
+				Voice:       domain.Voice(voice),
+				FontName:    fontName,
+				FontSize:    fontSize,
+				MusicPath:   musicPath,
+				MusicVolume: musicVolume,
+			}
 			if cmd.Flags().Changed("speed") {
 				s := domain.Speed(speed)
 				opts.Speed = &s
@@ -207,8 +214,12 @@ func newTuneCmd(a *app) *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("Style: voice=%s speed=%d font=%s/%d\n", p.Style.Voice, p.Style.Speed,
-				p.Style.CaptionStyle.FontName, p.Style.CaptionStyle.FontSize)
+			music := p.Style.MusicPath
+			if music == "" {
+				music = "(none)"
+			}
+			fmt.Printf("Style: voice=%s speed=%d font=%s/%d music=%s\n", p.Style.Voice, p.Style.Speed,
+				p.Style.CaptionStyle.FontName, p.Style.CaptionStyle.FontSize, music)
 			fmt.Printf("\nNext: vidgen confirm --project %s\n", p.ID)
 			return nil
 		},
@@ -218,6 +229,8 @@ func newTuneCmd(a *app) *cobra.Command {
 	cmd.Flags().IntVar(&speed, "speed", 0, "speech speed -3..3")
 	cmd.Flags().StringVar(&fontName, "caption-font", "", "caption font name")
 	cmd.Flags().IntVar(&fontSize, "caption-size", 0, "caption font size")
+	cmd.Flags().StringVar(&musicPath, "music", "", "background music file (mp3/wav), looped and ducked under the voice")
+	cmd.Flags().Float64Var(&musicVolume, "music-volume", 0, "background music volume 0-1 (default 0.15)")
 	return cmd
 }
 

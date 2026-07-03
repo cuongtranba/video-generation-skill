@@ -9,7 +9,7 @@ func TestBuildSingleVideoScene(t *testing.T) {
 	b := NewFilterGraphBuilder()
 	graph, err := b.Build([]SceneInput{
 		{MediaPath: "/a/clip.mp4", AudioPath: "/a/voice0.mp3", IsImage: false, DurationSec: 5.0},
-	}, "/a/captions.ass")
+	}, "/a/captions.ass", nil)
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestBuildImageSceneUsesKenBurns(t *testing.T) {
 	b := NewFilterGraphBuilder()
 	graph, err := b.Build([]SceneInput{
 		{MediaPath: "/a/photo.jpg", AudioPath: "/a/voice0.mp3", IsImage: true, DurationSec: 4.2},
-	}, "/a/c.ass")
+	}, "/a/c.ass", nil)
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestBuildMixedScenes(t *testing.T) {
 		{MediaPath: "/a/clip.mp4", AudioPath: "/a/v0.mp3", DurationSec: 3},
 		{MediaPath: "/a/img.jpg", AudioPath: "/a/v1.mp3", IsImage: true, DurationSec: 4},
 		{MediaPath: "/a/clip2.mp4", AudioPath: "/a/v2.mp3", DurationSec: 5},
-	}, "/a/c.ass")
+	}, "/a/c.ass", nil)
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestBuildLoopsShortClips(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			graph, err := NewFilterGraphBuilder().Build([]SceneInput{
 				{MediaPath: "/a/c.mp4", AudioPath: "/a/v.mp3", DurationSec: tt.scene, MediaDurationSec: tt.media},
-			}, "")
+			}, "", nil)
 			if err != nil {
 				t.Fatalf("Build: %v", err)
 			}
@@ -118,7 +118,7 @@ func TestBuildNoLoopWhenClipLongEnough(t *testing.T) {
 	graph, err := NewFilterGraphBuilder().Build([]SceneInput{
 		{MediaPath: "/a/c.mp4", AudioPath: "/a/v.mp3", DurationSec: 5, MediaDurationSec: 11},
 		{MediaPath: "/a/c2.mp4", AudioPath: "/a/v2.mp3", DurationSec: 5}, // unknown media duration
-	}, "")
+	}, "", nil)
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -127,8 +127,53 @@ func TestBuildNoLoopWhenClipLongEnough(t *testing.T) {
 	}
 }
 
+func TestBuildWithBackgroundMusic(t *testing.T) {
+	graph, err := NewFilterGraphBuilder().Build([]SceneInput{
+		{MediaPath: "/a/c1.mp4", AudioPath: "/a/v1.mp3", DurationSec: 6},
+		{MediaPath: "/a/c2.mp4", AudioPath: "/a/v2.mp3", DurationSec: 4},
+	}, "", &MusicInput{Path: "/a/bgm.mp3", DurationSec: 3, Volume: 0.2})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	fc := graph.FilterComplex
+	for _, want := range []string{
+		"[4:a]",                  // music input after 2 scenes (indexes 0-3)
+		"atrim=duration=10.000",  // total scene duration
+		"volume=0.200",
+		"afade=t=out:st=8.000",   // fade 2s before end
+		"amix=inputs=2:duration=first:normalize=0[aout]",
+	} {
+		if !strings.Contains(fc, want) {
+			t.Errorf("filter complex missing %q\n%s", want, fc)
+		}
+	}
+	// music (3s) shorter than total (10s) → 3 extra loops... ceil(10/3)-1 = 3
+	if !strings.Contains(strings.Join(graph.InputArgs, " "), "-stream_loop 3") {
+		t.Errorf("music should loop: %v", graph.InputArgs)
+	}
+	if graph.InputPaths[len(graph.InputPaths)-1] != "/a/bgm.mp3" {
+		t.Errorf("music missing from InputPaths: %v", graph.InputPaths)
+	}
+}
+
+func TestBuildMusicDefaultVolume(t *testing.T) {
+	graph, err := NewFilterGraphBuilder().Build([]SceneInput{
+		{MediaPath: "/a/c.mp4", AudioPath: "/a/v.mp3", DurationSec: 5},
+	}, "", &MusicInput{Path: "/a/bgm.mp3", DurationSec: 60})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if !strings.Contains(graph.FilterComplex, "volume=0.150") {
+		t.Errorf("default volume missing\n%s", graph.FilterComplex)
+	}
+	if strings.Contains(strings.Join(graph.InputArgs, " "), "-stream_loop") {
+		t.Error("long music should not loop")
+	}
+}
+
 func TestBuildNoScenes(t *testing.T) {
-	if _, err := NewFilterGraphBuilder().Build(nil, "/a/c.ass"); err == nil {
+	if _, err := NewFilterGraphBuilder().Build(nil, "/a/c.ass", nil); err == nil {
 		t.Fatal("want error for zero scenes")
 	}
 }
@@ -136,7 +181,7 @@ func TestBuildNoScenes(t *testing.T) {
 func TestBuildNoSubtitles(t *testing.T) {
 	graph, err := NewFilterGraphBuilder().Build([]SceneInput{
 		{MediaPath: "/a/clip.mp4", AudioPath: "/a/v.mp3", DurationSec: 3},
-	}, "")
+	}, "", nil)
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}

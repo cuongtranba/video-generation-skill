@@ -84,6 +84,8 @@ type StyleSettings struct {
 	DurationSec  int          `json:"duration_sec"`
 	Tone         string       `json:"tone"`
 	CaptionStyle CaptionStyle `json:"caption_style"`
+	MusicPath    string       `json:"music_path,omitempty"`
+	MusicVolume  float64      `json:"music_volume,omitempty"`
 }
 
 type MaterialRef struct {

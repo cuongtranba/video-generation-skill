@@ -3,6 +3,7 @@ package flow
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -212,6 +213,8 @@ type TuneOptions struct {
 	Speed       *domain.Speed
 	FontName    string
 	FontSize    int
+	MusicPath   string
+	MusicVolume float64
 }
 
 // Tune is step 3: adjust voice and caption style.
@@ -237,6 +240,18 @@ func (f *Flow) Tune(ctx context.Context, p *domain.Project, opts TuneOptions) er
 	}
 	if opts.FontSize > 0 {
 		p.Style.CaptionStyle.FontSize = opts.FontSize
+	}
+	if opts.MusicPath != "" {
+		if _, err := os.Stat(opts.MusicPath); err != nil {
+			return fmt.Errorf("music file %s: %w", opts.MusicPath, err)
+		}
+		p.Style.MusicPath = opts.MusicPath
+	}
+	if opts.MusicVolume > 0 {
+		if opts.MusicVolume > 1 {
+			return fmt.Errorf("music volume %.2f out of range 0-1", opts.MusicVolume)
+		}
+		p.Style.MusicVolume = opts.MusicVolume
 	}
 
 	p.Status = domain.StatusTuned
