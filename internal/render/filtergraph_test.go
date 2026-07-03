@@ -51,13 +51,13 @@ func TestBuildImageSceneUsesKenBurns(t *testing.T) {
 		t.Errorf("zoompan should target 1080x1920\n%s", fc)
 	}
 
-	// image inputs need loop args before -i
-	if len(graph.InputArgs) == 0 {
-		t.Fatal("InputArgs empty")
-	}
+	// single-frame input: no -loop (zoompan d= extends duration)
 	joined := strings.Join(graph.InputArgs, " ")
-	if !strings.Contains(joined, "-loop 1") {
-		t.Errorf("image input should have -loop 1: %s", joined)
+	if strings.Contains(joined, "-loop") {
+		t.Errorf("image input must not loop: %s", joined)
+	}
+	if !strings.Contains(fc, "d=126") { // 4.2s * 30fps
+		t.Errorf("zoompan should extend to 126 frames\n%s", fc)
 	}
 }
 

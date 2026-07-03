@@ -57,11 +57,9 @@ func (b *FilterGraphBuilder) Build(scenes []SceneInput, assPath string) (FilterG
 		mediaIdx := 2 * i
 		audioIdx := 2*i + 1
 
-		if s.IsImage {
-			inputArgs = append(inputArgs, "-loop", "1", "-t", fmt.Sprintf("%.3f", s.DurationSec), "-i", s.MediaPath)
-		} else {
-			inputArgs = append(inputArgs, "-i", s.MediaPath)
-		}
+		// Images enter as a single frame; zoompan's d= extends it to the
+		// scene duration (looping the input would multiply frames instead).
+		inputArgs = append(inputArgs, "-i", s.MediaPath)
 		inputArgs = append(inputArgs, "-i", s.AudioPath)
 		inputPaths = append(inputPaths, s.MediaPath, s.AudioPath)
 
