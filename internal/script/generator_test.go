@@ -65,6 +65,25 @@ func TestGenerateStripsMarkdownFences(t *testing.T) {
 	}
 }
 
+func TestGenerateParsesArrayEnvelope(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "claude")
+	envelope := `[{"type":"system","subtype":"init"},{"type":"result","subtype":"success","is_error":false,"result":` + scenesJSON + `}]`
+	script := "#!/bin/sh\ncat > /dev/null\ncat <<'FAKE_EOF'\n" + envelope + "\nFAKE_EOF\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake claude: %v", err)
+	}
+
+	g := NewClaudeCLIGenerator(path)
+	res, err := g.Generate(context.Background(), GenerateRequest{Idea: "x", DurationSec: 30})
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if len(res.Scenes) != 2 {
+		t.Fatalf("scenes = %d, want 2", len(res.Scenes))
+	}
+}
+
 func TestGenerateEmptyScenes(t *testing.T) {
 	bin := writeFakeClaude(t, `"[]"`)
 	g := NewClaudeCLIGenerator(bin)

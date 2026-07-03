@@ -66,9 +66,9 @@ func (g *ClaudeCLIGenerator) Generate(ctx context.Context, req GenerateRequest) 
 		return GenerateResult{}, fmt.Errorf("run claude CLI for idea %q: %w", req.Idea, err)
 	}
 
-	var env cliEnvelope
-	if err := json.Unmarshal(out, &env); err != nil {
-		return GenerateResult{}, fmt.Errorf("parse claude CLI envelope: %w", err)
+	env, err := parseEnvelope(out)
+	if err != nil {
+		return GenerateResult{}, err
 	}
 	if env.IsError {
 		return GenerateResult{}, fmt.Errorf("claude CLI returned error result: %s", truncate(env.Result, 200))
@@ -96,6 +96,26 @@ func (g *ClaudeCLIGenerator) Generate(ctx context.Context, req GenerateRequest) 
 		})
 	}
 	return GenerateResult{Scenes: scenes}, nil
+}
+
+// parseEnvelope handles both claude CLI output shapes: a single result
+// object, or an array of message objects ending with a type=="result" entry.
+func parseEnvelope(out []byte) (cliEnvelope, error) {
+	var env cliEnvelope
+	if err := json.Unmarshal(out, &env); err == nil && env.Type != "" {
+		return env, nil
+	}
+
+	var msgs []cliEnvelope
+	if err := json.Unmarshal(out, &msgs); err != nil {
+		return cliEnvelope{}, fmt.Errorf("parse claude CLI envelope: %w", err)
+	}
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Type == "result" {
+			return msgs[i], nil
+		}
+	}
+	return cliEnvelope{}, fmt.Errorf("claude CLI output has no result message (%d messages)", len(msgs))
 }
 
 func buildPrompt(req GenerateRequest) string {
