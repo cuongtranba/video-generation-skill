@@ -85,6 +85,7 @@ type StyleSettings struct {
 	Tone         string       `json:"tone"`
 	CaptionStyle CaptionStyle `json:"caption_style"`
 	MusicPath    string       `json:"music_path,omitempty"`
+	MusicTrack   string       `json:"music_track,omitempty"` // attribution: artist — title (source id)
 	MusicVolume  float64      `json:"music_volume,omitempty"`
 }
 

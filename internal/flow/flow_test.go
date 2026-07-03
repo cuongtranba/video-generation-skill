@@ -10,6 +10,7 @@ import (
 	"github.com/cuongtranba/video-generation-skill/internal/caption"
 	"github.com/cuongtranba/video-generation-skill/internal/domain"
 	"github.com/cuongtranba/video-generation-skill/internal/material"
+	"github.com/cuongtranba/video-generation-skill/internal/music"
 	"github.com/cuongtranba/video-generation-skill/internal/render"
 	"github.com/cuongtranba/video-generation-skill/internal/script"
 	"github.com/cuongtranba/video-generation-skill/internal/tts"
@@ -196,6 +197,61 @@ func TestStepOrderEnforced(t *testing.T) {
 	// confirm before tune must fail
 	if _, err := f.Confirm(context.Background(), p); err == nil {
 		t.Error("Confirm on draft project should fail")
+	}
+}
+
+type stubMusic struct{}
+
+var _ music.MusicSource = (*stubMusic)(nil)
+
+func (s *stubMusic) Search(ctx context.Context, q music.Query) ([]music.Track, error) {
+	return []music.Track{{ID: "t1", Name: "Song", Artist: "Artist", DurationSec: 120, DownloadURL: "http://x/t1.mp3"}}, nil
+}
+func (s *stubMusic) Download(ctx context.Context, tr music.Track, dest string) error {
+	return os.WriteFile(dest, []byte("music"), 0o644)
+}
+
+func TestTuneMusicSearch(t *testing.T) {
+	f, _ := newTestFlow(t)
+	f.music = &stubMusic{}
+	ctx := context.Background()
+
+	p, err := f.Draft(ctx, DraftOptions{Idea: "x", DurationSec: 30})
+	if err != nil {
+		t.Fatalf("Draft: %v", err)
+	}
+	if err := f.Material(ctx, p); err != nil {
+		t.Fatalf("Material: %v", err)
+	}
+	if err := f.Tune(ctx, p, TuneOptions{MusicSearch: "upbeat"}); err != nil {
+		t.Fatalf("Tune: %v", err)
+	}
+
+	if p.Style.MusicPath == "" {
+		t.Fatal("music path not set")
+	}
+	if _, err := os.Stat(p.Style.MusicPath); err != nil {
+		t.Errorf("music file missing: %v", err)
+	}
+	if !strings.Contains(p.Style.MusicTrack, "Artist") {
+		t.Errorf("attribution = %q", p.Style.MusicTrack)
+	}
+}
+
+func TestTuneMusicFlagsExclusive(t *testing.T) {
+	f, _ := newTestFlow(t)
+	f.music = &stubMusic{}
+	ctx := context.Background()
+
+	p, err := f.Draft(ctx, DraftOptions{Idea: "x", DurationSec: 30})
+	if err != nil {
+		t.Fatalf("Draft: %v", err)
+	}
+	if err := f.Material(ctx, p); err != nil {
+		t.Fatalf("Material: %v", err)
+	}
+	if err := f.Tune(ctx, p, TuneOptions{MusicPath: "/a.mp3", MusicSearch: "upbeat"}); err == nil {
+		t.Fatal("want error for both music flags")
 	}
 }
 

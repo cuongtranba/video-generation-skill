@@ -13,6 +13,7 @@ import (
 	"github.com/cuongtranba/video-generation-skill/internal/cost"
 	"github.com/cuongtranba/video-generation-skill/internal/domain"
 	"github.com/cuongtranba/video-generation-skill/internal/material"
+	"github.com/cuongtranba/video-generation-skill/internal/music"
 	"github.com/cuongtranba/video-generation-skill/internal/render"
 	"github.com/cuongtranba/video-generation-skill/internal/script"
 	"github.com/cuongtranba/video-generation-skill/internal/tts"
@@ -31,6 +32,7 @@ type Flow struct {
 	probe       tts.DurationProbe
 	transcriber worker.Transcriber
 	renderer    render.Renderer
+	music       music.MusicSource
 	estimator   *cost.Estimator
 	now         func() time.Time
 }
@@ -44,6 +46,7 @@ type Deps struct {
 	Probe       tts.DurationProbe
 	Transcriber worker.Transcriber
 	Renderer    render.Renderer
+	Music       music.MusicSource
 }
 
 func New(deps Deps) *Flow {
@@ -56,6 +59,7 @@ func New(deps Deps) *Flow {
 		probe:       deps.Probe,
 		transcriber: deps.Transcriber,
 		renderer:    deps.Renderer,
+		music:       deps.Music,
 		estimator:   cost.NewEstimator(),
 		now:         time.Now,
 	}
@@ -214,6 +218,7 @@ type TuneOptions struct {
 	FontName    string
 	FontSize    int
 	MusicPath   string
+	MusicSearch string // Jamendo fuzzy tags; downloads the top result
 	MusicVolume float64
 }
 
@@ -241,11 +246,33 @@ func (f *Flow) Tune(ctx context.Context, p *domain.Project, opts TuneOptions) er
 	if opts.FontSize > 0 {
 		p.Style.CaptionStyle.FontSize = opts.FontSize
 	}
+	if opts.MusicPath != "" && opts.MusicSearch != "" {
+		return fmt.Errorf("use either --music or --music-search, not both")
+	}
 	if opts.MusicPath != "" {
 		if _, err := os.Stat(opts.MusicPath); err != nil {
 			return fmt.Errorf("music file %s: %w", opts.MusicPath, err)
 		}
 		p.Style.MusicPath = opts.MusicPath
+	}
+	if opts.MusicSearch != "" {
+		if f.music == nil {
+			return fmt.Errorf("music search unavailable: no music source configured")
+		}
+		tracks, err := f.music.Search(ctx, music.Query{Tags: opts.MusicSearch, Limit: 5})
+		if err != nil {
+			return fmt.Errorf("search music %q: %w", opts.MusicSearch, err)
+		}
+		if len(tracks) == 0 {
+			return fmt.Errorf("no music found for %q", opts.MusicSearch)
+		}
+		track := tracks[0]
+		dest := filepath.Join(p.ProjectDir, "music.mp3")
+		if err := f.music.Download(ctx, track, dest); err != nil {
+			return fmt.Errorf("download music track %s: %w", track.ID, err)
+		}
+		p.Style.MusicPath = dest
+		p.Style.MusicTrack = fmt.Sprintf("%s — %s (Jamendo %s)", track.Artist, track.Name, track.ID)
 	}
 	if opts.MusicVolume > 0 {
 		if opts.MusicVolume > 1 {

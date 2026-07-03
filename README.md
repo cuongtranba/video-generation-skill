@@ -53,6 +53,7 @@ flowchart TB
 | Vietnamese TTS | FPT.AI | North + South accents; F5-TTS (self-hosted) planned for scale |
 | Stock material | Pexels API (Pixabay fallback) | free, commercial license |
 | Caption timing | Whisper (local, `vi`) | word-level timestamps → ASS karaoke |
+| Background music | Jamendo API or local file | looped, ducked under voice, 2s fade-out |
 | Composition | FFmpeg (direct) | 9:16, subtitle burn-in, hw-accelerated encode |
 
 ## Roadmap
@@ -61,9 +62,31 @@ flowchart TB
 - **v1.1** — YouTube Shorts auto-post (direct API); file Meta app review in parallel
 - **v2** — webapp, IG/FB Reels, TikTok (via audit or aggregator), optional AI b-roll
 
+## Setup
+
+`.env` keys:
+
+```
+FPT_TTS_API_KEY=...      # console.fpt.ai
+PEXELS_API_KEY=...       # pexels.com/api
+JAMENDO_CLIENT_ID=...    # devportal.jamendo.com (for --music-search)
+```
+
+Binaries: `ffmpeg`/`ffprobe` with libass (`brew install homebrew-ffmpeg/ffmpeg/ffmpeg`), `whisper` (`brew install openai-whisper`), `claude` CLI.
+
+## Usage
+
+```bash
+vidgen new "3 lý do bạn nên uống nước ấm mỗi sáng" --duration 45 --resource ./demo
+vidgen material --project <ID>
+vidgen tune --project <ID> --voice banmai --music-search "upbeat acoustic" --music-volume 0.35
+vidgen confirm --project <ID>
+vidgen generate --project <ID> --output out.mp4
+```
+
 ## Development
 
 ```bash
 go build ./cmd/vidgen
-./vidgen
+go test ./...
 ```
