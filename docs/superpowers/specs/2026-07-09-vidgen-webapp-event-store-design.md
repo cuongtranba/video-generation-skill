@@ -93,7 +93,7 @@ Event catalogue (initial):
 
 1. Browser issues a **command** (nats.ws request or HTTP POST) — e.g. `CreateProject`, `GenerateVoiceovers`, `ApproveStoryboard`.
 2. api loads the **Project aggregate** by folding its event stream (or from a snapshot + tail).
-3. api validates invariants — legal status transition, **cost-wall admissibility** (project cost ≤ cap *before* dispatch; matches the three-point anti-goal admissibility check).
+3. api validates invariants — legal status transition, **cost-wall admissibility** (projected cost ≤ configured `COST_CAP_USD` *before* dispatch; matches the three-point anti-goal admissibility check).
 4. api **appends** the resulting event(s) to `VIDGEN_EVENTS`. Append is the commit. Dispatches jobs to `VIDGEN_JOBS` where media work is needed.
 5. Idempotency: command carries a client-generated key; api dedupes via `Nats-Msg-Id` on the events it appends, so retries never double-append. (Mirrors `ref-idempotent-worker`, now at the event level.)
 
@@ -172,8 +172,8 @@ A big-bang rewrite is exactly the kind of wide-guessing effort the reverse torna
 
 ### 5.2 Anti-goal (measured wall) — *candidate, needs human ratification*
 
-> **Per-video generation cost stays ≤ the ratified cap. Type: tripwire (halts committing moves).**
-> The frozen `rule-cost-wall` sets $0.10. The `claude` CLI (free, subscription) → **Agent SDK (paid API)** adds real cost, so the cap value **must be re-ratified by the human** (candidate: raise to $0.15 to absorb script-gen tokens, or keep $0.10 and cap script tokens). Until ratified, the loop treats $0.10 as the wall.
+> **Per-video generation cost stays ≤ the configured cap. Type: tripwire (halts committing moves).**
+> **Ratified: the cap is a configuration value** (`COST_CAP_USD`, operator-set via config/env; default `$0.15` to absorb Agent SDK script tokens). The frozen `rule-cost-wall` stays inviolable — only its *value* becomes config, still enforced in the aggregate at admissibility and read from the cost ledger after. Changing the config value is a human-frame act, not a loop move.
 
 **Secondary drift gauge:** Go `worker` media tests (`render`/`tts`/`caption`) pass rate must stay **100%** — a rewrite that regresses the proven pipeline is failing even if features land.
 
