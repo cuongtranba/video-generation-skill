@@ -53,6 +53,41 @@ func (c Config) ValidateForGenerate() error {
 	return nil
 }
 
+// ValidateForProviders checks that every credential required by the SELECTED
+// providers is present. Unselected providers' keys are not required.
+func (c Config) ValidateForProviders(p ProvidersConfig) error {
+	var missing []string
+
+	switch p.TTS.Provider {
+	case "fpt":
+		if c.FPTTTSAPIKey == "" {
+			missing = append(missing, "FPT_TTS_API_KEY")
+		}
+	}
+
+	for _, name := range p.Material.Providers {
+		switch name {
+		case "pexels":
+			if c.PexelsAPIKey == "" {
+				missing = append(missing, "PEXELS_API_KEY")
+			}
+		case "pixabay":
+			if c.PixabayAPIKey == "" {
+				missing = append(missing, "PIXABAY_API_KEY")
+			}
+		}
+	}
+
+	if p.Music.Provider == "jamendo" && c.JamendoClientID == "" {
+		missing = append(missing, "JAMENDO_CLIENT_ID")
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required config for selected providers: %s", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
 func parseDotEnv(path string) (map[string]string, error) {
 	vals := map[string]string{}
 	if path == "" {
