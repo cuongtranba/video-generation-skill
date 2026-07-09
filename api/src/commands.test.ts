@@ -7,6 +7,7 @@ import { generateScript } from './commands.js'
 import { InvalidTransitionError, ProjectNotFoundError } from './aggregate.js'
 import { resolveMaterial, generateVoiceovers } from './commands.js'
 import { CostCapExceededError } from './cost.js'
+import { requestApproval, approveStoryboard } from './commands.js'
 
 function fakePublisher(): Publisher & { published: Array<{ subject: string; data: string; msgID?: string }> } {
   const published: Array<{ subject: string; data: string; msgID?: string }> = []
@@ -125,5 +126,29 @@ describe('generateVoiceovers', () => {
     await expect(generateVoiceovers(ctx, { projectId: 'p1' })).rejects.toThrow(CostCapExceededError)
     expect(store.events).toHaveLength(materialEvents.length)
     expect(js.published).toHaveLength(0)
+  })
+})
+
+describe('requestApproval', () => {
+  it('appends AwaitingApproval', async () => {
+    const store = createInMemoryEventStore(materialEvents)
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15)
+    const state = await requestApproval(ctx, { projectId: 'p1' })
+    expect(state.status).toBe('awaiting_approval')
+    expect(js.published.map((m) => m.subject)).toEqual(['vidgen.evt.p1.AwaitingApproval'])
+  })
+})
+
+describe('approveStoryboard', () => {
+  it('appends ApprovalGranted and dispatches a render job', async () => {
+    const events = [...materialEvents, { v: 1 as const, type: 'AwaitingApproval' as const, projectId: 'p1', at: 't4' }]
+    const store = createInMemoryEventStore(events)
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15)
+    const state = await approveStoryboard(ctx, { projectId: 'p1' })
+    expect(state.status).toBe('approved')
+    expect(state.approved).toBe(true)
+    expect(js.published.map((m) => m.subject)).toEqual(['vidgen.evt.p1.ApprovalGranted', 'vidgen.job.render.p1.-'])
   })
 })

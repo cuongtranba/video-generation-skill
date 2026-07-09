@@ -78,6 +78,27 @@ export async function generateScript(ctx: CommandContext, input: GenerateScriptI
   return foldProject([...events, event])
 }
 
+export async function requestApproval(ctx: CommandContext, input: RequestApprovalInput): Promise<ProjectState> {
+  const events = await ctx.store.loadEvents(input.projectId)
+  const state = assertExists(events, input.projectId)
+  assertTransition('RequestApproval', state)
+  const event: VidgenEvent = { v: 1, type: 'AwaitingApproval', projectId: input.projectId, at: ctx.now() }
+  await ctx.store.append(event)
+  await publishEvent(ctx.js, event)
+  return foldProject([...events, event])
+}
+
+export async function approveStoryboard(ctx: CommandContext, input: ApproveStoryboardInput): Promise<ProjectState> {
+  const events = await ctx.store.loadEvents(input.projectId)
+  const state = assertExists(events, input.projectId)
+  assertTransition('ApproveStoryboard', state)
+  const event: VidgenEvent = { v: 1, type: 'ApprovalGranted', projectId: input.projectId, at: ctx.now() }
+  await ctx.store.append(event)
+  await publishEvent(ctx.js, event)
+  await dispatchJob(ctx.js, 'render', input.projectId, null, {})
+  return foldProject([...events, event])
+}
+
 export async function resolveMaterial(ctx: CommandContext, input: ResolveMaterialInput): Promise<ProjectState> {
   const events = await ctx.store.loadEvents(input.projectId)
   const state = assertExists(events, input.projectId)
