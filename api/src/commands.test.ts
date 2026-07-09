@@ -5,6 +5,8 @@ import type { Scene } from './events.js'
 import { createCommandContext, createProject, type ScriptGenerator } from './commands.js'
 import { generateScript } from './commands.js'
 import { InvalidTransitionError, ProjectNotFoundError } from './aggregate.js'
+import { resolveMaterial, generateVoiceovers } from './commands.js'
+import { CostCapExceededError } from './cost.js'
 
 function fakePublisher(): Publisher & { published: Array<{ subject: string; data: string; msgID?: string }> } {
   const published: Array<{ subject: string; data: string; msgID?: string }> = []
@@ -63,5 +65,65 @@ describe('generateScript', () => {
     ])
     const ctx = createCommandContext(store, fakePublisher(), fixedScriptGen, 0.15)
     await expect(generateScript(ctx, { projectId: 'p1' })).rejects.toThrow(InvalidTransitionError)
+  })
+})
+
+const scriptedEvents = [
+  { v: 1 as const, type: 'ProjectCreated' as const, projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 2, tone: 'casual' },
+  {
+    v: 1 as const,
+    type: 'ScriptGenerated' as const,
+    projectId: 'p1',
+    at: 't1',
+    scenes: [
+      { idx: 0, narration: 'scene zero narration', visual: 'a' },
+      { idx: 1, narration: 'scene one narration', visual: 'b' },
+    ],
+    scriptUsd: 0,
+  },
+]
+
+const materialEvents = [
+  ...scriptedEvents,
+  { v: 1 as const, type: 'MaterialResolved' as const, projectId: 'p1', at: 't2', sceneIdx: 0, source: 'pexels', assetPath: '/m/0.mp4' },
+  { v: 1 as const, type: 'MaterialResolved' as const, projectId: 'p1', at: 't3', sceneIdx: 1, source: 'pexels', assetPath: '/m/1.mp4' },
+]
+
+describe('resolveMaterial', () => {
+  it('dispatches one material job per scene and appends no event', async () => {
+    const store = createInMemoryEventStore(scriptedEvents)
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15)
+    const before = store.events.length
+    await resolveMaterial(ctx, { projectId: 'p1' })
+    expect(store.events).toHaveLength(before)
+    expect(js.published.map((m) => m.subject)).toEqual(['vidgen.job.material.p1.0', 'vidgen.job.material.p1.1'])
+  })
+})
+
+describe('generateVoiceovers', () => {
+  it('appends CostProjected then dispatches tts and caption jobs when under the cap', async () => {
+    const store = createInMemoryEventStore(materialEvents)
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15)
+    const state = await generateVoiceovers(ctx, { projectId: 'p1' })
+    expect(state.status).toBe('material') // CostProjected does not change status
+    expect(store.events.at(-1)).toMatchObject({ type: 'CostProjected', capUsd: 0.15 })
+    expect(js.published.map((m) => m.subject)).toEqual([
+      'vidgen.evt.p1.CostProjected',
+      'vidgen.job.tts.p1.0',
+      'vidgen.job.tts.p1.1',
+      'vidgen.job.caption.p1.0',
+      'vidgen.job.caption.p1.1',
+    ])
+  })
+
+  it('vetoes when projected cost exceeds the cap — no event, no jobs', async () => {
+    const store = createInMemoryEventStore(materialEvents)
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.00001) // cap far below 2 scenes of TTS
+    await expect(generateVoiceovers(ctx, { projectId: 'p1' })).rejects.toThrow(CostCapExceededError)
+    expect(store.events).toHaveLength(materialEvents.length)
+    expect(js.published).toHaveLength(0)
   })
 })

@@ -77,3 +77,41 @@ export async function generateScript(ctx: CommandContext, input: GenerateScriptI
   await publishEvent(ctx.js, event)
   return foldProject([...events, event])
 }
+
+export async function resolveMaterial(ctx: CommandContext, input: ResolveMaterialInput): Promise<ProjectState> {
+  const events = await ctx.store.loadEvents(input.projectId)
+  const state = assertExists(events, input.projectId)
+  assertTransition('ResolveMaterial', state)
+  for (const scene of state.scenes) {
+    await dispatchJob(ctx.js, 'material', input.projectId, scene.idx, { narration: scene.narration, visual: scene.visual })
+  }
+  return state
+}
+
+export async function generateVoiceovers(ctx: CommandContext, input: GenerateVoiceoversInput): Promise<ProjectState> {
+  const events = await ctx.store.loadEvents(input.projectId)
+  const state = assertExists(events, input.projectId)
+  assertTransition('GenerateVoiceovers', state)
+  const additionalUsd = projectedTtsUsd(state.scenes)
+  const result = admit(state, additionalUsd, ctx.costCapUsd)
+  if (!result.admitted) {
+    throw new CostCapExceededError(result.projectedUsd, result.capUsd)
+  }
+  const event: VidgenEvent = {
+    v: 1,
+    type: 'CostProjected',
+    projectId: input.projectId,
+    at: ctx.now(),
+    projectedUsd: result.projectedUsd,
+    capUsd: result.capUsd,
+  }
+  await ctx.store.append(event)
+  await publishEvent(ctx.js, event)
+  for (const scene of state.scenes) {
+    await dispatchJob(ctx.js, 'tts', input.projectId, scene.idx, { narration: scene.narration })
+  }
+  for (const scene of state.scenes) {
+    await dispatchJob(ctx.js, 'caption', input.projectId, scene.idx, {})
+  }
+  return foldProject([...events, event])
+}
