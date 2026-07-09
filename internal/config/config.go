@@ -41,20 +41,6 @@ func Load(envPath string) (Config, error) {
 	}, nil
 }
 
-func (c Config) ValidateForGenerate() error {
-	var missing []string
-	if c.FPTTTSAPIKey == "" {
-		missing = append(missing, "FPT_TTS_API_KEY")
-	}
-	if c.PexelsAPIKey == "" {
-		missing = append(missing, "PEXELS_API_KEY")
-	}
-	if len(missing) > 0 {
-		return fmt.Errorf("missing required config: %s", strings.Join(missing, ", "))
-	}
-	return nil
-}
-
 // ValidateForProviders checks that every credential required by the SELECTED
 // providers is present. Unselected providers' keys are not required.
 func (c Config) ValidateForProviders(p ProvidersConfig) error {

@@ -74,10 +74,10 @@ func (a *app) init(baseDir, cfgPath string) error {
 	}
 	providers, err := config.LoadProviders(cfgPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("load providers config: %w", err)
 	}
 	if err := cfg.ValidateForProviders(providers); err != nil {
-		return err
+		return fmt.Errorf("validate providers config: %w", err)
 	}
 	a.cfg = cfg
 	a.providers = providers
@@ -89,15 +89,15 @@ func (a *app) init(baseDir, cfgPath string) error {
 
 	stock, err := material.NewFromConfig(providers.Material, cfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("init material source: %w", err)
 	}
 	ttsProvider, err := tts.NewFromConfig(providers.TTS, cfg.FPTTTSAPIKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("init tts provider: %w", err)
 	}
 	musicSource, err := music.NewFromConfig(providers.Music, cfg.JamendoClientID)
 	if err != nil {
-		return err
+		return fmt.Errorf("init music source: %w", err)
 	}
 
 	a.flow = flow.New(flow.Deps{

@@ -69,26 +69,6 @@ func TestEnvVarOverridesDotEnv(t *testing.T) {
 	}
 }
 
-func TestValidateForGenerate(t *testing.T) {
-	tests := []struct {
-		name    string
-		cfg     Config
-		wantErr bool
-	}{
-		{"all set", Config{FPTTTSAPIKey: "a", PexelsAPIKey: "b"}, false},
-		{"missing fpt", Config{PexelsAPIKey: "b"}, true},
-		{"missing pexels", Config{FPTTTSAPIKey: "a"}, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.cfg.ValidateForGenerate()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateForGenerate() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestValidateForProvidersMusicNoneSkipsJamendo(t *testing.T) {
 	cfg := Config{FPTTTSAPIKey: "k", PexelsAPIKey: "p", PixabayAPIKey: "x"}
 	providers := DefaultProvidersConfig()
