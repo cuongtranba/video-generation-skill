@@ -99,6 +99,29 @@ export async function approveStoryboard(ctx: CommandContext, input: ApproveStory
   return foldProject([...events, event])
 }
 
+export async function publish(ctx: CommandContext, input: PublishInput): Promise<ProjectState> {
+  const events = await ctx.store.loadEvents(input.projectId)
+  const state = assertExists(events, input.projectId)
+  assertTransition('Publish', state)
+  // P1 stub: the real TikTok publish call is a Go worker concern (P3), not
+  // yet built. index.md §5 freezes this command as appending Published
+  // directly (no job dispatch), so we synthesize a deterministic result
+  // from the command body until P3's publish result event replaces this.
+  const postId = randomUUID()
+  const event: VidgenEvent = {
+    v: 1,
+    type: 'Published',
+    projectId: input.projectId,
+    at: ctx.now(),
+    platform: input.privacy,
+    postId,
+    url: `https://vidgen.local/p/${postId}`,
+  }
+  await ctx.store.append(event)
+  await publishEvent(ctx.js, event)
+  return foldProject([...events, event])
+}
+
 export async function resolveMaterial(ctx: CommandContext, input: ResolveMaterialInput): Promise<ProjectState> {
   const events = await ctx.store.loadEvents(input.projectId)
   const state = assertExists(events, input.projectId)

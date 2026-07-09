@@ -8,6 +8,7 @@ import { InvalidTransitionError, ProjectNotFoundError } from './aggregate.js'
 import { resolveMaterial, generateVoiceovers } from './commands.js'
 import { CostCapExceededError } from './cost.js'
 import { requestApproval, approveStoryboard } from './commands.js'
+import { publish } from './commands.js'
 
 function fakePublisher(): Publisher & { published: Array<{ subject: string; data: string; msgID?: string }> } {
   const published: Array<{ subject: string; data: string; msgID?: string }> = []
@@ -150,5 +151,23 @@ describe('approveStoryboard', () => {
     expect(state.status).toBe('approved')
     expect(state.approved).toBe(true)
     expect(js.published.map((m) => m.subject)).toEqual(['vidgen.evt.p1.ApprovalGranted', 'vidgen.job.render.p1.-'])
+  })
+})
+
+describe('publish', () => {
+  it('appends Published from a rendered project', async () => {
+    const events = [
+      ...materialEvents,
+      { v: 1 as const, type: 'AwaitingApproval' as const, projectId: 'p1', at: 't4' },
+      { v: 1 as const, type: 'ApprovalGranted' as const, projectId: 'p1', at: 't5' },
+      { v: 1 as const, type: 'RenderCompleted' as const, projectId: 'p1', at: 't6', outputPath: '/m/p1.mp4', renderUsd: 0 },
+    ]
+    const store = createInMemoryEventStore(events)
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15)
+    const state = await publish(ctx, { projectId: 'p1', caption: 'hello', privacy: 'public' })
+    expect(state.status).toBe('published')
+    const appended = store.events.at(-1)
+    expect(appended).toMatchObject({ type: 'Published', platform: 'public' })
   })
 })
