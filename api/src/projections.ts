@@ -74,8 +74,39 @@ export async function applyProjection(db: Database, event: VidgenEvent): Promise
       // Observability only — projected cost is not part of the enforced
       // ledger total (index.md §6: enforced total = Σ ttsUsd + renderUsd).
       break
-    default:
-      break // remaining event types handled in Task 18
+    case 'AwaitingApproval':
+      await db.query(`UPDATE projects SET status = 'awaiting_approval', updated_at = $2 WHERE project_id = $1`, [event.projectId, event.at])
+      break
+    case 'ApprovalGranted':
+      await db.query(`UPDATE projects SET status = 'approved', approved = TRUE, updated_at = $2 WHERE project_id = $1`, [event.projectId, event.at])
+      break
+    case 'RenderCompleted':
+      await db.query(
+        `UPDATE projects SET status = 'rendered', output_path = $2, updated_at = $3 WHERE project_id = $1`,
+        [event.projectId, event.outputPath, event.at],
+      )
+      await db.query(
+        `INSERT INTO assets (project_id, scene_idx, kind, path, created_at)
+         VALUES ($1, NULL, 'render', $2, $3)
+         ON CONFLICT (project_id, kind, (COALESCE(scene_idx, -1)))
+         DO UPDATE SET path = EXCLUDED.path, created_at = EXCLUDED.created_at`,
+        [event.projectId, event.outputPath, event.at],
+      )
+      await db.query(
+        `INSERT INTO cost_ledger (project_id, event_type, scene_idx, amount_usd, at)
+         VALUES ($1, 'RenderCompleted', NULL, $2, $3)
+         ON CONFLICT (project_id, event_type, (COALESCE(scene_idx, -1)))
+         DO UPDATE SET amount_usd = EXCLUDED.amount_usd, at = EXCLUDED.at`,
+        [event.projectId, event.renderUsd, event.at],
+      )
+      await recomputeSpentUsd(db, event.projectId)
+      break
+    case 'Published':
+      await db.query(`UPDATE projects SET status = 'published', updated_at = $2 WHERE project_id = $1`, [event.projectId, event.at])
+      break
+    case 'RunFailed':
+      await db.query(`UPDATE projects SET status = 'failed', updated_at = $2 WHERE project_id = $1`, [event.projectId, event.at])
+      break
   }
 }
 
@@ -84,4 +115,39 @@ async function recomputeSpentUsd(db: Database, projectId: string): Promise<void>
     `UPDATE projects SET spent_usd = COALESCE((SELECT SUM(amount_usd) FROM cost_ledger WHERE project_id = $1), 0) WHERE project_id = $1`,
     [projectId],
   )
+}
+
+import type { JetStreamClient, JetStreamManager } from '@nats-io/jetstream'
+import { EVENTS_STREAM, ensureDurableConsumer, deleteDurableConsumer, consumeEvents } from './nats.js'
+
+/** Long-running: wires the durable "projections" consumer to fold every new
+ * VIDGEN_EVENTS message into Postgres. Backlog is delivered first (durable
+ * consumers with DeliverPolicy.All start at the beginning on first
+ * creation), then live events as they arrive. Never resolves in normal
+ * operation — callers run it as a background task. */
+export async function runProjections(js: JetStreamClient, jsm: JetStreamManager, db: Database): Promise<void> {
+  await ensureDurableConsumer(jsm, PROJECTIONS_CONSUMER)
+  await consumeEvents(js, PROJECTIONS_CONSUMER, (event) => applyProjection(db, event))
+}
+
+/** Postgres is disposable (spec §2.5): wipe the read-model tables, drop the
+ * durable consumer's ack floor by deleting and recreating it, then
+ * synchronously fetch every stored event from stream seq 0 and re-fold it.
+ * Bounded (returns once a fetch comes back empty), unlike runProjections. */
+export async function rebuildProjections(js: JetStreamClient, jsm: JetStreamManager, db: Database): Promise<void> {
+  await db.query('TRUNCATE cost_ledger, assets, scenes, projects RESTART IDENTITY CASCADE')
+  await deleteDurableConsumer(jsm, PROJECTIONS_CONSUMER)
+  await ensureDurableConsumer(jsm, PROJECTIONS_CONSUMER)
+  const consumer = await js.consumers.get(EVENTS_STREAM, PROJECTIONS_CONSUMER)
+  for (;;) {
+    const batch = await consumer.fetch({ max_messages: 1000, expires: 1000 }) // @nats-io/jetstream@3.4.0 requires expires >= 1000ms
+    let count = 0
+    for await (const m of batch) {
+      const event = m.json<VidgenEvent>()
+      await applyProjection(db, event)
+      m.ack()
+      count++
+    }
+    if (count === 0) break
+  }
 }

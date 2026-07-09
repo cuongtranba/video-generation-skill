@@ -2305,7 +2305,7 @@ export async function rebuildProjections(js: JetStreamClient, jsm: JetStreamMana
   await ensureDurableConsumer(jsm, PROJECTIONS_CONSUMER)
   const consumer = await js.consumers.get(EVENTS_STREAM, PROJECTIONS_CONSUMER)
   for (;;) {
-    const batch = await consumer.fetch({ max_messages: 1000, expires: 500 })
+    const batch = await consumer.fetch({ max_messages: 1000, expires: 1000 } // @nats-io/jetstream@3.4.0 requires expires >= 1000ms)
     let count = 0
     for await (const m of batch) {
       const event = m.json<VidgenEvent>()
