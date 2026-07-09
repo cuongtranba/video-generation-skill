@@ -10,6 +10,8 @@ CLI tool that turns an idea into a ready-to-post short-form vertical video (9:16
    cost: $0.0036
 ```
 
+> **New to vidgen?** Start with the [Getting Started guide](docs/GETTING_STARTED.md) — from install to your first rendered video, step by step.
+
 ## Demo
 
 ▶️ [docs/demo.mp4](docs/demo.mp4) — generated from the idea above: 3 scenes, Pexels footage, FPT.AI `banmai` voice, word-timed captions, Jamendo background music.
@@ -143,8 +145,8 @@ publish:
 
 ```mermaid
 flowchart TB
-    subgraph CLI["5-step CLI (cobra)"]
-        S1["new"] --> S2["material"] --> S3["tune"] --> S4["confirm"] --> S5["generate"]
+    subgraph CLI["6-step CLI (cobra) + list"]
+        S1["new"] --> S2["material"] --> S3["tune"] --> S4["confirm"] --> S5["generate"] --> S6["publish"]
     end
 
     subgraph GEN["generate: embedded NATS JetStream"]
