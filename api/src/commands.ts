@@ -57,3 +57,23 @@ export async function createProject(ctx: CommandContext, input: CreateProjectInp
   await publishEvent(ctx.js, event)
   return { projectId }
 }
+
+export async function generateScript(ctx: CommandContext, input: GenerateScriptInput): Promise<ProjectState> {
+  const events = await ctx.store.loadEvents(input.projectId)
+  const state = assertExists(events, input.projectId)
+  assertTransition('GenerateScript', state)
+  const created = events.find((e): e is Extract<VidgenEvent, { type: 'ProjectCreated' }> => e.type === 'ProjectCreated')
+  if (!created) throw new Error(`project ${input.projectId} missing ProjectCreated event`)
+  const { scenes } = await ctx.scriptGen.generateScenes(created.idea, created.durationSec, created.sceneCount, created.tone)
+  const event: VidgenEvent = {
+    v: 1,
+    type: 'ScriptGenerated',
+    projectId: input.projectId,
+    at: ctx.now(),
+    scenes,
+    scriptUsd: 0, // BINDING (index.md §6): Agent SDK notional cost is never enforced
+  }
+  await ctx.store.append(event)
+  await publishEvent(ctx.js, event)
+  return foldProject([...events, event])
+}
