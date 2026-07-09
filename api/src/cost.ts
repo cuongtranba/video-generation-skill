@@ -1,4 +1,5 @@
 import type { Scene, ProjectState } from './events.js'
+import type { Database } from './db.js'
 
 /** Real FPT.AI TTS price per character, in USD. Mirrors
  * internal/cost/estimator.go's FPTAIPerChar — keep both in sync if the FPT
@@ -39,4 +40,24 @@ export class CostCapExceededError extends Error {
     super(`projected cost $${projectedUsd.toFixed(4)} exceeds cap $${capUsd.toFixed(2)}`)
     this.name = 'CostCapExceededError'
   }
+}
+
+export interface LedgerEntry {
+  eventType: string
+  sceneIdx: number | null
+  amountUsd: number
+  at: string
+}
+
+export async function readLedger(db: Database, projectId: string): Promise<LedgerEntry[]> {
+  const result = await db.query<{ event_type: string; scene_idx: number | null; amount_usd: string; at: Date }>(
+    'SELECT event_type, scene_idx, amount_usd, at FROM cost_ledger WHERE project_id = $1 ORDER BY at ASC',
+    [projectId],
+  )
+  return result.rows.map((row) => ({
+    eventType: row.event_type,
+    sceneIdx: row.scene_idx,
+    amountUsd: Number(row.amount_usd),
+    at: row.at.toISOString(),
+  }))
 }
