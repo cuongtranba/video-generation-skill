@@ -10,5 +10,37 @@ services:
       - ./deploy/nats/nats.conf:/etc/nats/nats.conf:ro
       - nats-data:/data
 
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vidgen
+      POSTGRES_PASSWORD: vidgen
+      POSTGRES_DB: vidgen
+    ports:
+      - "5433:5432"   # host 5433 — matches api/src's local-dev default DATABASE_URL
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    depends_on:
+      - nats
+      - postgres
+    environment:
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgres://vidgen:vidgen@postgres:5432/vidgen
+      COST_CAP_USD: "0.15"
+      PORT: "8080"
+      SPA_DIR: /app/public
+      MEDIA_DIR: /app/media
+    ports:
+      - "8080:8080"
+    volumes:
+      - media-data:/app/media
+
 volumes:
   nats-data:
+  postgres-data:
+  media-data:
