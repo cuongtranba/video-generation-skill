@@ -58,4 +58,39 @@ describe.skipIf(!up)('applyProjection (integration)', () => {
     const result = await db.query('SELECT count(*)::int AS n FROM projects WHERE project_id = $1', ['p1'])
     expect(result.rows[0]).toEqual({ n: 1 })
   })
+
+  it('MaterialResolved sets status to material and records a material asset', async () => {
+    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
+    await applyProjection(db, { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: '2026-07-09T00:00:01Z', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 })
+    await applyProjection(db, { v: 1, type: 'MaterialResolved', projectId: 'p1', at: '2026-07-09T00:00:02Z', sceneIdx: 0, source: 'pexels', assetPath: '/m/0.mp4' })
+    const project = await db.query('SELECT status FROM projects WHERE project_id = $1', ['p1'])
+    expect(project.rows[0]).toEqual({ status: 'material' })
+    const asset = await db.query('SELECT kind, path FROM assets WHERE project_id = $1', ['p1'])
+    expect(asset.rows).toEqual([{ kind: 'material', path: '/m/0.mp4' }])
+  })
+
+  it('VoiceSynthesized records a voice asset, a ledger row, and recomputes spent_usd', async () => {
+    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
+    await applyProjection(db, { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: '2026-07-09T00:00:01Z', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 })
+    await applyProjection(db, { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at: '2026-07-09T00:00:02Z', sceneIdx: 0, mp3Path: '/m/0.mp3', ttsUsd: 0.0007 })
+    const project = await db.query('SELECT spent_usd FROM projects WHERE project_id = $1', ['p1'])
+    expect(Number(project.rows[0].spent_usd)).toBeCloseTo(0.0007)
+    const ledger = await db.query('SELECT event_type, amount_usd FROM cost_ledger WHERE project_id = $1', ['p1'])
+    expect(ledger.rows).toEqual([{ event_type: 'VoiceSynthesized', amount_usd: '0.0007' }])
+  })
+
+  it('CaptionsBuilt records an ass_path on the scene and a caption asset', async () => {
+    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
+    await applyProjection(db, { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: '2026-07-09T00:00:01Z', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 })
+    await applyProjection(db, { v: 1, type: 'CaptionsBuilt', projectId: 'p1', at: '2026-07-09T00:00:02Z', sceneIdx: 0, assPath: '/m/0.ass' })
+    const scene = await db.query('SELECT ass_path FROM scenes WHERE project_id = $1 AND idx = 0', ['p1'])
+    expect(scene.rows[0]).toEqual({ ass_path: '/m/0.ass' })
+  })
+
+  it('CostProjected does not error and does not add to the ledger (observability only)', async () => {
+    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
+    await applyProjection(db, { v: 1, type: 'CostProjected', projectId: 'p1', at: '2026-07-09T00:00:01Z', projectedUsd: 0.01, capUsd: 0.15 })
+    const ledger = await db.query('SELECT count(*)::int AS n FROM cost_ledger WHERE project_id = $1', ['p1'])
+    expect(ledger.rows[0]).toEqual({ n: 0 })
+  })
 })

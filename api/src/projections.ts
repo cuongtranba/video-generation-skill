@@ -26,7 +26,62 @@ export async function applyProjection(db: Database, event: VidgenEvent): Promise
         )
       }
       break
+    case 'MaterialResolved':
+      await db.query(`UPDATE projects SET status = 'material', updated_at = $2 WHERE project_id = $1`, [event.projectId, event.at])
+      await db.query(
+        `UPDATE scenes SET material_source = $3, material_path = $4 WHERE project_id = $1 AND idx = $2`,
+        [event.projectId, event.sceneIdx, event.source, event.assetPath],
+      )
+      await db.query(
+        `INSERT INTO assets (project_id, scene_idx, kind, path, created_at)
+         VALUES ($1, $2, 'material', $3, $4)
+         ON CONFLICT (project_id, kind, (COALESCE(scene_idx, -1)))
+         DO UPDATE SET path = EXCLUDED.path, created_at = EXCLUDED.created_at`,
+        [event.projectId, event.sceneIdx, event.assetPath, event.at],
+      )
+      break
+    case 'VoiceSynthesized':
+      await db.query(`UPDATE scenes SET mp3_path = $3, tts_usd = $4 WHERE project_id = $1 AND idx = $2`, [
+        event.projectId, event.sceneIdx, event.mp3Path, event.ttsUsd,
+      ])
+      await db.query(
+        `INSERT INTO assets (project_id, scene_idx, kind, path, created_at)
+         VALUES ($1, $2, 'voice', $3, $4)
+         ON CONFLICT (project_id, kind, (COALESCE(scene_idx, -1)))
+         DO UPDATE SET path = EXCLUDED.path, created_at = EXCLUDED.created_at`,
+        [event.projectId, event.sceneIdx, event.mp3Path, event.at],
+      )
+      await db.query(
+        `INSERT INTO cost_ledger (project_id, event_type, scene_idx, amount_usd, at)
+         VALUES ($1, 'VoiceSynthesized', $2, $3, $4)
+         ON CONFLICT (project_id, event_type, (COALESCE(scene_idx, -1)))
+         DO UPDATE SET amount_usd = EXCLUDED.amount_usd, at = EXCLUDED.at`,
+        [event.projectId, event.sceneIdx, event.ttsUsd, event.at],
+      )
+      await recomputeSpentUsd(db, event.projectId)
+      break
+    case 'CaptionsBuilt':
+      await db.query(`UPDATE scenes SET ass_path = $3 WHERE project_id = $1 AND idx = $2`, [event.projectId, event.sceneIdx, event.assPath])
+      await db.query(
+        `INSERT INTO assets (project_id, scene_idx, kind, path, created_at)
+         VALUES ($1, $2, 'caption', $3, $4)
+         ON CONFLICT (project_id, kind, (COALESCE(scene_idx, -1)))
+         DO UPDATE SET path = EXCLUDED.path, created_at = EXCLUDED.created_at`,
+        [event.projectId, event.sceneIdx, event.assPath, event.at],
+      )
+      break
+    case 'CostProjected':
+      // Observability only — projected cost is not part of the enforced
+      // ledger total (index.md §6: enforced total = Σ ttsUsd + renderUsd).
+      break
     default:
-      break // remaining event types handled in Tasks 17–18
+      break // remaining event types handled in Task 18
   }
+}
+
+async function recomputeSpentUsd(db: Database, projectId: string): Promise<void> {
+  await db.query(
+    `UPDATE projects SET spent_usd = COALESCE((SELECT SUM(amount_usd) FROM cost_ledger WHERE project_id = $1), 0) WHERE project_id = $1`,
+    [projectId],
+  )
 }
