@@ -226,8 +226,8 @@ Skeleton:
 cd worker && go test ./...                                    # Go worker unit tests
 cd worker && go test -tags=integration ./internal/render/...  # real FFmpeg render test
 cd worker && go vet ./...
-cd api && npm test
-cd frontend && npm test && npm run lint
+cd api && bun test
+cd frontend && bun test && bun run lint
 docker compose up --build                                     # full stack
 ```
 
@@ -266,8 +266,8 @@ docker compose up --build       # full stack: nats, postgres, api, worker, front
 cd worker && go test ./...      # Go worker unit tests — must stay green
 cd worker && go test -tags=integration ./internal/render/...   # real FFmpeg render (needs libass build)
 cd worker && go vet ./...       # must be clean
-cd api && npm test
-cd frontend && npm test && npm run lint
+cd api && bun test
+cd frontend && bun test && bun run lint
 ```
 
 - [ ] **Step 4: "## Architecture (1 minute)" → rewrite bullets**
@@ -405,7 +405,7 @@ Re-onboard the C3 topology from a single operator-facing CLI process to the weba
 
 ## Verification
 
-(fill from Task 7 — `c3 check`, `c3 eval`, `go test`/`npm test`/`docker compose up` results)
+(fill from Task 7 — `c3 check`, `c3 eval`, `go test`/`bun test`/`docker compose up` results)
 ```
 
 Then:
@@ -1101,10 +1101,10 @@ Expected: PASS, especially `render`/`tts`/`caption` packages (spec §5.1 seconda
 - [ ] **Step 2: api + frontend test suites**
 
 ```bash
-cd api && npm test
-cd frontend && npm test && npm run lint
+cd api && bun test
+cd frontend && bun test && bun run lint
 ```
-Expected: PASS. `npm run lint` must additionally demonstrate the fixture-component-using-`useState` failing lint (spec §2.8 CI gate) — confirm that fixture test exists and is red-on-purpose against a `useState` violation, green otherwise.
+Expected: PASS. `bun run lint` must additionally demonstrate the fixture-component-using-`useState` failing lint (spec §2.8 CI gate) — confirm that fixture test exists and is red-on-purpose against a `useState` violation, green otherwise.
 
 - [ ] **Step 3: `go vet` scope check**
 

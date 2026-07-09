@@ -6,7 +6,7 @@
 
 **Architecture:** Event-sourced CQRS. `api` is the only writer to stream `VIDGEN_EVENTS` (source of truth); commands fold the aggregate from that stream, check invariants + cost admissibility, then append event(s) and/or dispatch job(s) to `VIDGEN_JOBS`. A durable consumer folds `VIDGEN_EVENTS` into disposable Postgres read-model tables. A tiny `node:http` router serves commands, baseline reads, the SPA, and `/media/*`.
 
-**Tech Stack:** Node.js (TypeScript, ESM/NodeNext), `@nats-io/transport-node` + `@nats-io/jetstream` (verified against Context7 `/nats-io/nats.js`), `pg` (verified against Context7 `/brianc/node-postgres`), `vitest` (verified against Context7 `/vitest-dev/vitest`), Postgres 16, Docker Compose.
+**Tech Stack:** Node.js (TypeScript, ESM/NodeNext) on the Bun runtime, `@nats-io/transport-node` + `@nats-io/jetstream` (verified against Context7 `/nats-io/nats.js`), `pg` (verified against Context7 `/brianc/node-postgres`), `bun:test` (verified against Context7), Postgres 16, Docker Compose.
 
 ---
 
@@ -21,7 +21,7 @@
 
 ## Local dev prerequisites (read before Task 1)
 
-Several tasks include integration tests that need a live NATS and/or Postgres. Start them once, before running `npm test` in `api/`:
+Several tasks include integration tests that need a live NATS and/or Postgres. Start them once, before running `bun test` in `api/`:
 
 ```bash
 docker compose up -d nats
@@ -33,7 +33,7 @@ Postgres isn't in `docker-compose.yml` yet — Task 21 adds it. Until then, run 
 docker run -d --name vidgen-test-pg -e POSTGRES_USER=vidgen -e POSTGRES_PASSWORD=vidgen -e POSTGRES_DB=vidgen -p 5433:5432 postgres:16-alpine
 ```
 
-Every integration test in this plan checks reachability at the top of the test and calls `ctx.skip(...)` with a message if the service isn't up — so `npm test` stays green with zero services running, and exercises the real wire protocol when they are. Env vars, with their defaults if unset:
+Every integration test file in this plan probes reachability once at module load (a top-level `await`) and gates its suite with `describe.skipIf`/`it.skipIf` if the service isn't up — so `bun test` stays green with zero services running, and exercises the real wire protocol when they are. Env vars, with their defaults if unset:
 
 - `NATS_URL` → `nats://localhost:4223` (host-mapped port per index §8; compose sets this to `nats://nats:4222` for the `api` container).
 - `DATABASE_URL` → `postgres://vidgen:vidgen@localhost:5433/vidgen` (compose sets this to `postgres://vidgen:vidgen@postgres:5432/vidgen` for the `api` container).
@@ -45,7 +45,6 @@ Every integration test in this plan checks reachability at the top of the test a
 **Files:**
 - Create: `api/package.json`
 - Create: `api/tsconfig.json`
-- Create: `api/vitest.config.ts`
 - Create: `api/.gitignore`
 - Create: `api/src/.gitkeep`
 
@@ -62,11 +61,10 @@ Write `api/package.json`:
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "start": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@nats-io/jetstream": "^3.4.0",
@@ -76,9 +74,8 @@ Write `api/package.json`:
   "devDependencies": {
     "@types/node": "^26.1.1",
     "@types/pg": "^8.11.10",
-    "tsx": "^4.23.0",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "bun-types": "latest",
+    "typescript": "^7.0.2"
   }
 }
 ```
@@ -94,8 +91,10 @@ Write `api/tsconfig.json`:
     "lib": ["ES2022"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "types": ["bun-types"],
     "rootDir": "src",
     "outDir": "dist",
+    "noEmit": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
@@ -108,21 +107,7 @@ Write `api/tsconfig.json`:
 }
 ```
 
-- [ ] **Step 3: Create `vitest.config.ts`**
-
-Write `api/vitest.config.ts`:
-
-```ts
-import { defineConfig } from 'vitest/config'
-
-export default defineConfig({
-  test: {
-    include: ['src/**/*.test.ts'],
-  },
-})
-```
-
-- [ ] **Step 4: Create `.gitignore` and a placeholder so `src/` is tracked**
+- [ ] **Step 3: Create `.gitignore` and a placeholder so `src/` is tracked**
 
 Write `api/.gitignore`:
 
@@ -137,16 +122,16 @@ Write `api/src/.gitkeep`:
 ```
 ```
 
-- [ ] **Step 5: Install dependencies**
+- [ ] **Step 4: Install dependencies**
 
-Run: `cd api && npm install`
-Expected: exits 0, `api/node_modules/` and `api/package-lock.json` are created, no error output.
+Run: `cd api && bun install`
+Expected: exits 0, `api/node_modules/` and `api/bun.lock` are created, no error output.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add api/package.json api/package-lock.json api/tsconfig.json api/vitest.config.ts api/.gitignore api/src/.gitkeep
-git commit -m "chore(api): scaffold TypeScript service (package.json, tsconfig, vitest)"
+git add api/package.json api/bun.lock api/tsconfig.json api/.gitignore api/src/.gitkeep
+git commit -m "chore(api): scaffold TypeScript service (package.json, tsconfig, bun:test)"
 ```
 
 ---
@@ -162,7 +147,7 @@ git commit -m "chore(api): scaffold TypeScript service (package.json, tsconfig, 
 Write `api/src/events.test.ts`:
 
 ```ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'bun:test'
 import { foldProject, type VidgenEvent } from './events.js'
 
 describe('foldProject', () => {
@@ -200,7 +185,7 @@ describe('foldProject', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/events.test.ts`
+Run: `cd api && bun test src/events.test.ts`
 Expected: FAIL — `Cannot find module './events.js'` (file doesn't exist yet).
 
 - [ ] **Step 3: Promote `events.ts` verbatim from the spike**
@@ -250,7 +235,7 @@ export function foldProject(events: VidgenEvent[]): ProjectState {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/events.test.ts`
+Run: `cd api && bun test src/events.test.ts`
 Expected: PASS — 3 tests passed.
 
 - [ ] **Step 5: Commit**
@@ -340,30 +325,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS cost_ledger_dedup_idx
 Write `api/src/db.test.ts`:
 
 ```ts
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, afterAll } from 'bun:test'
 import { createPool, migrate, type Database } from './db.js'
 
 const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://vidgen:vidgen@localhost:5433/vidgen'
 
-describe('migrate', () => {
-  let db: Database
-  let reachable = true
+// Probe Postgres reachability once at module load so the suite can be
+// skipped cleanly with zero services running (no local Postgres at DATABASE_URL).
+const db: Database = createPool(DATABASE_URL)
+let up = true
+try {
+  await db.query('SELECT 1')
+} catch {
+  up = false
+}
 
-  beforeAll(async () => {
-    db = createPool(DATABASE_URL)
-    try {
-      await db.query('SELECT 1')
-    } catch {
-      reachable = false
-    }
-  })
-
+describe.skipIf(!up)('migrate', () => {
   afterAll(async () => {
     await db.end()
   })
 
-  it('creates projects, scenes, assets, cost_ledger tables', async (ctx) => {
-    ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+  it('creates projects, scenes, assets, cost_ledger tables', async () => {
     await migrate(db)
     const result = await db.query<{ table_name: string }>(
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`,
@@ -372,8 +354,7 @@ describe('migrate', () => {
     expect(tables).toEqual(expect.arrayContaining(['projects', 'scenes', 'assets', 'cost_ledger']))
   })
 
-  it('is idempotent — running migrate twice does not error', async (ctx) => {
-    ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+  it('is idempotent — running migrate twice does not error', async () => {
     await migrate(db)
     await expect(migrate(db)).resolves.toBeUndefined()
   })
@@ -382,7 +363,7 @@ describe('migrate', () => {
 
 - [ ] **Step 3: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/db.test.ts`
+Run: `cd api && bun test src/db.test.ts`
 Expected: FAIL — `Cannot find module './db.js'`.
 
 - [ ] **Step 4: Implement `db.ts`**
@@ -415,7 +396,7 @@ export async function migrate(db: Database): Promise<void> {
 Run: `docker run -d --name vidgen-test-pg -e POSTGRES_USER=vidgen -e POSTGRES_PASSWORD=vidgen -e POSTGRES_DB=vidgen -p 5433:5432 postgres:16-alpine`
 Expected: prints a container id.
 
-Run: `cd api && npx vitest run src/db.test.ts`
+Run: `cd api && bun test src/db.test.ts`
 Expected: PASS — 2 tests passed (not skipped).
 
 - [ ] **Step 6: Commit**
@@ -438,7 +419,7 @@ git commit -m "feat(api): add Postgres pool + idempotent migrate() with read-mod
 Write `api/src/nats.integration.test.ts`:
 
 ```ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'bun:test'
 import { connectBus, ensureStreams, EVENTS_STREAM, JOBS_STREAM, type Bus } from './nats.js'
 
 const NATS_URL = process.env.NATS_URL ?? 'nats://localhost:4223'
@@ -451,10 +432,16 @@ async function tryConnectBus(): Promise<Bus | null> {
   }
 }
 
+// Probe NATS reachability once at module load so tests can be skipped
+// cleanly (no local NATS at NATS_URL); each test below still calls
+// tryConnectBus() itself since it drains the connection it gets.
+const probeBus = await tryConnectBus()
+const up = probeBus !== null
+await probeBus?.nc.drain()
+
 describe('connectBus + ensureStreams (integration)', () => {
-  it('creates VIDGEN_EVENTS and VIDGEN_JOBS, and is idempotent', async (ctx) => {
+  it.skipIf(!up)('creates VIDGEN_EVENTS and VIDGEN_JOBS, and is idempotent', async () => {
     const bus = await tryConnectBus()
-    ctx.skip(bus === null, `no local NATS at ${NATS_URL}`)
     if (!bus) return
     await ensureStreams(bus.jsm)
     await ensureStreams(bus.jsm) // second call must not throw
@@ -471,7 +458,7 @@ describe('connectBus + ensureStreams (integration)', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/nats.integration.test.ts`
+Run: `cd api && bun test src/nats.integration.test.ts`
 Expected: FAIL — `Cannot find module './nats.js'`.
 
 - [ ] **Step 3: Implement `connectBus` and `ensureStreams`**
@@ -535,7 +522,7 @@ export async function ensureStreams(jsm: JetStreamManager): Promise<void> {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `docker compose up -d nats` then `cd api && npx vitest run src/nats.integration.test.ts`
+Run: `docker compose up -d nats` then `cd api && bun test src/nats.integration.test.ts`
 Expected: PASS — 1 test passed (not skipped).
 
 - [ ] **Step 5: Commit**
@@ -559,7 +546,7 @@ git commit -m "feat(api): connectBus + idempotent ensureStreams for VIDGEN_EVENT
 Write `api/src/nats.test.ts`:
 
 ```ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'bun:test'
 import { eventId, eventSubject, jobSubject } from './nats.js'
 import type { VidgenEvent } from './events.js'
 
@@ -595,7 +582,7 @@ describe('jobSubject', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/nats.test.ts`
+Run: `cd api && bun test src/nats.test.ts`
 Expected: FAIL — `eventId is not exported`.
 
 - [ ] **Step 3: Implement `eventId`, `eventSubject`, `publishEvent`, `jobSubject`, `dispatchJob`**
@@ -656,7 +643,7 @@ export async function dispatchJob(
 
 - [ ] **Step 4: Run the unit test to verify it passes**
 
-Run: `cd api && npx vitest run src/nats.test.ts`
+Run: `cd api && bun test src/nats.test.ts`
 Expected: PASS — 4 tests passed.
 
 - [ ] **Step 5: Add and run an integration test proving dupe-window + job dispatch against real NATS**
@@ -671,9 +658,8 @@ import type { VidgenEvent } from './events.js'
 
 ```ts
 describe('publishEvent + dispatchJob (integration)', () => {
-  it('republishing the same event does not double-append (dupe window)', async (ctx) => {
+  it.skipIf(!up)('republishing the same event does not double-append (dupe window)', async () => {
     const bus = await tryConnectBus()
-    ctx.skip(bus === null, `no local NATS at ${NATS_URL}`)
     if (!bus) return
     await ensureStreams(bus.jsm)
     const projectId = randomUUID()
@@ -691,9 +677,8 @@ describe('publishEvent + dispatchJob (integration)', () => {
     await bus.nc.drain()
   })
 
-  it('dispatchJob publishes to vidgen.job.<kind>.<projectId>.<scene>', async (ctx) => {
+  it.skipIf(!up)('dispatchJob publishes to vidgen.job.<kind>.<projectId>.<scene>', async () => {
     const bus = await tryConnectBus()
-    ctx.skip(bus === null, `no local NATS at ${NATS_URL}`)
     if (!bus) return
     await ensureStreams(bus.jsm)
     const projectId = randomUUID()
@@ -711,7 +696,7 @@ describe('publishEvent + dispatchJob (integration)', () => {
 })
 ```
 
-Run: `cd api && npx vitest run src/nats.integration.test.ts`
+Run: `cd api && bun test src/nats.integration.test.ts`
 Expected: PASS — 3 tests passed (not skipped).
 
 - [ ] **Step 6: Commit**
@@ -739,9 +724,8 @@ import { ensureDurableConsumer, deleteDurableConsumer, consumeEvents, createEven
 
 ```ts
 describe('durable consumer + createEventStore (integration)', () => {
-  it('createEventStore loads a project log in stream order', async (ctx) => {
+  it.skipIf(!up)('createEventStore loads a project log in stream order', async () => {
     const bus = await tryConnectBus()
-    ctx.skip(bus === null, `no local NATS at ${NATS_URL}`)
     if (!bus) return
     await ensureStreams(bus.jsm)
     const projectId = randomUUID()
@@ -755,9 +739,8 @@ describe('durable consumer + createEventStore (integration)', () => {
     await bus.nc.drain()
   })
 
-  it('consumeEvents on a durable consumer delivers backlog and new events', async (ctx) => {
+  it.skipIf(!up)('consumeEvents on a durable consumer delivers backlog and new events', async () => {
     const bus = await tryConnectBus()
-    ctx.skip(bus === null, `no local NATS at ${NATS_URL}`)
     if (!bus) return
     await ensureStreams(bus.jsm)
     const projectId = randomUUID()
@@ -780,7 +763,7 @@ describe('durable consumer + createEventStore (integration)', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/nats.integration.test.ts`
+Run: `cd api && bun test src/nats.integration.test.ts`
 Expected: FAIL — `ensureDurableConsumer is not exported`.
 
 - [ ] **Step 3: Implement the durable consumer helpers, `consumeEvents`, and `createEventStore`**
@@ -858,7 +841,7 @@ export function createEventStore(js: JetStreamClient): EventStore {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/nats.integration.test.ts`
+Run: `cd api && bun test src/nats.integration.test.ts`
 Expected: PASS — 5 tests passed (not skipped).
 
 - [ ] **Step 5: Commit**
@@ -881,7 +864,7 @@ git commit -m "feat(api): durable consumer helpers, consumeEvents, createEventSt
 Write `api/src/aggregate.test.ts`:
 
 ```ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'bun:test'
 import type { VidgenEvent } from './events.js'
 import {
   assertCanCreate,
@@ -941,7 +924,7 @@ describe('assertTransition', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/aggregate.test.ts`
+Run: `cd api && bun test src/aggregate.test.ts`
 Expected: FAIL — `Cannot find module './aggregate.js'`.
 
 - [ ] **Step 3: Implement `aggregate.ts`**
@@ -1019,7 +1002,7 @@ export function assertTransition(command: Exclude<CommandName, 'CreateProject'>,
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/aggregate.test.ts`
+Run: `cd api && bun test src/aggregate.test.ts`
 Expected: PASS — 7 tests passed.
 
 - [ ] **Step 5: Commit**
@@ -1042,7 +1025,7 @@ git commit -m "feat(api): aggregate invariant guards (exists/not-exists/legal tr
 Write `api/src/cost.test.ts`:
 
 ```ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'bun:test'
 import type { Scene, ProjectState } from './events.js'
 import { FPT_TTS_USD_PER_CHAR, DEFAULT_COST_CAP_USD, costCapFromEnv, projectedTtsUsd, admit } from './cost.js'
 
@@ -1096,7 +1079,7 @@ describe('admit', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/cost.test.ts`
+Run: `cd api && bun test src/cost.test.ts`
 Expected: FAIL — `Cannot find module './cost.js'`.
 
 - [ ] **Step 3: Implement the pure functions in `cost.ts`**
@@ -1150,7 +1133,7 @@ export class CostCapExceededError extends Error {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/cost.test.ts`
+Run: `cd api && bun test src/cost.test.ts`
 Expected: PASS — 8 tests passed.
 
 - [ ] **Step 5: Commit**
@@ -1173,32 +1156,29 @@ git commit -m "feat(api): cost wall — projectedTtsUsd, admit, costCapFromEnv"
 Write `api/src/cost.integration.test.ts`:
 
 ```ts
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, afterAll } from 'bun:test'
 import { createPool, migrate, type Database } from './db.js'
 import { readLedger } from './cost.js'
 
 const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://vidgen:vidgen@localhost:5433/vidgen'
 
-describe('readLedger (integration)', () => {
-  let db: Database
-  let reachable = true
+// Probe Postgres reachability once at module load so the suite can be
+// skipped cleanly with zero services running (no local Postgres at DATABASE_URL).
+const db: Database = createPool(DATABASE_URL)
+let up = true
+try {
+  await db.query('SELECT 1')
+  await migrate(db)
+} catch {
+  up = false
+}
 
-  beforeAll(async () => {
-    db = createPool(DATABASE_URL)
-    try {
-      await db.query('SELECT 1')
-      await migrate(db)
-    } catch {
-      reachable = false
-    }
-  })
-
+describe.skipIf(!up)('readLedger (integration)', () => {
   afterAll(async () => {
     await db.end()
   })
 
-  it('reads ledger rows for a project in chronological order', async (ctx) => {
-    ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+  it('reads ledger rows for a project in chronological order', async () => {
     const projectId = `p-${Date.now()}`
     await db.query(
       `INSERT INTO projects (project_id, idea, duration_sec, scene_count, tone) VALUES ($1, 'x', 30, 1, 'casual')`,
@@ -1221,7 +1201,7 @@ describe('readLedger (integration)', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/cost.integration.test.ts`
+Run: `cd api && bun test src/cost.integration.test.ts`
 Expected: FAIL — `readLedger is not exported`.
 
 - [ ] **Step 3: Implement `readLedger`**
@@ -1256,7 +1236,7 @@ export async function readLedger(db: Database, projectId: string): Promise<Ledge
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/cost.integration.test.ts`
+Run: `cd api && bun test src/cost.integration.test.ts`
 Expected: PASS — 1 test passed (not skipped).
 
 - [ ] **Step 5: Commit**
@@ -1302,7 +1282,7 @@ export function createInMemoryEventStore(seed: VidgenEvent[] = []): EventStore &
 Write `api/src/commands.test.ts`:
 
 ```ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'bun:test'
 import { createInMemoryEventStore } from './testutil/inMemoryEventStore.js'
 import type { Publisher } from './nats.js'
 import type { Scene } from './events.js'
@@ -1341,7 +1321,7 @@ describe('createProject', () => {
 
 - [ ] **Step 3: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/commands.test.ts`
+Run: `cd api && bun test src/commands.test.ts`
 Expected: FAIL — `Cannot find module './commands.js'`.
 
 - [ ] **Step 4: Implement `commands.ts` scaffolding + `createProject`**
@@ -1412,7 +1392,7 @@ export async function createProject(ctx: CommandContext, input: CreateProjectInp
 
 - [ ] **Step 5: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/commands.test.ts`
+Run: `cd api && bun test src/commands.test.ts`
 Expected: PASS — 1 test passed.
 
 - [ ] **Step 6: Commit**
@@ -1473,7 +1453,7 @@ describe('generateScript', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/commands.test.ts`
+Run: `cd api && bun test src/commands.test.ts`
 Expected: FAIL — `generateScript is not exported`.
 
 - [ ] **Step 3: Implement `generateScript`**
@@ -1504,7 +1484,7 @@ export async function generateScript(ctx: CommandContext, input: GenerateScriptI
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/commands.test.ts`
+Run: `cd api && bun test src/commands.test.ts`
 Expected: PASS — 4 tests passed.
 
 - [ ] **Step 5: Commit**
@@ -1601,7 +1581,7 @@ Replace `scriptedEvents` with `materialEvents` in both `generateVoiceovers` test
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/commands.test.ts`
+Run: `cd api && bun test src/commands.test.ts`
 Expected: FAIL — `resolveMaterial is not exported`.
 
 - [ ] **Step 3: Implement `resolveMaterial` and `generateVoiceovers`**
@@ -1650,7 +1630,7 @@ export async function generateVoiceovers(ctx: CommandContext, input: GenerateVoi
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/commands.test.ts`
+Run: `cd api && bun test src/commands.test.ts`
 Expected: PASS — 7 tests passed.
 
 - [ ] **Step 5: Commit**
@@ -1704,7 +1684,7 @@ describe('approveStoryboard', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/commands.test.ts`
+Run: `cd api && bun test src/commands.test.ts`
 Expected: FAIL — `requestApproval is not exported`.
 
 - [ ] **Step 3: Implement `requestApproval` and `approveStoryboard`**
@@ -1736,7 +1716,7 @@ export async function approveStoryboard(ctx: CommandContext, input: ApproveStory
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/commands.test.ts`
+Run: `cd api && bun test src/commands.test.ts`
 Expected: PASS — 9 tests passed.
 
 - [ ] **Step 5: Commit**
@@ -1784,7 +1764,7 @@ describe('publish', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/commands.test.ts`
+Run: `cd api && bun test src/commands.test.ts`
 Expected: FAIL — `publish is not exported`.
 
 - [ ] **Step 3: Implement `publish`**
@@ -1818,7 +1798,7 @@ export async function publish(ctx: CommandContext, input: PublishInput): Promise
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/commands.test.ts`
+Run: `cd api && bun test src/commands.test.ts`
 Expected: PASS — 10 tests passed.
 
 - [ ] **Step 5: Commit**
@@ -1841,7 +1821,7 @@ git commit -m "feat(api): Publish handler (P1 stub result — see comment for P3
 Write `api/src/script.test.ts`:
 
 ```ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'bun:test'
 import { stubScriptGenerator } from './script.js'
 
 describe('stubScriptGenerator', () => {
@@ -1858,7 +1838,7 @@ describe('stubScriptGenerator', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/script.test.ts`
+Run: `cd api && bun test src/script.test.ts`
 Expected: FAIL — `Cannot find module './script.js'`.
 
 - [ ] **Step 3: Implement the stub**
@@ -1888,7 +1868,7 @@ export const stubScriptGenerator: ScriptGenerator = {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/script.test.ts`
+Run: `cd api && bun test src/script.test.ts`
 Expected: PASS — 1 test passed.
 
 - [ ] **Step 5: Commit**
@@ -1911,45 +1891,41 @@ git commit -m "feat(api): P1 stub ScriptGenerator (replaced by Agent SDK in P2)"
 Write `api/src/projections.integration.test.ts`:
 
 ```ts
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { describe, it, expect, afterAll, beforeEach } from 'bun:test'
 import { createPool, migrate, type Database } from './db.js'
 import { applyProjection } from './projections.js'
 import type { VidgenEvent } from './events.js'
 
 const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://vidgen:vidgen@localhost:5433/vidgen'
 
-describe('applyProjection (integration)', () => {
-  let db: Database
-  let reachable = true
+// Probe Postgres reachability once at module load so the suite can be
+// skipped cleanly with zero services running (no local Postgres at DATABASE_URL).
+const db: Database = createPool(DATABASE_URL)
+let up = true
+try {
+  await db.query('SELECT 1')
+  await migrate(db)
+} catch {
+  up = false
+}
 
-  beforeAll(async () => {
-    db = createPool(DATABASE_URL)
-    try {
-      await db.query('SELECT 1')
-      await migrate(db)
-    } catch {
-      reachable = false
-    }
-  })
-
+describe.skipIf(!up)('applyProjection (integration)', () => {
   afterAll(async () => {
     await db.end()
   })
 
   beforeEach(async () => {
-    if (reachable) await db.query('TRUNCATE cost_ledger, assets, scenes, projects RESTART IDENTITY CASCADE')
+    await db.query('TRUNCATE cost_ledger, assets, scenes, projects RESTART IDENTITY CASCADE')
   })
 
-  it('ProjectCreated inserts a draft project row', async (ctx) => {
-    ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+  it('ProjectCreated inserts a draft project row', async () => {
     const event: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' }
     await applyProjection(db, event)
     const result = await db.query('SELECT project_id, idea, status FROM projects WHERE project_id = $1', ['p1'])
     expect(result.rows).toEqual([{ project_id: 'p1', idea: 'x', status: 'draft' }])
   })
 
-  it('ScriptGenerated sets status to scripted and inserts scene rows', async (ctx) => {
-    ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+  it('ScriptGenerated sets status to scripted and inserts scene rows', async () => {
     await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 2, tone: 'casual' })
     await applyProjection(db, {
       v: 1,
@@ -1968,8 +1944,7 @@ describe('applyProjection (integration)', () => {
     ])
   })
 
-  it('re-applying the same events is idempotent (upsert, not duplicate rows)', async (ctx) => {
-    ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+  it('re-applying the same events is idempotent (upsert, not duplicate rows)', async () => {
     const created: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' }
     await applyProjection(db, created)
     await applyProjection(db, created)
@@ -1981,7 +1956,7 @@ describe('applyProjection (integration)', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/projections.integration.test.ts`
+Run: `cd api && bun test src/projections.integration.test.ts`
 Expected: FAIL — `Cannot find module './projections.js'`.
 
 - [ ] **Step 3: Implement `applyProjection` for these two event types**
@@ -2025,7 +2000,7 @@ export async function applyProjection(db: Database, event: VidgenEvent): Promise
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/projections.integration.test.ts`
+Run: `cd api && bun test src/projections.integration.test.ts`
 Expected: PASS — 3 tests passed (not skipped).
 
 - [ ] **Step 5: Commit**
@@ -2048,8 +2023,7 @@ git commit -m "feat(api): projections — ProjectCreated + ScriptGenerated folds
 Append to `api/src/projections.integration.test.ts`:
 
 ```ts
-it('MaterialResolved sets status to material and records a material asset', async (ctx) => {
-  ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+it('MaterialResolved sets status to material and records a material asset', async () => {
   await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
   await applyProjection(db, { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: 't1', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 })
   await applyProjection(db, { v: 1, type: 'MaterialResolved', projectId: 'p1', at: 't2', sceneIdx: 0, source: 'pexels', assetPath: '/m/0.mp4' })
@@ -2059,8 +2033,7 @@ it('MaterialResolved sets status to material and records a material asset', asyn
   expect(asset.rows).toEqual([{ kind: 'material', path: '/m/0.mp4' }])
 })
 
-it('VoiceSynthesized records a voice asset, a ledger row, and recomputes spent_usd', async (ctx) => {
-  ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+it('VoiceSynthesized records a voice asset, a ledger row, and recomputes spent_usd', async () => {
   await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
   await applyProjection(db, { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: 't1', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 })
   await applyProjection(db, { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at: 't2', sceneIdx: 0, mp3Path: '/m/0.mp3', ttsUsd: 0.0007 })
@@ -2070,8 +2043,7 @@ it('VoiceSynthesized records a voice asset, a ledger row, and recomputes spent_u
   expect(ledger.rows).toEqual([{ event_type: 'VoiceSynthesized', amount_usd: '0.0007' }])
 })
 
-it('CaptionsBuilt records an ass_path on the scene and a caption asset', async (ctx) => {
-  ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+it('CaptionsBuilt records an ass_path on the scene and a caption asset', async () => {
   await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
   await applyProjection(db, { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: 't1', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 })
   await applyProjection(db, { v: 1, type: 'CaptionsBuilt', projectId: 'p1', at: 't2', sceneIdx: 0, assPath: '/m/0.ass' })
@@ -2079,8 +2051,7 @@ it('CaptionsBuilt records an ass_path on the scene and a caption asset', async (
   expect(scene.rows[0]).toEqual({ ass_path: '/m/0.ass' })
 })
 
-it('CostProjected does not error and does not add to the ledger (observability only)', async (ctx) => {
-  ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+it('CostProjected does not error and does not add to the ledger (observability only)', async () => {
   await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
   await applyProjection(db, { v: 1, type: 'CostProjected', projectId: 'p1', at: 't1', projectedUsd: 0.01, capUsd: 0.15 })
   const ledger = await db.query('SELECT count(*)::int AS n FROM cost_ledger WHERE project_id = $1', ['p1'])
@@ -2090,7 +2061,7 @@ it('CostProjected does not error and does not add to the ledger (observability o
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/projections.integration.test.ts`
+Run: `cd api && bun test src/projections.integration.test.ts`
 Expected: FAIL — `MaterialResolved sets status to material...` fails because `status` stays `'scripted'` (falls into the `default: break` branch).
 
 - [ ] **Step 3: Implement the four handlers + `recomputeSpentUsd`**
@@ -2163,7 +2134,7 @@ async function recomputeSpentUsd(db: Database, projectId: string): Promise<void>
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/projections.integration.test.ts`
+Run: `cd api && bun test src/projections.integration.test.ts`
 Expected: PASS — 7 tests passed (not skipped).
 
 - [ ] **Step 5: Commit**
@@ -2187,8 +2158,7 @@ git commit -m "feat(api): projections — material/voice/caption/cost-projected 
 Append to `api/src/projections.integration.test.ts`:
 
 ```ts
-it('AwaitingApproval / ApprovalGranted / RenderCompleted / Published / RunFailed drive status forward', async (ctx) => {
-  ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+it('AwaitingApproval / ApprovalGranted / RenderCompleted / Published / RunFailed drive status forward', async () => {
   await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
   await applyProjection(db, { v: 1, type: 'AwaitingApproval', projectId: 'p1', at: 't1' })
   expect((await db.query('SELECT status FROM projects WHERE project_id = $1', ['p1'])).rows[0]).toEqual({ status: 'awaiting_approval' })
@@ -2207,28 +2177,31 @@ it('AwaitingApproval / ApprovalGranted / RenderCompleted / Published / RunFailed
   expect((await db.query('SELECT status FROM projects WHERE project_id = $1', ['p1'])).rows[0]).toEqual({ status: 'published' })
 })
 
-it('RunFailed sets status to failed', async (ctx) => {
-  ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+it('RunFailed sets status to failed', async () => {
   await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
   await applyProjection(db, { v: 1, type: 'RunFailed', projectId: 'p1', at: 't1', stage: 'render', error: 'ffmpeg exit 1' })
   expect((await db.query('SELECT status FROM projects WHERE project_id = $1', ['p1'])).rows[0]).toEqual({ status: 'failed' })
 })
 ```
 
-Append a second `describe` block for the rebuild property, using a live NATS bus:
+Append a second `describe` block for the rebuild property, using a live NATS bus. This one needs both Postgres *and* NATS up, so it gets its own top-level NATS probe alongside the file's existing Postgres `up` probe:
 
 ```ts
-describe('rebuildProjections (integration)', () => {
-  it('TRUNCATE + replay from stream seq 0 fully reconstructs the read model', async (ctx) => {
-    const natsUrl = process.env.NATS_URL ?? 'nats://localhost:4223'
-    let bus
-    try {
-      bus = await connectBus(natsUrl)
-    } catch {
-      bus = null
-    }
-    ctx.skip(!reachable || bus === null, 'needs both local Postgres and local NATS')
-    if (!bus) return
+const NATS_URL = process.env.NATS_URL ?? 'nats://localhost:4223'
+
+// Probe NATS reachability once at module load too (needs both local
+// Postgres and local NATS), alongside the file's existing `up` probe.
+let natsUp = true
+try {
+  const probeBus = await connectBus(NATS_URL)
+  await probeBus.nc.drain()
+} catch {
+  natsUp = false
+}
+
+describe.skipIf(!up || !natsUp)('rebuildProjections (integration)', () => {
+  it('TRUNCATE + replay from stream seq 0 fully reconstructs the read model', async () => {
+    const bus = await connectBus(NATS_URL)
     await ensureStreams(bus.jsm)
     const projectId = `p-${Date.now()}`
     const created: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId, at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' }
@@ -2257,11 +2230,11 @@ import { connectBus, ensureStreams, publishEvent } from './nats.js'
 import { rebuildProjections } from './projections.js'
 ```
 
-(`applyProjection` import stays; add `rebuildProjections` alongside it.)
+(`applyProjection` import stays; add `rebuildProjections` alongside it. The `NATS_URL` constant and `natsUp` probe above also belong at the top of the file, right after these imports and the existing Postgres `up` probe — not inside the `describe` block.)
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/projections.integration.test.ts`
+Run: `cd api && bun test src/projections.integration.test.ts`
 Expected: FAIL — first new test fails (status stays `'scripted'`, never reaches `'awaiting_approval'`); `rebuildProjections is not exported`.
 
 - [ ] **Step 3: Implement the remaining `applyProjection` cases and the runner functions**
@@ -2347,7 +2320,7 @@ export async function rebuildProjections(js: JetStreamClient, jsm: JetStreamMana
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `docker compose up -d nats` (if not already running) then `cd api && npx vitest run src/projections.integration.test.ts`
+Run: `docker compose up -d nats` (if not already running) then `cd api && bun test src/projections.integration.test.ts`
 Expected: PASS — 10 tests passed (not skipped).
 
 - [ ] **Step 5: Commit**
@@ -2371,7 +2344,7 @@ git commit -m "feat(api): projections — remaining event folds + runProjections
 Write `api/src/http.test.ts`:
 
 ```ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'bun:test'
 import { HttpError, requireProjectId, parseCreateProjectInput, parsePublishInput } from './http.js'
 
 describe('requireProjectId', () => {
@@ -2409,7 +2382,7 @@ describe('parsePublishInput', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/http.test.ts`
+Run: `cd api && bun test src/http.test.ts`
 Expected: FAIL — `Cannot find module './http.js'`.
 
 - [ ] **Step 3: Implement the parsers, `HttpError`, and the two GET read functions**
@@ -2516,7 +2489,7 @@ export async function getProject(db: Database, projectId: string): Promise<Proje
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/http.test.ts`
+Run: `cd api && bun test src/http.test.ts`
 Expected: PASS — 6 tests passed.
 
 - [ ] **Step 5: Write and run an integration test for the two GET reads against real Postgres**
@@ -2524,34 +2497,31 @@ Expected: PASS — 6 tests passed.
 Write `api/src/http.integration.test.ts`:
 
 ```ts
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, afterAll } from 'bun:test'
 import { createPool, migrate, type Database } from './db.js'
 import { applyProjection } from './projections.js'
 import { listProjects, getProject } from './http.js'
 
 const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://vidgen:vidgen@localhost:5433/vidgen'
 
-describe('listProjects + getProject (integration)', () => {
-  let db: Database
-  let reachable = true
+// Probe Postgres reachability once at module load so the suite can be
+// skipped cleanly with zero services running (no local Postgres at DATABASE_URL).
+const db: Database = createPool(DATABASE_URL)
+let up = true
+try {
+  await db.query('SELECT 1')
+  await migrate(db)
+  await db.query('TRUNCATE cost_ledger, assets, scenes, projects RESTART IDENTITY CASCADE')
+} catch {
+  up = false
+}
 
-  beforeAll(async () => {
-    db = createPool(DATABASE_URL)
-    try {
-      await db.query('SELECT 1')
-      await migrate(db)
-      await db.query('TRUNCATE cost_ledger, assets, scenes, projects RESTART IDENTITY CASCADE')
-    } catch {
-      reachable = false
-    }
-  })
-
+describe.skipIf(!up)('listProjects + getProject (integration)', () => {
   afterAll(async () => {
     await db.end()
   })
 
-  it('lists created projects and fetches one by id with its scenes', async (ctx) => {
-    ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
+  it('lists created projects and fetches one by id with its scenes', async () => {
     await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
     await applyProjection(db, { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: 't1', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 })
 
@@ -2566,7 +2536,7 @@ describe('listProjects + getProject (integration)', () => {
 })
 ```
 
-Run: `cd api && npx vitest run src/http.integration.test.ts`
+Run: `cd api && bun test src/http.integration.test.ts`
 Expected: PASS — 1 test passed (not skipped).
 
 - [ ] **Step 6: Commit**
@@ -2600,28 +2570,24 @@ import path from 'node:path'
 ```
 
 ```ts
-describe('createHttpServer (integration)', () => {
-  let db: Database
-  let reachable = true
+// Independent second probe (its own pool) for this describe's fixture,
+// mirroring the `up`/`db` probe above (no local Postgres at DATABASE_URL).
+const httpServerDb: Database = createPool(DATABASE_URL)
+let httpServerUp = true
+try {
+  await httpServerDb.query('SELECT 1')
+  await migrate(httpServerDb)
+  await httpServerDb.query('TRUNCATE cost_ledger, assets, scenes, projects RESTART IDENTITY CASCADE')
+} catch {
+  httpServerUp = false
+}
 
-  beforeAll(async () => {
-    db = createPool(DATABASE_URL)
-    try {
-      await db.query('SELECT 1')
-      await migrate(db)
-      await db.query('TRUNCATE cost_ledger, assets, scenes, projects RESTART IDENTITY CASCADE')
-    } catch {
-      reachable = false
-    }
-  })
-
+describe.skipIf(!httpServerUp)('createHttpServer (integration)', () => {
   afterAll(async () => {
-    await db.end()
+    await httpServerDb.end()
   })
 
-  it('serves POST /api/commands/CreateProject, GET /api/state, static SPA, and /media/*', async (ctx) => {
-    ctx.skip(!reachable, 'no local Postgres at DATABASE_URL')
-
+  it('serves POST /api/commands/CreateProject, GET /api/state, static SPA, and /media/*', async () => {
     const spaDir = mkdtempSync(path.join(tmpdir(), 'vidgen-spa-'))
     writeFileSync(path.join(spaDir, 'index.html'), '<html><body>vidgen</body></html>')
     const mediaDir = mkdtempSync(path.join(tmpdir(), 'vidgen-media-'))
@@ -2631,7 +2597,7 @@ describe('createHttpServer (integration)', () => {
     const fixedScriptGen: ScriptGenerator = { async generateScenes(): Promise<{ scenes: Scene[] }> { return { scenes: [] } } }
     const js = { async publish(): Promise<undefined> { return undefined } }
     const ctxCmd = createCommandContext(store, js, fixedScriptGen, 0.15)
-    const server = createHttpServer({ db, ctx: ctxCmd, spaDir, mediaDir })
+    const server = createHttpServer({ db: httpServerDb, ctx: ctxCmd, spaDir, mediaDir })
     await new Promise<void>((resolve) => server.listen(0, resolve))
     const address = server.address()
     if (address === null || typeof address === 'string') throw new Error('expected a bound TCP address')
@@ -2673,7 +2639,7 @@ describe('createHttpServer (integration)', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd api && npx vitest run src/http.integration.test.ts`
+Run: `cd api && bun test src/http.integration.test.ts`
 Expected: FAIL — `createHttpServer is not exported`.
 
 - [ ] **Step 3: Implement command routing, idempotency cache, static/media serving**
@@ -2828,12 +2794,12 @@ export function createHttpServer(config: HttpConfig) {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd api && npx vitest run src/http.integration.test.ts`
+Run: `cd api && bun test src/http.integration.test.ts`
 Expected: PASS — 2 tests passed (not skipped).
 
 - [ ] **Step 5: Run the full unit + integration suite**
 
-Run: `cd api && npx vitest run`
+Run: `cd api && bun test`
 Expected: PASS — all test files pass (integration ones skipped only if NATS/Postgres from the "Local dev prerequisites" section aren't running).
 
 - [ ] **Step 6: Commit**
@@ -2900,7 +2866,7 @@ main().catch((err: unknown) => {
 
 - [ ] **Step 2: Verify it builds**
 
-Run: `cd api && npx tsc -p tsconfig.json --noEmit`
+Run: `cd api && bunx tsc -p tsconfig.json --noEmit`
 Expected: exits 0, no type errors printed.
 
 - [ ] **Step 3: Write `api/Dockerfile`**
@@ -2908,24 +2874,16 @@ Expected: exits 0, no type errors printed.
 Write `api/Dockerfile`:
 
 ```dockerfile
-FROM node:22-slim AS build
+FROM oven/bun:1
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm install
+ENV NODE_ENV=production
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 COPY tsconfig.json ./
 COPY src ./src
 COPY migrations ./migrations
-RUN npm run build
-
-FROM node:22-slim
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=build /app/package.json /app/package-lock.json ./
-RUN npm install --omit=dev
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/migrations ./migrations
 EXPOSE 8080
-CMD ["node", "dist/index.js"]
+CMD ["bun", "src/index.ts"]
 ```
 
 - [ ] **Step 4: Extend `docker-compose.yml` with `postgres` and `api`, without touching the existing `nats` service**
@@ -3041,7 +2999,7 @@ git commit -m "feat(api): bootstrap wiring, Dockerfile, and postgres+api compose
 Write `api/src/e2e.integration.test.ts`:
 
 ```ts
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, afterAll } from 'bun:test'
 import { createPool, migrate, type Database } from './db.js'
 import { connectBus, ensureStreams, createEventStore, type Bus } from './nats.js'
 import { createCommandContext } from './commands.js'
@@ -3056,34 +3014,31 @@ import type { VidgenEvent } from './events.js'
 const NATS_URL = process.env.NATS_URL ?? 'nats://localhost:4223'
 const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://vidgen:vidgen@localhost:5433/vidgen'
 
-describe('full command flow (integration)', () => {
-  let db: Database
-  let bus: Bus | null = null
-  let reachable = true
+// Probe both Postgres and NATS reachability once at module load (needs
+// both local Postgres and local NATS) so the suite can be skipped cleanly.
+const db: Database = createPool(DATABASE_URL)
+let bus: Bus | null = null
+let up = true
+try {
+  await db.query('SELECT 1')
+  await migrate(db)
+} catch {
+  up = false
+}
+try {
+  bus = await connectBus(NATS_URL)
+  await ensureStreams(bus.jsm)
+} catch {
+  bus = null
+}
 
-  beforeAll(async () => {
-    db = createPool(DATABASE_URL)
-    try {
-      await db.query('SELECT 1')
-      await migrate(db)
-    } catch {
-      reachable = false
-    }
-    try {
-      bus = await connectBus(NATS_URL)
-      await ensureStreams(bus.jsm)
-    } catch {
-      bus = null
-    }
-  })
-
+describe.skipIf(!up || bus === null)('full command flow (integration)', () => {
   afterAll(async () => {
     await db.end()
     await bus?.nc.drain()
   })
 
-  it('CreateProject → GenerateScript → ResolveMaterial → (worker fakes MaterialResolved) → GenerateVoiceovers → RequestApproval → ApproveStoryboard → (worker fakes RenderCompleted) → Publish, projected end to end', async (ctx) => {
-    ctx.skip(!reachable || bus === null, 'needs both local Postgres and local NATS')
+  it('CreateProject → GenerateScript → ResolveMaterial → (worker fakes MaterialResolved) → GenerateVoiceovers → RequestApproval → ApproveStoryboard → (worker fakes RenderCompleted) → Publish, projected end to end', async () => {
     if (bus === null) return
 
     const store = createEventStore(bus.js)
@@ -3123,25 +3078,25 @@ describe('full command flow (integration)', () => {
 
 - [ ] **Step 2: Run the test to verify it fails without live services, and passes with them**
 
-Run (no services running): `cd api && npx vitest run src/e2e.integration.test.ts`
-Expected: PASS — 1 test, reported as skipped (not a failure) since `ctx.skip` short-circuits before any assertion runs.
+Run (no services running): `cd api && bun test src/e2e.integration.test.ts`
+Expected: PASS — 1 test, reported as skipped (not a failure) since `describe.skipIf` short-circuits the whole suite before any assertion runs.
 
-Run: `docker compose up -d nats` then start the throwaway Postgres from the prerequisites section (or `docker compose up -d postgres` after Task 21), then `cd api && npx vitest run src/e2e.integration.test.ts`
+Run: `docker compose up -d nats` then start the throwaway Postgres from the prerequisites section (or `docker compose up -d postgres` after Task 21), then `cd api && bun test src/e2e.integration.test.ts`
 Expected: FAIL first — this is TDD in reverse only in the sense that Steps 1–2 already wrote real implementation code in prior tasks; if this fails, it is a genuine integration bug in the wiring across Tasks 1–21, not a missing stub. Debug via the failing assertion's message before proceeding.
 
 - [ ] **Step 3: Fix any wiring bug surfaced, then re-run until it passes**
 
 There is no new production code to write for this task — Task 22 exists to catch integration mistakes between Tasks 1–21 (e.g. a status string typo between `aggregate.ts`'s `LEGAL_FROM` and `projections.ts`'s `UPDATE ... SET status = '...'` literals). If it fails, grep both files for the mismatched status string and align them, then re-run.
 
-Run: `cd api && npx vitest run src/e2e.integration.test.ts`
+Run: `cd api && bun test src/e2e.integration.test.ts`
 Expected: PASS — 1 test passed (not skipped).
 
 - [ ] **Step 4: Run the entire `api/` suite one more time**
 
-Run: `cd api && npx vitest run`
+Run: `cd api && bun test`
 Expected: PASS — every test file green (integration tests either passing or skipped, never failing).
 
-Run: `cd api && npx tsc -p tsconfig.json --noEmit`
+Run: `cd api && bunx tsc -p tsconfig.json --noEmit`
 Expected: exits 0, no type errors.
 
 - [ ] **Step 5: Commit**
@@ -3159,7 +3114,7 @@ git commit -m "test(api): capstone integration test for the full P1 command flow
 
 | Scope item | Task(s) |
 |---|---|
-| 1. Scaffold `api/` (package.json, tsconfig, vitest, deps, HTTP layer, Context7-verified NATS/pg APIs) | 1 (scaffold), 4–6 (`nats.ts`, Context7-verified against `/nats-io/nats.js`), 19–20 (`node:http`, no framework) |
+| 1. Scaffold `api/` (package.json, tsconfig, bun:test, deps, HTTP layer, Context7-verified NATS/pg APIs) | 1 (scaffold), 4–6 (`nats.ts`, Context7-verified against `/nats-io/nats.js`), 19–20 (`node:http`, no framework) |
 | 2. `events.ts` promoted verbatim | 2 |
 | 3. `db.ts` — Pool + `migrate()`, 4 tables | 3 |
 | 4. `nats.ts` — connect, ensureStreams, publishEvent, dispatchJob, consumeEvents | 4, 5, 6 |

@@ -4,19 +4,20 @@
 
 **Goal:** Build `frontend/` — a Vite + React + TypeScript + Zustand single-page app that connects to `VIDGEN_EVENTS` over `nats.ws`, folds events into project state, renders a live project board with an approval-gate UI, and dispatches the 7 frozen commands over HTTP — with components kept structurally pure by an ESLint ban on local state/side effects, proven by a fixture that must fail lint.
 
-**Architecture:** One Zustand store (`src/store/store.ts`) owns every side effect: HTTP command dispatch and the `nats.ws` event-stream subscription. `src/store/events.ts` holds the frozen `VidgenEvent`/`foldProject`/`ProjectState` types, copied verbatim from `spikes/event-model/events.ts` (see "Design notes" below for why copy, not a shared package). `src/store/natsClient.ts` isolates the `wsconnect`/`jetstream` wiring behind a small `EventBusClient` interface so the store is dependency-injectable and testable without a live NATS server. Components under `src/components/**` are pure: they read store selectors and call store thunks, nothing else — enforced by a flat ESLint config that bans `useState`/`useReducer`/`useEffect` and direct `zustand`/`@nats-io/*` imports in that directory, with a fixture file (`src/components/__fixtures__/BadLocalState.tsx`) and a dedicated `npm run lint:prove-ban` script that prove the ban actually fires without adding a permanently-failing file to the normal `npm run lint` run.
+**Architecture:** One Zustand store (`src/store/store.ts`) owns every side effect: HTTP command dispatch and the `nats.ws` event-stream subscription. `src/store/events.ts` holds the frozen `VidgenEvent`/`foldProject`/`ProjectState` types, copied verbatim from `spikes/event-model/events.ts` (see "Design notes" below for why copy, not a shared package). `src/store/natsClient.ts` isolates the `wsconnect`/`jetstream` wiring behind a small `EventBusClient` interface so the store is dependency-injectable and testable without a live NATS server. Components under `src/components/**` are pure: they read store selectors and call store thunks, nothing else — enforced by a flat ESLint config that bans `useState`/`useReducer`/`useEffect` and direct `zustand`/`@nats-io/*` imports in that directory, with a fixture file (`src/components/__fixtures__/BadLocalState.tsx`) and a dedicated `bun run lint:prove-ban` script that prove the ban actually fires without adding a permanently-failing file to the normal `bun run lint` run.
 
-**Tech Stack:** Vite 7, React 19, TypeScript 5 (strict), Zustand 5, `@nats-io/nats-core` (`wsconnect`) + `@nats-io/jetstream` (browser WS transport — Context7/D3-verified), Vitest 3 + `@testing-library/react` + `@testing-library/jest-dom` + `@testing-library/user-event`, ESLint 9 flat config + `typescript-eslint`.
+**Tech Stack:** bun (package manager + JS/TS runtime), Vite 7, React 19, TypeScript 5 (strict), Zustand 5, `@nats-io/nats-core` (`wsconnect`) + `@nats-io/jetstream` (browser WS transport — Context7/D3-verified), `bun:test` (native runner) + `@testing-library/react` + `@testing-library/jest-dom` + `@testing-library/user-event` + `@happy-dom/global-registrator` (DOM registration via `bunfig.toml` preload), ESLint 9 flat config + `typescript-eslint`.
 
 ---
 
 ## Context7 verification (done during planning — bake these into the steps below, do not re-derive)
 
 - **Zustand v5** (`/pmndrs/zustand`): typed stores use `create<T>()((set, get) => ({...}))` — the extra `()` before the state-creator arg is required for correct generic inference. Confirmed pattern used throughout Task 6–8.
-- **Vite** (`/vitejs/vite`): `server.proxy` takes `{ '/path': { target, changeOrigin, ws } }`; the react-ts template's `vite.config.ts` is `defineConfig({ plugins: [react()] })`. Task 2 merges this with Vitest's `test` key via `defineConfig` from `vitest/config` (Vitest-confirmed pattern, see below) rather than a separate `vitest.config.ts`.
-- **Vitest** (`/vitest-dev/vitest`): single-file config via `import { defineConfig } from 'vitest/config'`, `test: { environment: 'jsdom', globals: true, setupFiles: [...] }`.
+- **Vite** (`/vitejs/vite`): `server.proxy` takes `{ '/path': { target, changeOrigin, ws } }`; the react-ts template's `vite.config.ts` is `defineConfig({ plugins: [react()] })`. Task 2 keeps `vite.config.ts` as a plain Vite config (`import { defineConfig } from 'vite'`) — test config lives entirely in `bunfig.toml` (see below), not merged into Vite's config the way Vitest would.
+- **`bun:test`** (`/oven-sh/bun`): native runner, no separate config file for the runner itself — `bunfig.toml`'s `[test]` table's `preload` array runs setup scripts before every test file (Context7-confirmed: `docs/runtime/bunfig.mdx`, `docs/guides/test/testing-library.mdx`). Mocking API is a Jest-compatible subset: `import { mock, spyOn } from 'bun:test'` — `mock(impl)` replaces `vi.fn(impl)` (same `.mock.calls`/`.mock.results` shape and `toHaveBeenCalledTimes`/`toHaveBeenCalledWith` matchers), `spyOn(obj, 'method')` replaces `vi.spyOn`, `mock.module(path, factory)` replaces `vi.mock`. `test.each`/`describe.each` (and their `it.each` alias) are supported natively, same call shape as Vitest's.
+- **DOM for `bun:test`** (`/oven-sh/bun`, `docs/test/dom.mdx` + `docs/guides/test/testing-library.mdx`): bun:test does not auto-provide a DOM the way Vitest's `environment: 'jsdom'` does. Component tests register one via a preload script: `import { GlobalRegistrator } from '@happy-dom/global-registrator'; GlobalRegistrator.register()`, wired through `bunfig.toml`'s `[test] preload = [...]` (Task 2, Step 5).
 - **`@testing-library/react`**: `render`, `screen.getBy*`/`queryBy*`, `fireEvent`; `@testing-library/user-event`'s `userEvent.click(...)` is preferred for interaction tests (fires the full pointer event sequence, not just a synthetic click).
-- **`@testing-library/jest-dom`**: with Vitest, import `@testing-library/jest-dom/vitest` (not the bare package) in the setup file — this is the framework-specific entry point that wires matchers into Vitest's `expect`.
+- **`@testing-library/jest-dom`**: with `bun:test`, import the bare `@testing-library/jest-dom` (not a framework-specific subpath) in the preload file — its default entry calls `expect.extend(...)` against the global `expect`, and bun:test's `expect` is Jest-API-compatible, so no special entry point is needed the way Vitest's `/vitest` subpath is.
 - **ESLint flat config** (`/eslint/eslint`): `tseslint.config(...)` takes a flat array of config objects/spreads (`js.configs.recommended`, `...tseslint.configs.recommended`, then scoped objects with `files`/`rules`) — confirmed against `typescript-eslint`'s own integration-test fixtures, not assumed. `no-restricted-syntax` takes ESQuery AST selectors, e.g. `"CallExpression[callee.name='useState']"`, each with its own `message`. `no-restricted-imports`'s `patterns` array supports `{ group: [...], message }` gitignore-style globs. `no-undef` is turned off for `.ts`/`.tsx` per `typescript-eslint`'s own troubleshooting FAQ (TS's own compiler already catches undefined identifiers with full type info; `no-undef` false-positives on browser/DOM globals otherwise).
 - **`@nats-io/nats-core` / `@nats-io/jetstream`** (`/nats-io/nats.js`, cross-checked against `spikes/nats-ws/main.ts` and `.okra/runs/disc-01/checkpoints/D3.md`): browser code imports `wsconnect` from `@nats-io/nats-core` (not `@nats-io/transport-node`), `jetstream` from `@nats-io/jetstream`. `js.consumers.get('VIDGEN_EVENTS')` with no second argument returns an **ordered ephemeral** consumer (auto-recreates on gaps, no server-side durable state, `m.ack()` is a harmless no-op). `c.consume({ callback: (m) => {...} })` is the verified delivery API. `JsMsg.json<T>()` parses the payload as JSON with a generic type parameter (confirmed against `/nats-io/nats.js` docs) — used to decode each message straight into a typed `VidgenEvent`, no `any`/`unknown`.
 
@@ -25,7 +26,7 @@
 1. **`events.ts` is copied, not shared via an npm package.** Sharing one file between the Node `api` service and the Vite `frontend` app would need a monorepo workspace (npm/pnpm workspaces or a published internal package) that neither P1 nor P4 currently sets up, and P1 has not been authored yet. The index's own SCOPE text for this plan says "pick one, state it" — this plan copies `spikes/event-model/events.ts` verbatim into `frontend/src/store/events.ts` (Task 4), byte-for-byte, with a header comment pointing at the source of truth. **Consequence:** any future change to the `VidgenEvent` union must be applied in both `api/src/events.ts` (P1) and `frontend/src/store/events.ts` (this file) — flag this for whoever authors P5's C3 change-unit.
 2. **`store.ts` + `natsClient.ts` split, both under `src/store/`.** Index §9 says "ALL nats.ws + fetch logic lives in store.ts, never in components" — read in context, that sentence is drawing the boundary between *components* (pure) and *the store layer* (impure), not mandating a single physical file. Splitting the `wsconnect`/`jetstream` wiring into `natsClient.ts` behind a 4-line `EventBusClient` interface is what makes `connect()`/`disconnect()` unit-testable at all without a live NATS server (Task 8) — hand-rolling fakes for the real `NatsConnection`/`JetStreamClient` types would mean asserting large, partially-unverified surface area. Nothing outside `src/store/` imports `natsClient.ts` directly; components only ever see `store.ts`'s `useVidgenStore` hook. The frozen store *surface* (state fields, `applyEvent`, the 7 command thunks, `connect`/`disconnect`) is reproduced exactly as index §9 specifies.
 3. **The ESLint import ban is a deliberately-scoped deny-list, not the literal "components may only import store/** + ui/**" allow-list.** ESLint's `no-restricted-imports` has no native "allow only these paths" mode — `patterns`/`group` express *forbidden* globs (with `!`-negation to carve out exceptions from a forbidden group), not a closed allow-list over arbitrary relative paths. This plan instead denies the two concrete ways a component could smuggle in the logic the ban is meant to keep out: importing `@nats-io/*` directly, and importing `zustand` directly (bypassing the typed `useVidgenStore` hook). That is the enforceable subset of the intent stated in the SCOPE text; a literal allow-list would need a custom rule (out of scope here — flag as a follow-up if it matters later).
-4. **Assumption flagged, not invented as fact — api's dev HTTP port.** Index §8 pins NATS's ports (TCP 4223, WS 8081, monitor 8223) but says nothing about `api`'s own HTTP port, because P1 (which owns `api/src/http.ts`) has not been written yet (confirmed: `2026-07-09-vidgen-webapp-02-agent-sdk-script.md` explicitly says P1 hasn't landed `commands.ts`/`http.ts` yet). Task 2's `vite.config.ts` dev proxy target defaults to `http://localhost:9999` — a value chosen to be *obviously* a placeholder (not a disguised guess) — overridable via `VITE_API_PROXY_TARGET`, and the code comment says explicitly to reconcile it against `api`'s real dev port when P1 is authored. This does not block P4: proxying only matters for `npm run dev` against a live `api`; the build, tests, and lint in this plan never depend on the value being correct.
+4. **Assumption flagged, not invented as fact — api's dev HTTP port.** Index §8 pins NATS's ports (TCP 4223, WS 8081, monitor 8223) but says nothing about `api`'s own HTTP port, because P1 (which owns `api/src/http.ts`) has not been written yet (confirmed: `2026-07-09-vidgen-webapp-02-agent-sdk-script.md` explicitly says P1 hasn't landed `commands.ts`/`http.ts` yet). Task 2's `vite.config.ts` dev proxy target defaults to `http://localhost:9999` — a value chosen to be *obviously* a placeholder (not a disguised guess) — overridable via `VITE_API_PROXY_TARGET`, and the code comment says explicitly to reconcile it against `api`'s real dev port when P1 is authored. This does not block P4: proxying only matters for `bun run dev` against a live `api`; the build, tests, and lint in this plan never depend on the value being correct.
 5. **Prod serving handoff to `api`.** Per index §3 (`api/src/http.ts`: "serve SPA") and §5, `api` — not a separate frontend container — serves the built SPA in production. Task 15's Dockerfile therefore has a `build` stage that produces `frontend/dist/`, which `api`'s own Dockerfile (P1) is expected to `COPY --from=` into whatever directory `http.ts` serves statically (assumed `public/` — confirm against `api/src/http.ts` when P1 is authored). The `dev` stage runs the Vite dev server for local docker-compose use (the `frontend` service in index §2's runtime diagram).
 
 ---
@@ -34,7 +35,8 @@
 
 ```
 frontend/
-  package.json  tsconfig.json  vite.config.ts  index.html
+  package.json  bun.lock  tsconfig.json  vite.config.ts  index.html
+  bunfig.toml  test-setup.ts
   eslint.config.js
   scripts/prove-lint-ban.sh
   Dockerfile
@@ -42,7 +44,6 @@ frontend/
     main.tsx
     App.tsx
     vite-env.d.ts
-    test/setup.ts
     store/
       events.ts        events.test.ts
       natsClient.ts
@@ -65,30 +66,30 @@ frontend/
 ## Task 1: Scaffold the Vite + React + TS project
 
 **Files:**
-- Create: `frontend/` (via `npm create vite@latest`)
+- Create: `frontend/` (via `bun create vite`)
 
 - [ ] **Step 1: Scaffold with create-vite**
 
 Run from the repo root:
 
 ```bash
-npm create vite@latest frontend -- --template react-ts
+bun create vite frontend --template react-ts
 ```
 
-Expected: a `frontend/` directory is created containing `package.json`, `index.html`, `src/main.tsx`, `src/App.tsx`, `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`, `vite.config.ts`, `eslint.config.js`, and demo assets. Output ends with `Done. Now run:` instructions.
+Expected: a `frontend/` directory is created containing `package.json`, `index.html`, `src/main.tsx`, `src/App.tsx`, `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`, `vite.config.ts`, `eslint.config.js`, and demo assets. Output ends with instructions to `cd frontend`, install, and run.
 
 - [ ] **Step 2: Install default dependencies**
 
 ```bash
-cd frontend && npm install
+cd frontend && bun install
 ```
 
-Expected: `node_modules/` created, `package-lock.json` written, no errors.
+Expected: `node_modules/` created, `bun.lock` written, no errors.
 
 - [ ] **Step 3: Verify the untouched scaffold builds**
 
 ```bash
-npm run build
+bun run build
 ```
 
 Expected: `vite v7.x.x building for production...` then `✓ built in <N>ms` and a `dist/` directory. This is the last time the demo counter app builds — Task 14 replaces it.
@@ -109,18 +110,18 @@ git commit -m "chore(frontend): scaffold Vite + React + TS project"
 - Modify: `frontend/tsconfig.json` (replaces the split app/node config with one file)
 - Delete: `frontend/tsconfig.app.json`, `frontend/tsconfig.node.json`
 - Modify: `frontend/vite.config.ts`
-- Create: `frontend/src/test/setup.ts`
+- Create: `frontend/test-setup.ts`, `frontend/bunfig.toml`
 - Modify: `frontend/src/vite-env.d.ts`
 
 - [ ] **Step 1: Install runtime and test dependencies**
 
 ```bash
 cd frontend
-npm install zustand@latest @nats-io/nats-core@latest @nats-io/jetstream@latest
-npm install -D vitest@latest @testing-library/react@latest @testing-library/jest-dom@latest @testing-library/user-event@latest jsdom@latest
+bun add zustand@latest @nats-io/nats-core@latest @nats-io/jetstream@latest
+bun add -d @testing-library/react@latest @testing-library/jest-dom@latest @testing-library/user-event@latest @happy-dom/global-registrator@latest bun-types@latest
 ```
 
-Expected: `package.json`'s `dependencies` gains `zustand`, `@nats-io/nats-core`, `@nats-io/jetstream`; `devDependencies` gains `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`. No errors.
+Expected: `package.json`'s `dependencies` gains `zustand`, `@nats-io/nats-core`, `@nats-io/jetstream`; `devDependencies` gains `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `@happy-dom/global-registrator`, `bun-types`. No errors. (No `vitest`/`jsdom` — `bun:test` is the runner and `@happy-dom/global-registrator` supplies the DOM, see Step 5.)
 
 - [ ] **Step 2: Rewrite `package.json`'s `scripts` block**
 
@@ -128,12 +129,11 @@ Open `frontend/package.json` and replace the `"scripts"` object with:
 
 ```json
 "scripts": {
-  "dev": "vite",
-  "build": "tsc --noEmit && vite build",
-  "preview": "vite preview",
-  "test": "vitest run",
-  "test:watch": "vitest",
-  "lint": "eslint .",
+  "dev": "bunx vite",
+  "build": "bunx vite build",
+  "preview": "bunx vite preview",
+  "test": "bun test",
+  "lint": "bunx eslint .",
   "lint:prove-ban": "bash scripts/prove-lint-ban.sh"
 }
 ```
@@ -166,16 +166,16 @@ Replace `frontend/tsconfig.json` with:
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
+    "types": ["vite/client", "bun-types", "@testing-library/jest-dom"]
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "vite.config.ts", "test-setup.ts"]
 }
 ```
 
-- [ ] **Step 4: Rewrite `vite.config.ts` (build config + dev proxy + Vitest config, one file)**
+- [ ] **Step 4: Rewrite `vite.config.ts` (build config + dev proxy, one file — test config lives in `bunfig.toml`, Step 5)**
 
 ```typescript
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // ASSUMPTION (flagged, not a frozen fact): P1 (api-core) has not been written
@@ -185,7 +185,7 @@ import react from '@vitejs/plugin-react'
 // the real value — override with VITE_API_PROXY_TARGET, and reconcile this
 // default against api's actual dev port once P1 is authored. Nothing in this
 // plan's build/test/lint steps depends on this value being correct; it only
-// matters for `npm run dev` against a live api.
+// matters for `bun run dev` against a live api.
 const apiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:9999'
 
 export default defineConfig({
@@ -196,21 +196,30 @@ export default defineConfig({
       '/media': { target: apiProxyTarget, changeOrigin: true },
     },
   },
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./src/test/setup.ts'],
-  },
 })
 ```
 
-- [ ] **Step 5: Add the Vitest setup file**
+- [ ] **Step 5: Add the `bun:test` DOM preload (happy-dom + jest-dom) and wire it via `bunfig.toml`**
 
-Create `frontend/src/test/setup.ts`:
+`bun:test` does not auto-provide a DOM the way Vitest's `environment: 'jsdom'` does (Context7-confirmed: `docs/test/dom.mdx`). Component tests (Tasks 9–13) render into `document`, so register `happy-dom`'s globals once, before any test file runs, via a preload script.
+
+Create `frontend/test-setup.ts`:
 
 ```typescript
-import '@testing-library/jest-dom/vitest'
+import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import '@testing-library/jest-dom'
+
+GlobalRegistrator.register()
 ```
+
+Create `frontend/bunfig.toml`:
+
+```toml
+[test]
+preload = ["./test-setup.ts"]
+```
+
+(`events.test.ts` and `store.test.ts`, Tasks 4/6–8, never touch `document`/`window` — they run fine with the DOM registered but unused.)
 
 - [ ] **Step 6: Extend the Vite env types**
 
@@ -231,7 +240,7 @@ interface ImportMeta {
 - [ ] **Step 7: Verify the config change still typechecks and builds**
 
 ```bash
-npm run build
+bun run build
 ```
 
 Expected: `✓ built in <N>ms`, no TypeScript errors. (Still builds the Task 1 demo `App.tsx` — that gets replaced in Task 14, not here.)
@@ -239,9 +248,9 @@ Expected: `✓ built in <N>ms`, no TypeScript errors. (Still builds the Task 1 d
 - [ ] **Step 8: Commit**
 
 ```bash
-git add package.json package-lock.json tsconfig.json vite.config.ts src/test/setup.ts src/vite-env.d.ts
+git add package.json bun.lock tsconfig.json vite.config.ts test-setup.ts bunfig.toml src/vite-env.d.ts
 git rm tsconfig.app.json tsconfig.node.json
-git commit -m "chore(frontend): add zustand/nats/vitest deps, single tsconfig, dev proxy + test config"
+git commit -m "chore(frontend): add zustand/nats/bun:test deps, single tsconfig, dev proxy + test config"
 ```
 
 ---
@@ -259,7 +268,7 @@ The scaffold's default `eslint.config.js` (about to be replaced) references `esl
 
 ```bash
 cd frontend
-npm uninstall eslint-plugin-react-hooks eslint-plugin-react-refresh
+bun remove eslint-plugin-react-hooks eslint-plugin-react-refresh
 ```
 
 Expected: both removed from `devDependencies`.
@@ -278,8 +287,9 @@ export default tseslint.config(
     files: ['**/*.{ts,tsx,mts,cts}'],
     languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
     rules: {
-      // TypeScript's own compiler (`tsc --noEmit`, run by `npm run build`)
-      // already catches undefined identifiers with full type information;
+      // TypeScript's own compiler (`tsc --noEmit`, part of the editor/CI
+      // typecheck) already catches undefined identifiers with full type
+      // information;
       // `no-undef` false-positives on browser/DOM globals and TS ambient
       // types otherwise. Context7-confirmed pattern from typescript-eslint's
       // own ESLint troubleshooting FAQ.
@@ -342,9 +352,9 @@ Create `frontend/src/components/__fixtures__/BadLocalState.tsx`:
 import { useState } from 'react'
 
 // FIXTURE — intentionally violates the src/components/** local-state ban.
-// This file is globally ignored by `npm run lint` (see the `ignores` entry
+// This file is globally ignored by `bun run lint` (see the `ignores` entry
 // in eslint.config.js) so it never breaks the normal suite. It exists solely
-// to be targeted directly by `npm run lint:prove-ban` (scripts/prove-lint-ban.sh),
+// to be targeted directly by `bun run lint:prove-ban` (scripts/prove-lint-ban.sh),
 // which asserts ESLint still rejects it — i.e. that the ban actually bites.
 export function BadLocalState() {
   const [count, setCount] = useState(0)
@@ -355,7 +365,7 @@ export function BadLocalState() {
 - [ ] **Step 4: Confirm the normal lint run is clean (fixture excluded)**
 
 ```bash
-npm run lint
+bun run lint
 ```
 
 Expected: exits 0, no output (or only pre-existing warnings from other files, none yet since `src/` is still the untouched Task 1 demo app plus this one ignored fixture).
@@ -363,7 +373,7 @@ Expected: exits 0, no output (or only pre-existing warnings from other files, no
 - [ ] **Step 5: Confirm the ban does NOT bite when the fixture is ignored (sanity check before adding the proof)**
 
 ```bash
-npx eslint src/components/__fixtures__/BadLocalState.tsx
+bunx eslint src/components/__fixtures__/BadLocalState.tsx
 ```
 
 Expected: exits 0 with a message like `File ignored because of a matching ignore pattern` — proving the file really is excluded from the default run, not just untouched by accident.
@@ -375,7 +385,7 @@ Create `frontend/scripts/prove-lint-ban.sh`:
 ```bash
 #!/usr/bin/env bash
 # Proves the local-state ESLint ban actually fires, without adding the
-# violating fixture to the normal `npm run lint` run (eslint.config.js
+# violating fixture to the normal `bun run lint` run (eslint.config.js
 # globally ignores src/components/__fixtures__/**, see Step 4/5 above).
 #
 # `--no-ignore` forces ESLint to lint the fixture despite the ignore entry.
@@ -385,7 +395,7 @@ Create `frontend/scripts/prove-lint-ban.sh`:
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-if npx eslint --no-ignore src/components/__fixtures__/BadLocalState.tsx; then
+if bunx eslint --no-ignore src/components/__fixtures__/BadLocalState.tsx; then
   echo "REGRESSION: eslint did not reject src/components/__fixtures__/BadLocalState.tsx" >&2
   echo "The local-state ban (no-restricted-syntax on useState) is no longer enforced." >&2
   exit 1
@@ -397,7 +407,7 @@ echo "OK: local-state ban correctly rejected the useState fixture"
 - [ ] **Step 7: Run the proof script and confirm it reports OK**
 
 ```bash
-npm run lint:prove-ban
+bun run lint:prove-ban
 ```
 
 Expected output ends with:
@@ -406,12 +416,12 @@ Expected output ends with:
 OK: local-state ban correctly rejected the useState fixture
 ```
 
-(The `npx eslint ...` line inside the script prints ESLint's own error report — e.g. `error  src/components/__fixtures__/BadLocalState.tsx: ... useState banned ...` — before the `if` catches its non-zero exit; that's expected, not a failure of this step.)
+(The `bunx eslint ...` line inside the script prints ESLint's own error report — e.g. `error  src/components/__fixtures__/BadLocalState.tsx: ... useState banned ...` — before the `if` catches its non-zero exit; that's expected, not a failure of this step.)
 
-- [ ] **Step 8: Confirm `npm run lint` is still clean with the proof script present**
+- [ ] **Step 8: Confirm `bun run lint` is still clean with the proof script present**
 
 ```bash
-npm run lint
+bun run lint
 ```
 
 Expected: exits 0 — `scripts/prove-lint-ban.sh` is a shell script, not matched by ESLint's `**/*.{ts,tsx,mts,cts}` file targeting, so it doesn't need its own ignore entry.
@@ -419,7 +429,7 @@ Expected: exits 0 — `scripts/prove-lint-ban.sh` is a shell script, not matched
 - [ ] **Step 9: Commit**
 
 ```bash
-git add eslint.config.js src/components/__fixtures__/BadLocalState.tsx scripts/prove-lint-ban.sh package.json package-lock.json
+git add eslint.config.js src/components/__fixtures__/BadLocalState.tsx scripts/prove-lint-ban.sh package.json bun.lock
 git commit -m "feat(frontend): eslint local-state/side-effect ban + fixture proof"
 ```
 
@@ -436,7 +446,7 @@ git commit -m "feat(frontend): eslint local-state/side-effect ban + fixture proo
 Create `frontend/src/store/events.test.ts`:
 
 ```typescript
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { foldProject, type VidgenEvent } from './events'
 
 const at = '2026-01-01T00:00:00Z'
@@ -526,7 +536,7 @@ describe('foldProject', () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-npm test -- events.test
+bun test events.test
 ```
 
 Expected: FAIL — `Cannot find module './events'` (or similar), since `events.ts` doesn't exist yet.
@@ -584,10 +594,10 @@ export function foldProject(events: VidgenEvent[]): ProjectState {
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-npm test -- events.test
+bun test events.test
 ```
 
-Expected: `Test Files 1 passed`, `Tests 8 passed`.
+Expected: `1 pass` across the file (bun:test's summary line format), 8 passing assertions/tests.
 
 - [ ] **Step 5: Commit**
 
@@ -659,7 +669,7 @@ export function createNatsEventBusClient(opts: EventBusClientOptions): EventBusC
 - [ ] **Step 2: Verify it typechecks**
 
 ```bash
-npm run build
+bun run build
 ```
 
 Expected: `✓ built in <N>ms`, no TypeScript errors (still builds the Task 1 demo `App.tsx` — `natsClient.ts` isn't imported by anything yet, so this only proves it typechecks in isolation as part of the project).
@@ -684,15 +694,15 @@ git commit -m "feat(frontend): nats.ws EventBusClient (browser WS, ordered consu
 Create `frontend/src/store/store.test.ts`:
 
 ```typescript
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, mock } from 'bun:test'
 import { createVidgenStore, type VidgenStoreDeps } from './store'
 import type { EventBusClient } from './natsClient'
 
 function fakeDeps(overrides: Partial<VidgenStoreDeps> = {}): VidgenStoreDeps {
   return {
-    fetchImpl: vi.fn(async () => new Response(null, { status: 200 })),
+    fetchImpl: mock(async () => new Response(null, { status: 200 })),
     eventBusClient: {
-      consume: vi.fn(async () => async () => {}),
+      consume: mock(async () => async () => {}),
     },
     ...overrides,
   }
@@ -741,7 +751,7 @@ describe('select', () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-npm test -- store.test
+bun test store.test
 ```
 
 Expected: FAIL — `Cannot find module './store'`.
@@ -805,10 +815,10 @@ export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-npm test -- store.test
+bun test store.test
 ```
 
-Expected: `Test Files 1 passed`, `Tests 3 passed`.
+Expected: `3 pass` in `store.test.ts` (bun:test's summary line format).
 
 - [ ] **Step 5: Commit**
 
@@ -832,7 +842,7 @@ Append to `frontend/src/store/store.test.ts` (add this `describe` block; keep th
 ```typescript
 describe('command thunks', () => {
   it('createProject posts to /api/commands/CreateProject with the body fields plus an idempotencyKey', async () => {
-    const fetchImpl = vi.fn(async () => new Response(null, { status: 200 }))
+    const fetchImpl = mock(async () => new Response(null, { status: 200 }))
     const store = createVidgenStore(fakeDeps({ fetchImpl }))
     await store.getState().createProject({ idea: 'cats', durationSec: 30, sceneCount: 3, tone: 'fun' })
 
@@ -854,7 +864,7 @@ describe('command thunks', () => {
     ['approveStoryboard', 'ApproveStoryboard', { projectId: 'p1' }],
     ['publish', 'Publish', { projectId: 'p1', caption: 'hi', privacy: 'public' }],
   ] as const)('%s posts to /api/commands/%s', async (action, path, input) => {
-    const fetchImpl = vi.fn(async () => new Response(null, { status: 200 }))
+    const fetchImpl = mock(async () => new Response(null, { status: 200 }))
     const store = createVidgenStore(fakeDeps({ fetchImpl }))
     // eslint rules don't apply to store.ts's own tests — action is a key of VidgenStore's thunks.
     await (store.getState()[action] as (i: typeof input) => Promise<void>)(input)
@@ -865,7 +875,7 @@ describe('command thunks', () => {
   })
 
   it('rejects when the server responds non-2xx', async () => {
-    const fetchImpl = vi.fn(async () => new Response('conflict', { status: 409 }))
+    const fetchImpl = mock(async () => new Response('conflict', { status: 409 }))
     const store = createVidgenStore(fakeDeps({ fetchImpl }))
     await expect(store.getState().approveStoryboard({ projectId: 'p1' })).rejects.toThrow(/409/)
   })
@@ -875,7 +885,7 @@ describe('command thunks', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-npm test -- store.test
+bun test store.test
 ```
 
 Expected: FAIL — `store.getState().createProject is not a function` (and the parametrized cases fail the same way).
@@ -985,10 +995,10 @@ export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-npm test -- store.test
+bun test store.test
 ```
 
-Expected: `Test Files 1 passed`, `Tests 11 passed` (3 from Task 6 + 8 from this task: 1 createProject + 6 parametrized + 1 rejection).
+Expected: `11 pass` in `store.test.ts` (3 from Task 6 + 8 from this task: 1 createProject + 6 parametrized + 1 rejection).
 
 - [ ] **Step 5: Commit**
 
@@ -1017,9 +1027,9 @@ describe('connect/disconnect', () => {
     const event: VidgenEventType = {
       v: 1, type: 'AwaitingApproval', projectId: 'p1', at: '2026-01-01T00:00:00Z',
     }
-    const unsubscribe = vi.fn(async () => {})
+    const unsubscribe = mock(async () => {})
     const eventBusClient: EventBusClient = {
-      consume: vi.fn(async (onEvent) => {
+      consume: mock(async (onEvent) => {
         onEvent('vidgen.evt.p1.AwaitingApproval', event)
         return unsubscribe
       }),
@@ -1038,7 +1048,7 @@ describe('connect/disconnect', () => {
 
   it('marks the connection down and rethrows when the event bus fails to connect', async () => {
     const eventBusClient: EventBusClient = {
-      consume: vi.fn(async () => {
+      consume: mock(async () => {
         throw new Error('ws refused')
       }),
     }
@@ -1054,7 +1064,7 @@ Also move the `import type { VidgenEvent as VidgenEventType } from './events'` l
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-npm test -- store.test
+bun test store.test
 ```
 
 Expected: FAIL — `store.getState().connect is not a function`.
@@ -1104,8 +1114,9 @@ import { createNatsEventBusClient } from './natsClient'
 
 const defaultDeps: VidgenStoreDeps = {
   // A wrapper, not a direct `fetch` reference — this keeps the lookup
-  // dynamic so tests can `vi.stubGlobal('fetch', ...)` and have it take
-  // effect even though this module was already imported.
+  // dynamic so tests can reassign `globalThis.fetch = mock(...)` directly
+  // (bun:test has no `vi.stubGlobal`) and have it take effect even though
+  // this module was already imported.
   fetchImpl: (input, init) => fetch(input, init),
   eventBusClient: createNatsEventBusClient({
     wsUrl: import.meta.env.VITE_NATS_WS_URL ?? 'ws://localhost:8081',
@@ -1120,16 +1131,16 @@ export const useVidgenStore = createVidgenStore(defaultDeps)
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-npm test -- store.test
+bun test store.test
 ```
 
-Expected: `Test Files 1 passed`, `Tests 13 passed`.
+Expected: `13 pass` in `store.test.ts`.
 
 - [ ] **Step 5: Run the full test suite and build to make sure nothing else broke**
 
 ```bash
-npm test
-npm run build
+bun test
+bun run build
 ```
 
 Expected: all test files pass; `✓ built in <N>ms` with no TypeScript errors.
@@ -1156,14 +1167,14 @@ git commit -m "feat(frontend): store connect()/disconnect() + exported useVidgen
 Create `frontend/src/ui/Button.test.tsx`:
 
 ```tsx
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, mock } from 'bun:test'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Button } from './Button'
 
 describe('Button', () => {
   it('renders children and forwards onClick', async () => {
-    const onClick = vi.fn()
+    const onClick = mock()
     render(<Button onClick={onClick}>Go</Button>)
     await userEvent.click(screen.getByRole('button', { name: 'Go' }))
     expect(onClick).toHaveBeenCalledTimes(1)
@@ -1174,7 +1185,7 @@ describe('Button', () => {
 Create `frontend/src/ui/Badge.test.tsx`:
 
 ```tsx
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { render, screen } from '@testing-library/react'
 import { Badge } from './Badge'
 
@@ -1189,7 +1200,7 @@ describe('Badge', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-npm test -- ui/
+bun test ui/
 ```
 
 Expected: FAIL — `Cannot find module './Button'` / `./Badge'`.
@@ -1232,10 +1243,10 @@ export function Badge({ tone = 'neutral', children }: BadgeProps) {
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-npm test -- ui/
+bun test ui/
 ```
 
-Expected: `Test Files 2 passed`, `Tests 2 passed`.
+Expected: `2 pass` across `Button.test.tsx` + `Badge.test.tsx`.
 
 - [ ] **Step 5: Commit**
 
@@ -1257,7 +1268,7 @@ git commit -m "feat(frontend): ui primitives — Button, Badge"
 Create `frontend/src/components/ConnectionStatus.test.tsx`:
 
 ```tsx
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { render, screen } from '@testing-library/react'
 import { useVidgenStore } from '../store/store'
 import { ConnectionStatus } from './ConnectionStatus'
@@ -1289,7 +1300,7 @@ describe('ConnectionStatus', () => {
 Create `frontend/src/components/CostBadge.test.tsx`:
 
 ```tsx
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { render, screen } from '@testing-library/react'
 import { useVidgenStore } from '../store/store'
 import { CostBadge } from './CostBadge'
@@ -1317,7 +1328,7 @@ describe('CostBadge', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-npm test -- components/ConnectionStatus components/CostBadge
+bun test components/ConnectionStatus components/CostBadge
 ```
 
 Expected: FAIL — modules don't exist yet.
@@ -1367,15 +1378,15 @@ export function CostBadge({ projectId }: CostBadgeProps) {
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-npm test -- components/ConnectionStatus components/CostBadge
+bun test components/ConnectionStatus components/CostBadge
 ```
 
-Expected: `Test Files 2 passed`, `Tests 5 passed`.
+Expected: `5 pass` across `ConnectionStatus.test.tsx` + `CostBadge.test.tsx`.
 
 - [ ] **Step 5: Run lint to confirm these pure components pass the local-state ban**
 
 ```bash
-npm run lint
+bun run lint
 ```
 
 Expected: exits 0.
@@ -1400,7 +1411,7 @@ git commit -m "feat(frontend): ConnectionStatus + CostBadge components"
 Create `frontend/src/components/SceneStrip.test.tsx`:
 
 ```tsx
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { render, screen } from '@testing-library/react'
 import { useVidgenStore } from '../store/store'
 import { SceneStrip } from './SceneStrip'
@@ -1437,7 +1448,7 @@ describe('SceneStrip', () => {
 Create `frontend/src/components/ProjectCard.test.tsx`:
 
 ```tsx
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useVidgenStore } from '../store/store'
@@ -1473,7 +1484,7 @@ describe('ProjectCard', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-npm test -- components/SceneStrip components/ProjectCard
+bun test components/SceneStrip components/ProjectCard
 ```
 
 Expected: FAIL — modules don't exist yet.
@@ -1552,7 +1563,7 @@ export function ProjectCard({ projectId }: ProjectCardProps) {
 - [ ] **Step 4: Run the new tests — expect a module-resolution failure from the `StoryboardApproval` import, not a pass yet**
 
 ```bash
-npm test -- components/SceneStrip components/ProjectCard
+bun test components/SceneStrip components/ProjectCard
 ```
 
 Expected: `SceneStrip.test.tsx` FAILS to even load `ProjectCard.tsx` transitively... actually `SceneStrip.test.tsx` only imports `SceneStrip.tsx` directly and passes. `ProjectCard.test.tsx` FAILS: `Cannot find module './StoryboardApproval'`.
@@ -1576,15 +1587,15 @@ export function StoryboardApproval({ projectId }: StoryboardApprovalProps) {
 - [ ] **Step 6: Run tests to verify they pass**
 
 ```bash
-npm test -- components/SceneStrip components/ProjectCard
+bun test components/SceneStrip components/ProjectCard
 ```
 
-Expected: `Test Files 2 passed`, `Tests 5 passed`.
+Expected: `5 pass` across `SceneStrip.test.tsx` + `ProjectCard.test.tsx`.
 
 - [ ] **Step 7: Lint + commit**
 
 ```bash
-npm run lint
+bun run lint
 git add src/components/SceneStrip.tsx src/components/SceneStrip.test.tsx src/components/ProjectCard.tsx src/components/ProjectCard.test.tsx src/components/StoryboardApproval.tsx
 git commit -m "feat(frontend): SceneStrip + ProjectCard components (StoryboardApproval stub)"
 ```
@@ -1601,7 +1612,7 @@ git commit -m "feat(frontend): SceneStrip + ProjectCard components (StoryboardAp
 Create `frontend/src/components/Board.test.tsx`:
 
 ```tsx
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { render, screen } from '@testing-library/react'
 import { useVidgenStore } from '../store/store'
 import { Board } from './Board'
@@ -1633,7 +1644,7 @@ describe('Board', () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-npm test -- components/Board
+bun test components/Board
 ```
 
 Expected: FAIL — `Cannot find module './Board'`.
@@ -1666,15 +1677,15 @@ export function Board() {
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-npm test -- components/Board
+bun test components/Board
 ```
 
-Expected: `Test Files 1 passed`, `Tests 2 passed`.
+Expected: `2 pass` in `Board.test.tsx`.
 
 - [ ] **Step 5: Lint + commit**
 
 ```bash
-npm run lint
+bun run lint
 git add src/components/Board.tsx src/components/Board.test.tsx
 git commit -m "feat(frontend): Board component"
 ```
@@ -1694,15 +1705,19 @@ This is the emphasized flow from the SCOPE text: `AwaitingApproval` event → `S
 Create `frontend/src/components/StoryboardApproval.test.tsx`:
 
 ```tsx
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useVidgenStore } from '../store/store'
 import { StoryboardApproval } from './StoryboardApproval'
 
+// bun:test has no `vi.stubGlobal`/`vi.unstubAllGlobals` — reset `fetch` to
+// its real value directly so a stub set by one test can't leak into the next.
+const realFetch = globalThis.fetch
+
 beforeEach(() => {
   useVidgenStore.setState({ projects: {}, eventLog: {}, connection: 'down', selectedId: undefined, _unsubscribe: undefined })
-  vi.unstubAllGlobals()
+  globalThis.fetch = realFetch
 })
 
 describe('StoryboardApproval', () => {
@@ -1725,8 +1740,8 @@ describe('StoryboardApproval', () => {
         },
       },
     })
-    const fetchMock = vi.fn(async () => new Response(null, { status: 200 }))
-    vi.stubGlobal('fetch', fetchMock)
+    const fetchMock = mock(async () => new Response(null, { status: 200 }))
+    globalThis.fetch = fetchMock as unknown as typeof fetch
 
     render(<StoryboardApproval projectId="p1" />)
     expect(screen.getByTestId('storyboard-approval')).toBeInTheDocument()
@@ -1746,7 +1761,7 @@ describe('StoryboardApproval', () => {
 - [ ] **Step 2: Run tests to verify the second one fails**
 
 ```bash
-npm test -- components/StoryboardApproval
+bun test components/StoryboardApproval
 ```
 
 Expected: the first test PASSES (the Task 11 stub already returns `null` unconditionally). The second test FAILS: `Unable to find an element with the text: Approve storyboard`.
@@ -1785,16 +1800,16 @@ export function StoryboardApproval({ projectId }: StoryboardApprovalProps) {
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-npm test -- components/StoryboardApproval
+bun test components/StoryboardApproval
 ```
 
-Expected: `Test Files 1 passed`, `Tests 2 passed`.
+Expected: `2 pass` in `StoryboardApproval.test.tsx`.
 
 - [ ] **Step 5: Run the full test suite (StoryboardApproval is now used for real by ProjectCard, Task 11) and lint**
 
 ```bash
-npm test
-npm run lint
+bun test
+bun run lint
 ```
 
 Expected: all test files pass; lint exits 0.
@@ -1876,9 +1891,9 @@ createRoot(rootEl).render(
 - [ ] **Step 4: Run the full test suite, lint, and build**
 
 ```bash
-npm test
-npm run lint
-npm run build
+bun test
+bun run lint
+bun run build
 ```
 
 Expected: all test files pass; lint exits 0; `✓ built in <N>ms` with no TypeScript errors (build now compiles the real `App.tsx`/`main.tsx`, not the Task 1 demo).
@@ -1886,7 +1901,7 @@ Expected: all test files pass; lint exits 0; `✓ built in <N>ms` with no TypeSc
 - [ ] **Step 5: Manual smoke check against a stub `/api` (no live api yet — P1 not authored)**
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 Expected: Vite prints a local URL (e.g. `http://localhost:5173/`). Opening it shows "vidgen", a "Disconnected" badge (no NATS reachable in this check), and "No projects yet" — confirms the app boots and `connect()`'s failure is caught (logged, not thrown) rather than crashing the page. Stop the dev server (`Ctrl+C`) when done.
@@ -1920,25 +1935,26 @@ Create `frontend/Dockerfile`:
 # /app/dist into whatever directory api/src/http.ts serves statically
 # (ASSUMED `public/` here — confirm against api/src/http.ts once P1 is
 # authored; this is a handshake point between P1 and P4, not a frozen fact).
-FROM node:22-slim AS build
+FROM oven/bun:1 AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 COPY . .
-RUN npm run build
+RUN bun run build
 
 # Stage "dev": local development server, used by docker-compose's `frontend`
 # service (index §2's runtime diagram). Proxies /api and /media to the api
 # container per vite.config.ts's VITE_API_PROXY_TARGET (see Task 2 — set
 # this env var in docker-compose.yml to api's real container DNS name/port
-# once P1 defines it).
-FROM node:22-slim AS dev
+# once P1 defines it). Also bun-based (not node) — the dev server is started
+# via `bun run dev`, which needs the `bun` binary on PATH.
+FROM oven/bun:1 AS dev
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 COPY . .
 EXPOSE 5173
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["bun", "run", "dev", "--", "--host", "0.0.0.0"]
 ```
 
 - [ ] **Step 2: Verify the build stage produces static assets**
@@ -1962,12 +1978,12 @@ git commit -m "feat(frontend): Dockerfile — build stage (static dist) + dev st
 
 ## Task 16: Final Verification
 
-- [ ] `cd frontend && npm run lint` — exits 0.
-- [ ] `npm run lint:prove-ban` — prints `OK: local-state ban correctly rejected the useState fixture`.
-- [ ] `npm test` — all test files pass (Tasks 4, 6–13's suites: `events.test.ts`, `store.test.ts`, `Button.test.tsx`, `Badge.test.tsx`, `ConnectionStatus.test.tsx`, `CostBadge.test.tsx`, `SceneStrip.test.tsx`, `ProjectCard.test.tsx`, `Board.test.tsx`, `StoryboardApproval.test.tsx`).
-- [ ] `npm run build` — succeeds, `dist/` produced, no TypeScript errors.
+- [ ] `cd frontend && bun run lint` — exits 0.
+- [ ] `bun run lint:prove-ban` — prints `OK: local-state ban correctly rejected the useState fixture`.
+- [ ] `bun test` — all test files pass (Tasks 4, 6–13's suites: `events.test.ts`, `store.test.ts`, `Button.test.tsx`, `Badge.test.tsx`, `ConnectionStatus.test.tsx`, `CostBadge.test.tsx`, `SceneStrip.test.tsx`, `ProjectCard.test.tsx`, `Board.test.tsx`, `StoryboardApproval.test.tsx`).
+- [ ] `bun run build` — succeeds, `dist/` produced, no TypeScript errors.
 - [ ] `docker build --target build -t vidgen-frontend-build .` — succeeds (re-verified after Task 14's file changes).
-- [ ] (User, once P1 and the docker-compose NATS service are up) `npm run dev` against a running `docker-compose` NATS container (WS on `ws://localhost:8081` per index §8) — `ConnectionStatus` shows "Live" instead of "Disconnected", confirming `natsClient.ts`'s real `wsconnect`/`jetstream` path (Task 5) actually connects, matching the `.okra/runs/disc-01/checkpoints/D3.md` evidence this plan was built on.
+- [ ] (User, once P1 and the docker-compose NATS service are up) `bun run dev` against a running `docker-compose` NATS container (WS on `ws://localhost:8081` per index §8) — `ConnectionStatus` shows "Live" instead of "Disconnected", confirming `natsClient.ts`'s real `wsconnect`/`jetstream` path (Task 5) actually connects, matching the `.okra/runs/disc-01/checkpoints/D3.md` evidence this plan was built on.
 - [ ] (User, once P1's `api` is up) Exercise the full approval-gate flow live: dispatch `CreateProject` → ... → `RequestApproval` from a REST client, confirm `StoryboardApproval` renders in the browser, click "Approve storyboard", confirm `ApprovalGranted` arrives back over the event stream and the card updates to `approved`.
 
 ---
@@ -1978,11 +1994,11 @@ git commit -m "feat(frontend): Dockerfile — build stage (static dist) + dev st
 
 | SCOPE item | Task(s) |
 |---|---|
-| 1. Scaffold `frontend/` (Vite+React+TS+Zustand+vitest+RTL), Context7-verified APIs | Tasks 1–2 ("Context7 verification" section pins the exact confirmed facts baked into every later task) |
-| 2. `eslint.config.js` flat config: local-state ban, import ban, `useRef` allowed, fixture + CI proof designed not to break normal lint | Task 3 (Steps 4–5 prove the fixture is excluded from `npm run lint`; Steps 6–8 prove `lint:prove-ban` catches a regression without touching the normal run) |
+| 1. Scaffold `frontend/` (Vite+React+TS+Zustand+bun:test+RTL), Context7-verified APIs | Tasks 1–2 ("Context7 verification" section pins the exact confirmed facts baked into every later task) |
+| 2. `eslint.config.js` flat config: local-state ban, import ban, `useRef` allowed, fixture + CI proof designed not to break normal lint | Task 3 (Steps 4–5 prove the fixture is excluded from `bun run lint`; Steps 6–8 prove `lint:prove-ban` catches a regression without touching the normal run) |
 | 3. `store/events.ts` — promoted VidgenEvent/foldProject/ProjectState | Task 4 (verbatim copy + 8 fold tests covering every event type) |
 | 4. `store/store.ts` — state, `applyEvent`, 7 command thunks, `connect()`/`disconnect()`, all nats.ws+fetch in store not components | Tasks 6 (state+applyEvent), 7 (thunks), 8 (connect/disconnect+singleton); `natsClient.ts` (Task 5) isolates the nats.ws wiring, still entirely inside `src/store/` |
-| 5. Components: Board, ProjectCard, SceneStrip, StoryboardApproval, CostBadge, ConnectionStatus — pure, selectors only | Tasks 9 (ui primitives), 10 (ConnectionStatus, CostBadge), 11 (SceneStrip, ProjectCard), 12 (Board), 13 (StoryboardApproval) — every component test seeds state via `useVidgenStore.setState` and asserts render/dispatch only, no component holds `useState`/`useReducer`/side-effecting `useEffect` (lint-enforced, Task 10 Step 5 / Task 11 Step 7 / Task 12 Step 5 / Task 13 Step 5 all run `npm run lint`) |
+| 5. Components: Board, ProjectCard, SceneStrip, StoryboardApproval, CostBadge, ConnectionStatus — pure, selectors only | Tasks 9 (ui primitives), 10 (ConnectionStatus, CostBadge), 11 (SceneStrip, ProjectCard), 12 (Board), 13 (StoryboardApproval) — every component test seeds state via `useVidgenStore.setState` and asserts render/dispatch only, no component holds `useState`/`useReducer`/side-effecting `useEffect` (lint-enforced, Task 10 Step 5 / Task 11 Step 7 / Task 12 Step 5 / Task 13 Step 5 all run `bun run lint`) |
 | 6. `main.tsx` calls `connect()` once at bootstrap, not in a component | Task 14 |
 | 7. `frontend/Dockerfile` + dev via vite proxy; prod served by api, build output path documented | Task 15; Design note 5 states the assumed `public/` handshake explicitly as unverified |
 | Testing: pure fold tests, thunks w/ mocked fetch, store test with fake events + selectors, component tests, lint-ban fixture as first-class deliverable, emphasized approval-gate flow test | Task 4 (fold), Task 7 (thunks/mocked fetch), Task 6&8 (`applyEvent`/`connect` with fake `EventBusClient` and derived `projects` selector assertions), Tasks 9–13 (component tests), Task 3 (fixture), Task 13 (approval-gate: event → render → click → thunk, explicitly narrated as a 3-layer composition with Tasks 4/8) |

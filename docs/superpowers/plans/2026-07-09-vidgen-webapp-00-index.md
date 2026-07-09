@@ -140,3 +140,10 @@ Single store; components pure (ESLint bans `useState`/`useReducer`/side-effect `
 - ingest: `applyEvent(subject, VidgenEvent)` folds into `projects` (reuses `foldProject` logic incrementally).
 - commands (thunks calling `POST /api/commands/*`): `createProject`, `generateScript`, `resolveMaterial`, `generateVoiceovers`, `requestApproval`, `approveStoryboard`, `publish`.
 - lifecycle: `connect()` (wsconnect + `js.consumers.get` + consume loop), `disconnect()`.
+
+## 10. Frozen tooling (all TS subsystems: P1, P2, P4)
+
+- **Package manager + TS runtime:** **bun**. `bun install` (commits `bun.lock`, not `package-lock.json`), `bun add`/`bun add -d`, `bun install --frozen-lockfile` in Docker. TS runs directly (`bun src/index.ts`, `bun --watch`) — no tsc emit; `tsc --noEmit` is typecheck only.
+- **Test runner:** **bun:test** (native). Imports from `'bun:test'`; `mock()`/`spyOn` for fakes; `describe.skipIf`/`it.skipIf` for reachability-gated integration tests. No vitest, no `vitest.config.ts` (bun's default glob matches `**/*.test.ts`).
+- **Frontend (P4):** bun is package manager/runner; **Vite stays** the bundler/dev-server (`bunx vite`, `bunx vite build`). DOM-touching bun:test files preload `@happy-dom/global-registrator` via `bunfig.toml`.
+- **Docker:** TS services use `FROM oven/bun:1`. **Go worker (P3) is untouched** — still `go build`/`go test`/`go vet`.
