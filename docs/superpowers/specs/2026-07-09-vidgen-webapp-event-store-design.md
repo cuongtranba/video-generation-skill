@@ -228,7 +228,9 @@ Objective + target, cost cap value, "CLI fully removed", big-bang decision, and 
 
 ## 6. Risks / YAGNI
 
-**Risks:** largest — reimplementing proven Go orchestration in TS; Agent SDK cost vs the $0.10 wall (drives the anti-goal); event-schema evolution (versioning from day 1); big-bang branch longevity; secrets-in-durable-log discipline.
+**Risks:** largest — reimplementing proven Go orchestration in TS; event-schema evolution (versioning from day 1); big-bang branch longevity; secrets-in-durable-log discipline.
+
+**Agent SDK cost (resolved by disc-01/D1):** the SDK's `total_cost_usd` is a *notional* per-token estimate (~$0.14–$0.38/call, defaults to `claude-opus-4-8`), **not** a real charge — under Claude Max subscription the true marginal cost is $0. Binding constraint on the cost-wall component: record `ScriptGenerated.scriptUsd = 0` (subscription) and **never sum SDK `total_cost_usd` into the real per-video dollar total** — doing so would trip the $0.15 cap on phantom money. Real enforced cost = FPT TTS chars × rate (~$0.004) + render ($0). Optionally log notional cost in a separate non-enforced field for observability.
 
 **YAGNI (v1):** no multi-user/auth beyond loopback, no external NATS cluster, no SSR, no CSS framework unless impeccable calls for it, no CQRS read-model beyond what the board queries, no per-event encryption (just keep secrets out).
 
