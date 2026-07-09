@@ -201,7 +201,7 @@ func TestStatusAdvance(t *testing.T) {
 		{StatusMaterial, StatusTuned},
 		{StatusTuned, StatusConfirmed},
 		{StatusConfirmed, StatusRendered},
-		{StatusRendered, StatusRendered},
+		{StatusRendered, StatusPublished},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.from), func(t *testing.T) {
@@ -209,6 +209,15 @@ func TestStatusAdvance(t *testing.T) {
 				t.Errorf("%s.Next() = %s, want %s", tt.from, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestStatusNextPublished(t *testing.T) {
+	if got := StatusRendered.Next(); got != StatusPublished {
+		t.Errorf("StatusRendered.Next() = %q, want %q", got, StatusPublished)
+	}
+	if got := StatusPublished.Next(); got != StatusPublished {
+		t.Errorf("StatusPublished.Next() = %q, want %q (terminal)", got, StatusPublished)
 	}
 }
 

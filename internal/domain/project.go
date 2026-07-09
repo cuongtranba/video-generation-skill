@@ -10,6 +10,7 @@ const (
 	StatusTuned     Status = "tuned"
 	StatusConfirmed Status = "confirmed"
 	StatusRendered  Status = "rendered"
+	StatusPublished Status = "published"
 )
 
 func (s Status) Next() Status {
@@ -22,8 +23,10 @@ func (s Status) Next() Status {
 		return StatusConfirmed
 	case StatusConfirmed:
 		return StatusRendered
+	case StatusRendered:
+		return StatusPublished
 	default:
-		return StatusRendered
+		return StatusPublished
 	}
 }
 
