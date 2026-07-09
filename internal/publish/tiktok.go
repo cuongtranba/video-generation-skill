@@ -5,12 +5,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
 const defaultTikTokBaseURL = "https://open.tiktokapis.com"
+
+const (
+	statusPublishComplete = "PUBLISH_COMPLETE"
+	statusFailed          = "FAILED"
+)
 
 var _ Publisher = (*TikTokPublisher)(nil)
 
@@ -32,6 +39,7 @@ func WithPollInterval(d time.Duration) TikTokOption {
 func WithPollTimeout(d time.Duration) TikTokOption {
 	return func(p *TikTokPublisher) { p.pollTimeout = d }
 }
+func WithHTTPClient(c *http.Client) TikTokOption { return func(p *TikTokPublisher) { p.httpClient = c } }
 
 func NewTikTokPublisher(accessToken string, opts ...TikTokOption) *TikTokPublisher {
 	p := &TikTokPublisher{
@@ -81,6 +89,9 @@ func (p *TikTokPublisher) Publish(ctx context.Context, req PublishRequest) (Publ
 	if err != nil {
 		return PublishResult{}, fmt.Errorf("read video %s: %w", req.VideoPath, err)
 	}
+	if len(video) == 0 {
+		return PublishResult{}, fmt.Errorf("tiktok: video file %s is empty", req.VideoPath)
+	}
 
 	init, err := p.initUpload(ctx, req, len(video))
 	if err != nil {
@@ -128,7 +139,7 @@ func (p *TikTokPublisher) initUpload(ctx context.Context, req PublishRequest, si
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return initResponse{}, fmt.Errorf("tiktok init upload: status %d", resp.StatusCode)
+		return initResponse{}, fmt.Errorf("tiktok init upload: status %d: %s", resp.StatusCode, readErrBody(resp.Body))
 	}
 	var out initResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
@@ -154,7 +165,7 @@ func (p *TikTokPublisher) uploadBytes(ctx context.Context, uploadURL string, vid
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("tiktok upload bytes: status %d", resp.StatusCode)
+		return fmt.Errorf("tiktok upload bytes: status %d: %s", resp.StatusCode, readErrBody(resp.Body))
 	}
 	return nil
 }
@@ -169,9 +180,9 @@ func (p *TikTokPublisher) pollStatus(ctx context.Context, publishID string) (str
 			return "", err
 		}
 		switch status.Data.Status {
-		case "PUBLISH_COMPLETE":
+		case statusPublishComplete:
 			return status.Data.PublicPostID, nil
-		case "FAILED":
+		case statusFailed:
 			return "", fmt.Errorf("tiktok publish failed for %s: %s", publishID, status.Data.FailReason)
 		}
 		if time.Now().After(deadline) {
@@ -204,13 +215,20 @@ func (p *TikTokPublisher) fetchStatus(ctx context.Context, publishID string) (st
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return statusResponse{}, fmt.Errorf("tiktok fetch status: status %d", resp.StatusCode)
+		return statusResponse{}, fmt.Errorf("tiktok fetch status: status %d: %s", resp.StatusCode, readErrBody(resp.Body))
 	}
 	var out statusResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return statusResponse{}, fmt.Errorf("parse status response: %w", err)
 	}
 	return out, nil
+}
+
+// readErrBody drains up to 2KB of an error response body for inclusion in
+// error messages, trimming surrounding whitespace.
+func readErrBody(r io.Reader) string {
+	b, _ := io.ReadAll(io.LimitReader(r, 2048))
+	return strings.TrimSpace(string(b))
 }
 
 func privacyLevel(privacy string) string {

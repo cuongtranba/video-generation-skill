@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -101,5 +102,45 @@ func TestPublishMissingFile(t *testing.T) {
 	p := newTestPublisher(srv.URL)
 	if _, err := p.Publish(context.Background(), PublishRequest{VideoPath: "/no/such.mp4"}); err == nil {
 		t.Fatal("want error for missing video file")
+	}
+}
+
+func TestPublishInitNon200(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":{"code":"access_token_invalid","message":"bad token"}}`))
+	}))
+	t.Cleanup(srv.Close)
+	p := newTestPublisher(srv.URL)
+	_, err := p.Publish(context.Background(), PublishRequest{VideoPath: writeTempVideo(t)})
+	if err == nil {
+		t.Fatal("want error on non-200 init")
+	}
+	if !strings.Contains(err.Error(), "401") {
+		t.Errorf("error should mention status 401: %v", err)
+	}
+}
+
+func TestPublishEmptyFile(t *testing.T) {
+	srv := newFakeTikTok(t, 0)
+	p := newTestPublisher(srv.URL)
+	empty := filepath.Join(t.TempDir(), "empty.mp4")
+	if err := os.WriteFile(empty, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Publish(context.Background(), PublishRequest{VideoPath: empty}); err == nil {
+		t.Fatal("want error for empty video file")
+	}
+}
+
+func TestPublishPollTimeout(t *testing.T) {
+	srv := newFakeTikTok(t, 10_000) // never completes
+	p := NewTikTokPublisher("test-token",
+		WithBaseURL(srv.URL),
+		WithPollInterval(5*time.Millisecond),
+		WithPollTimeout(30*time.Millisecond),
+	)
+	if _, err := p.Publish(context.Background(), PublishRequest{VideoPath: writeTempVideo(t)}); err == nil {
+		t.Fatal("want timeout error")
 	}
 }
