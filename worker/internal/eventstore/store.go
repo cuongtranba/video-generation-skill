@@ -2,6 +2,8 @@
 package eventstore
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/nats-io/nats.go"
@@ -58,4 +60,22 @@ func Connect(url string) (*Store, error) {
 // Close releases the underlying NATS connection.
 func (s *Store) Close() {
 	s.nc.Close()
+}
+
+// PublishResult marshals ev to JSON and publishes it to ev.Subject() with
+// Nats-Msg-Id set to ev.MsgID(), so the VIDGEN_EVENTS stream's dupe window
+// collapses repeated publishes of the same logical fact into one stored
+// event. This is the correctness boundary that replaces the old
+// output-file-exists check (index §4 / D4 checkpoint).
+func (s *Store) PublishResult(ctx context.Context, ev Event) (*jetstream.PubAck, error) {
+	data, err := json.Marshal(ev)
+	if err != nil {
+		return nil, fmt.Errorf("marshal event %s: %w", ev.Subject(), err)
+	}
+
+	ack, err := s.js.Publish(ctx, ev.Subject(), data, jetstream.WithMsgID(ev.MsgID()))
+	if err != nil {
+		return nil, fmt.Errorf("publish result %s: %w", ev.Subject(), err)
+	}
+	return ack, nil
 }
