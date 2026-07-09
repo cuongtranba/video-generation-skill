@@ -26,3 +26,5 @@ coverage.*
 
 # Run state
 .okra/runs/
+
+.worktrees/
