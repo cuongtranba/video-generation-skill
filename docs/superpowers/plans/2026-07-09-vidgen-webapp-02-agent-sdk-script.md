@@ -6,7 +6,7 @@
 
 **Architecture:** One new module, `api/src/script.ts`, inside the `api` TypeScript service (built by P1). Four pure/impure layers in the same file, added incrementally: (1) `ScriptInput`/`ScriptResult`/`ScriptGeneratedMapping` types + the JSON schema + Vietnamese prompt builder (pure), (2) `parseScenes` — structured-output → `Scene[]` with `idx` assigned by array position (pure), (3) `mapScriptGeneratedEvent` — result → `{ event, notionalUsd }` with the BINDING `scriptUsd = 0` rule (pure), (4) `generateScenes` — calls `query()` from `@anthropic-ai/claude-agent-sdk`, reads `total_cost_usd` + `structured_output` off the terminal `result` message (impure, SDK-backed). Only layer 4 talks to the SDK/CLI; layers 1–3 are unit-tested with zero I/O. One opt-in, env-gated live test exercises layer 4 end-to-end against the local `claude` CLI (subscription auth — no API key).
 
-**Tech Stack:** TypeScript (ESM, Node), `@anthropic-ai/claude-agent-sdk@^0.3.205` (version verified working in `spikes/agent-sdk/script-cost.ts` and cross-checked against Context7 docs below), `vitest` for tests (matches the `spikes/event-model` precedent already in this repo).
+**Tech Stack:** TypeScript (ESM, Bun), `@anthropic-ai/claude-agent-sdk@^0.3.205` (version verified working in `spikes/agent-sdk/script-cost.ts` and cross-checked against Context7 docs below), `bun:test` (Bun's native test runner) for tests.
 
 ---
 
@@ -33,9 +33,11 @@
 This plan is written to execute **after** P1. It assumes, per the index's §3 target layout:
 - `api/package.json`, `api/tsconfig.json` exist, `"type": "module"`, ESM + `.js`-suffixed relative imports (same convention as `spikes/event-model`).
 - `api/src/events.ts` exists and exports `Scene`, `VidgenEvent`, `foldProject`, `ProjectState` — promoted verbatim from `spikes/event-model/events.ts` (read above; do not re-derive or alter it here).
-- `vitest` is already a devDependency and picks up `src/**/*.test.ts` by default (same pattern as `spikes/event-model/vitest.config.ts`).
+- `bun-types` is already a devDependency; `bun test` picks up `src/**/*.test.ts` by default with no config file needed.
 
 If any of these are missing when this plan is executed, stop and flag it — that is a P1 gap, not something to patch inside a P2 task.
+
+**Note (tsconfig):** this plan does not create or modify `api/tsconfig.json` — P2 reuses P1's tsconfig as-is. If P1's tsconfig lacks `"types": ["bun-types"]` and `"noEmit": true`, that is a P1 gap to flag, not something this plan patches.
 
 ---
 
@@ -49,16 +51,16 @@ If any of these are missing when this plan is executed, stop and flag it — tha
 
 Run (from repo root):
 ```bash
-cd api && npm install @anthropic-ai/claude-agent-sdk@^0.3.205
+cd api && bun add @anthropic-ai/claude-agent-sdk@^0.3.205
 ```
-Expected: `package.json` and `package-lock.json` in `api/` gain the `@anthropic-ai/claude-agent-sdk` entry. (Pinned to the version already verified working in `spikes/agent-sdk/package.json`.)
+Expected: `package.json` and `bun.lock` in `api/` gain the `@anthropic-ai/claude-agent-sdk` entry. (Pinned to the version already verified working in `spikes/agent-sdk/package.json`.)
 
 - [ ] **Step 2: Write the failing test for the prompt builder and schema**
 
 Create `api/src/script.test.ts`:
 
 ```typescript
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'bun:test'
 import { buildScriptPrompt, scriptSchema, type ScriptInput } from './script.js'
 
 describe('buildScriptPrompt', () => {
@@ -92,7 +94,7 @@ describe('scriptSchema', () => {
 
 Run:
 ```bash
-cd api && npx vitest run src/script.test.ts
+cd api && bun test src/script.test.ts
 ```
 Expected: FAIL — `api/src/script.ts` does not exist yet, so the import of `./script.js` cannot be resolved (e.g. `Error: Cannot find module '.../api/src/script.ts' imported from '.../api/src/script.test.ts'`).
 
@@ -147,7 +149,7 @@ export function buildScriptPrompt(input: ScriptInput): string {
 
 Run:
 ```bash
-cd api && npx vitest run src/script.test.ts
+cd api && bun test src/script.test.ts
 ```
 Expected: PASS
 ```
@@ -160,7 +162,7 @@ Test Files  1 passed (1)
 - [ ] **Step 6: Commit**
 
 ```bash
-cd api && git add package.json package-lock.json src/script.ts src/script.test.ts
+cd api && git add package.json bun.lock src/script.ts src/script.test.ts
 git commit -m "feat(api): add script prompt builder and scene JSON schema"
 ```
 
@@ -177,7 +179,7 @@ git commit -m "feat(api): add script prompt builder and scene JSON schema"
 Replace the full contents of `api/src/script.test.ts` with:
 
 ```typescript
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'bun:test'
 import { buildScriptPrompt, parseScenes, scriptSchema, type ScriptInput } from './script.js'
 
 describe('buildScriptPrompt', () => {
@@ -241,7 +243,7 @@ This is the complete file — it replaces the Task 1 version wholesale (adds `pa
 
 Run:
 ```bash
-cd api && npx vitest run src/script.test.ts
+cd api && bun test src/script.test.ts
 ```
 Expected: FAIL — `parseScenes` is not exported from `./script.js` (`SyntaxError: The requested module './script.js' does not provide an export named 'parseScenes'`), while the 3 Task 1 tests still pass.
 
@@ -279,7 +281,7 @@ export function parseScenes(structuredOutput: unknown): Scene[] {
 
 Run:
 ```bash
-cd api && npx vitest run src/script.test.ts
+cd api && bun test src/script.test.ts
 ```
 Expected: PASS
 ```
@@ -309,7 +311,7 @@ git commit -m "feat(api): parse SDK structured output into Scene[] with position
 Replace the full contents of `api/src/script.test.ts` with:
 
 ```typescript
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'bun:test'
 import { buildScriptPrompt, mapScriptGeneratedEvent, parseScenes, scriptSchema, type ScriptInput } from './script.js'
 import type { Scene } from './events.js'
 
@@ -397,7 +399,7 @@ This is the complete file — it replaces the Task 2 version wholesale (adds `ma
 
 Run:
 ```bash
-cd api && npx vitest run src/script.test.ts
+cd api && bun test src/script.test.ts
 ```
 Expected: FAIL — `mapScriptGeneratedEvent` is not exported from `./script.js`, while the 7 existing tests still pass.
 
@@ -418,7 +420,7 @@ export function mapScriptGeneratedEvent(projectId: string, at: string, result: S
 
 Run:
 ```bash
-cd api && npx vitest run src/script.test.ts
+cd api && bun test src/script.test.ts
 ```
 Expected: PASS
 ```
@@ -448,7 +450,7 @@ git commit -m "feat(api): map script result to ScriptGenerated event, scriptUsd 
 Create `api/src/script.live.test.ts`:
 
 ```typescript
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'bun:test'
 import { generateScenes, mapScriptGeneratedEvent } from './script.js'
 
 // Live test: spawns the local `claude` CLI via the Agent SDK, authenticated by the
@@ -456,8 +458,8 @@ import { generateScenes, mapScriptGeneratedEvent } from './script.js'
 // required. Budget: 1 SDK call (of the ≤2 allowed). Skipped by default.
 //
 // Run explicitly with:
-//   cd api && RUN_LIVE_SDK_TESTS=1 npx vitest run src/script.live.test.ts
-describe.skipIf(!process.env.RUN_LIVE_SDK_TESTS)('generateScenes (live)', () => {
+//   cd api && RUN_LIVE_SDK_TESTS=1 bun test src/script.live.test.ts
+describe.skipIf(process.env.RUN_LIVE_SDK_TESTS !== '1')('generateScenes (live)', () => {
   it('produces sceneCount scenes and maps to scriptUsd = 0', async () => {
     const input = { idea: '3 lý do bạn nên uống nước ấm mỗi sáng', durationSec: 30, sceneCount: 3, tone: 'casual' }
 
@@ -618,7 +620,7 @@ export async function generateScenes(input: ScriptInput): Promise<ScriptResult> 
 
 Run:
 ```bash
-cd api && npx vitest run
+cd api && bun test
 ```
 Expected:
 ```
@@ -633,7 +635,7 @@ Test Files  2 passed (2)
 
 Run:
 ```bash
-cd api && npx tsc --noEmit
+cd api && bunx tsc --noEmit
 ```
 Expected: no output, exit code 0. (Confirms `structured_output: unknown` is narrowed correctly in `parseScenes`, `Extract<VidgenEvent, {...}>` resolves, and there are no `any` leaks.)
 
@@ -641,7 +643,7 @@ Expected: no output, exit code 0. (Confirms `structured_output: unknown` is narr
 
 Run:
 ```bash
-cd api && RUN_LIVE_SDK_TESTS=1 npx vitest run src/script.live.test.ts
+cd api && RUN_LIVE_SDK_TESTS=1 bun test src/script.live.test.ts
 ```
 Expected: PASS, using 1 of the ≤2 budgeted live SDK calls (real `claude` CLI subprocess spawn, no `ANTHROPIC_API_KEY` in the environment):
 ```
