@@ -1,0 +1,8 @@
+{
+  "run_id": "disc-01",
+  "objective": "6/6 pipeline stages browser-only + 1 rendered MP4",
+  "anti_goal": { "metric": "per_video_usd", "cap_env": "COST_CAP_USD", "default": 0.15, "type": "tripwire" },
+  "drift_gauge": { "metric": "go_worker_media_test_pass_rate", "target": 1.0 },
+  "tripwire_secrets": "no secret material appended to VIDGEN_EVENTS",
+  "frame_owner": "human"
+}
