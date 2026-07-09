@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'bun:test'
-import { connectBus, ensureStreams, EVENTS_STREAM, JOBS_STREAM, type Bus } from './nats.js'
+import { connectBus, ensureStreams, EVENTS_STREAM, JOBS_STREAM, publishEvent, dispatchJob, type Bus } from './nats.js'
+import { randomUUID } from 'node:crypto'
+import { AckPolicy } from '@nats-io/jetstream'
+import type { VidgenEvent } from './events.js'
 
 const NATS_URL = process.env.NATS_URL ?? 'nats://localhost:4223'
 
@@ -30,6 +33,56 @@ describe('connectBus + ensureStreams (integration)', () => {
     expect(events.config.subjects).toEqual(['vidgen.evt.>'])
     expect(jobs.config.name).toBe(JOBS_STREAM)
     expect(jobs.config.subjects).toEqual(['vidgen.job.>'])
+    await bus.nc.drain()
+  })
+})
+
+describe('publishEvent + dispatchJob (integration)', () => {
+  it.skipIf(!up)('republishing the same event does not double-append (dupe window)', async () => {
+    const bus = await tryConnectBus()
+    if (!bus) return
+    await ensureStreams(bus.jsm)
+    const projectId = randomUUID()
+    const event: VidgenEvent = { v: 1, type: 'AwaitingApproval', projectId, at: 't' }
+    await publishEvent(bus.js, event)
+    await publishEvent(bus.js, event)
+    const consumer = await bus.js.consumers.get(EVENTS_STREAM, { filter_subjects: [`vidgen.evt.${projectId}.AwaitingApproval`] })
+    const batch = await consumer.fetch({ max_messages: 10, expires: 1500 })
+    let count = 0
+    for await (const m of batch) {
+      count++
+      m.ack()
+    }
+    expect(count).toBe(1)
+    await bus.nc.drain()
+  })
+
+  it.skipIf(!up)('dispatchJob publishes to vidgen.job.<kind>.<projectId>.<scene>', async () => {
+    const bus = await tryConnectBus()
+    if (!bus) return
+    await ensureStreams(bus.jsm)
+    const projectId = randomUUID()
+    await dispatchJob(bus.js, 'material', projectId, 0, { visual: 'b' })
+    // VIDGEN_JOBS is Workqueue-retention (index.md §4). An ordered consumer
+    // (js.consumers.get(stream, { filter_subjects })) forces AckPolicy.None,
+    // which JetStream rejects for pull consumers on a Workqueue stream
+    // ("consumer in pull mode requires ack policy") — so verify via an
+    // explicit-ack ephemeral pull consumer instead.
+    const consumerName = `test-dispatch-${projectId}`
+    await bus.jsm.consumers.add(JOBS_STREAM, {
+      name: consumerName,
+      filter_subject: `vidgen.job.material.${projectId}.0`,
+      ack_policy: AckPolicy.Explicit,
+    })
+    const consumer = await bus.js.consumers.get(JOBS_STREAM, consumerName)
+    const batch = await consumer.fetch({ max_messages: 1, expires: 1500 })
+    const seen: string[] = []
+    for await (const m of batch) {
+      seen.push(m.subject)
+      m.ack()
+    }
+    expect(seen).toEqual([`vidgen.job.material.${projectId}.0`])
+    await bus.jsm.consumers.delete(JOBS_STREAM, consumerName)
     await bus.nc.drain()
   })
 })
