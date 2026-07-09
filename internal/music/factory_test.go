@@ -53,3 +53,13 @@ func TestNewFromConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestNoopSourceDownloadErrors(t *testing.T) {
+	s, err := NewFromConfig(config.MusicSelect{Provider: "none"}, "")
+	if err != nil {
+		t.Fatalf("NewFromConfig: %v", err)
+	}
+	if err := s.Download(context.Background(), Track{}, "/tmp/x.mp3"); err == nil {
+		t.Fatal("noop Download should return an error")
+	}
+}
