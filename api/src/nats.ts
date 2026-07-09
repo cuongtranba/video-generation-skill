@@ -100,3 +100,70 @@ export async function dispatchJob(
   const body: JobPayload = { projectId, sceneIdx, ...payload }
   await js.publish(jobSubject(kind, projectId, sceneIdx), JSON.stringify(body), { msgID: `${kind}-${projectId}-${scene}` })
 }
+
+import { AckPolicy, DeliverPolicy } from '@nats-io/jetstream'
+
+export async function ensureDurableConsumer(jsm: JetStreamManager, durableName: string): Promise<void> {
+  try {
+    await jsm.consumers.info(EVENTS_STREAM, durableName)
+  } catch {
+    await jsm.consumers.add(EVENTS_STREAM, {
+      durable_name: durableName,
+      ack_policy: AckPolicy.Explicit,
+      deliver_policy: DeliverPolicy.All,
+    })
+  }
+}
+
+export async function deleteDurableConsumer(jsm: JetStreamManager, durableName: string): Promise<void> {
+  try {
+    await jsm.consumers.delete(EVENTS_STREAM, durableName)
+  } catch {
+    // already gone — fine
+  }
+}
+
+/** Long-running: resolves only when the underlying subscription ends (e.g.
+ * on nc.drain()). Callers run this as a background loop, not awaited inline. */
+export async function consumeEvents(
+  js: JetStreamClient,
+  durableName: string,
+  handler: (event: VidgenEvent, seq: number) => Promise<void>,
+): Promise<void> {
+  const c = await js.consumers.get(EVENTS_STREAM, durableName)
+  const msgs = await c.consume()
+  for await (const m of msgs) {
+    try {
+      const event = m.json<VidgenEvent>()
+      await handler(event, m.seq)
+      m.ack()
+    } catch (err) {
+      console.error(`consumeEvents: handler failed for seq ${m.seq}:`, err)
+      m.nak()
+    }
+  }
+}
+
+export interface EventStore {
+  loadEvents(projectId: string): Promise<VidgenEvent[]>
+  append(event: VidgenEvent): Promise<void>
+}
+
+/** Reads a project's log directly from VIDGEN_EVENTS (the source of truth),
+ * via an ephemeral ordered consumer filtered to that project's subjects. */
+export function createEventStore(js: JetStreamClient): EventStore {
+  return {
+    async loadEvents(projectId: string): Promise<VidgenEvent[]> {
+      const consumer = await js.consumers.get(EVENTS_STREAM, { filter_subjects: [`vidgen.evt.${projectId}.>`] })
+      const events: VidgenEvent[] = []
+      const batch = await consumer.fetch({ max_messages: 10_000, expires: 1000 }) // @nats-io/jetstream@3.4.0 requires expires >= 1000ms
+      for await (const m of batch) {
+        events.push(m.json<VidgenEvent>())
+      }
+      return events
+    },
+    async append(event: VidgenEvent): Promise<void> {
+      await publishEvent(js, event)
+    },
+  }
+}

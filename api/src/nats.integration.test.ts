@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'bun:test'
 import { connectBus, ensureStreams, EVENTS_STREAM, JOBS_STREAM, publishEvent, dispatchJob, type Bus } from './nats.js'
+import { ensureDurableConsumer, deleteDurableConsumer, consumeEvents, createEventStore } from './nats.js'
 import { randomUUID } from 'node:crypto'
 import { AckPolicy } from '@nats-io/jetstream'
 import type { VidgenEvent } from './events.js'
@@ -83,6 +84,43 @@ describe('publishEvent + dispatchJob (integration)', () => {
     }
     expect(seen).toEqual([`vidgen.job.material.${projectId}.0`])
     await bus.jsm.consumers.delete(JOBS_STREAM, consumerName)
+    await bus.nc.drain()
+  })
+})
+
+describe('durable consumer + createEventStore (integration)', () => {
+  it.skipIf(!up)('createEventStore loads a project log in stream order', async () => {
+    const bus = await tryConnectBus()
+    if (!bus) return
+    await ensureStreams(bus.jsm)
+    const projectId = randomUUID()
+    const created: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId, at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' }
+    const scripted: VidgenEvent = { v: 1, type: 'ScriptGenerated', projectId, at: '2026-07-09T00:01:00Z', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 }
+    await publishEvent(bus.js, created)
+    await publishEvent(bus.js, scripted)
+    const store = createEventStore(bus.js)
+    const events = await store.loadEvents(projectId)
+    expect(events.map((e) => e.type)).toEqual(['ProjectCreated', 'ScriptGenerated'])
+    await bus.nc.drain()
+  })
+
+  it.skipIf(!up)('consumeEvents on a durable consumer delivers backlog and new events', async () => {
+    const bus = await tryConnectBus()
+    if (!bus) return
+    await ensureStreams(bus.jsm)
+    const projectId = randomUUID()
+    const durable = `test-consume-${projectId}`
+    const event: VidgenEvent = { v: 1, type: 'AwaitingApproval', projectId, at: 't' }
+    await publishEvent(bus.js, event)
+    await ensureDurableConsumer(bus.jsm, durable)
+    const seen: VidgenEvent[] = []
+    const consumePromise = consumeEvents(bus.js, durable, async (e) => {
+      seen.push(e)
+    })
+    consumePromise.catch(() => {})
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    expect(seen.some((e) => e.projectId === projectId && e.type === 'AwaitingApproval')).toBe(true)
+    await deleteDurableConsumer(bus.jsm, durable)
     await bus.nc.drain()
   })
 })
