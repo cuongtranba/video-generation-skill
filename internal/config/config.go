@@ -10,10 +10,11 @@ import (
 )
 
 type Config struct {
-	FPTTTSAPIKey    string
-	PexelsAPIKey    string
-	PixabayAPIKey   string
-	JamendoClientID string
+	FPTTTSAPIKey      string
+	PexelsAPIKey      string
+	PixabayAPIKey     string
+	JamendoClientID   string
+	TikTokAccessToken string
 }
 
 // Load reads configuration from a .env file (if envPath is non-empty and the
@@ -32,10 +33,11 @@ func Load(envPath string) (Config, error) {
 	}
 
 	return Config{
-		FPTTTSAPIKey:    get("FPT_TTS_API_KEY"),
-		PexelsAPIKey:    get("PEXELS_API_KEY"),
-		PixabayAPIKey:   get("PIXABAY_API_KEY"),
-		JamendoClientID: get("JAMENDO_CLIENT_ID"),
+		FPTTTSAPIKey:      get("FPT_TTS_API_KEY"),
+		PexelsAPIKey:      get("PEXELS_API_KEY"),
+		PixabayAPIKey:     get("PIXABAY_API_KEY"),
+		JamendoClientID:   get("JAMENDO_CLIENT_ID"),
+		TikTokAccessToken: get("TIKTOK_ACCESS_TOKEN"),
 	}, nil
 }
 

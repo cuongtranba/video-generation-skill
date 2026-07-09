@@ -22,10 +22,11 @@ import (
 )
 
 type app struct {
-	baseDir string
-	store   *domain.ManifestStore
-	flow    *flow.Flow
-	cfg     config.Config
+	baseDir   string
+	store     *domain.ManifestStore
+	flow      *flow.Flow
+	cfg       config.Config
+	providers config.ProvidersConfig
 }
 
 func defaultBaseDir() string {
@@ -36,7 +37,15 @@ func defaultBaseDir() string {
 	return filepath.Join(home, ".vidgen", "projects")
 }
 
-func (a *app) init(baseDir string) error {
+func defaultConfigPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "config.yaml"
+	}
+	return filepath.Join(home, ".vidgen", "config.yaml")
+}
+
+func (a *app) init(baseDir, cfgPath string) error {
 	checker := prereq.NewChecker()
 	if err := checker.Check(); err != nil {
 		return fmt.Errorf("missing prerequisites:\n%w", err)
@@ -63,30 +72,44 @@ func (a *app) init(baseDir string) error {
 	if err != nil {
 		return err
 	}
-	if err := cfg.ValidateForGenerate(); err != nil {
+	providers, err := config.LoadProviders(cfgPath)
+	if err != nil {
+		return err
+	}
+	if err := cfg.ValidateForProviders(providers); err != nil {
 		return err
 	}
 	a.cfg = cfg
+	a.providers = providers
 
 	a.baseDir = baseDir
 	a.store = domain.NewManifestStore(baseDir)
 
 	probe := tts.FFProbeDuration(ffprobeBin)
-	stock := material.NewChain(
-		material.NewPexelsSource(cfg.PexelsAPIKey),
-		material.NewPixabaySource(cfg.PixabayAPIKey),
-	)
+
+	stock, err := material.NewFromConfig(providers.Material, cfg)
+	if err != nil {
+		return err
+	}
+	ttsProvider, err := tts.NewFromConfig(providers.TTS, cfg.FPTTTSAPIKey)
+	if err != nil {
+		return err
+	}
+	musicSource, err := music.NewFromConfig(providers.Music, cfg.JamendoClientID)
+	if err != nil {
+		return err
+	}
 
 	a.flow = flow.New(flow.Deps{
-		Store:  a.store,
-		Script: script.NewClaudeCLIGenerator(claudeBin),
+		Store:       a.store,
+		Script:      script.NewClaudeCLIGenerator(claudeBin),
 		Local:       material.NewLocalSource(material.DurationProbe(probe)),
 		Stock:       stock,
-		TTS:         tts.NewFPTAIProvider(cfg.FPTTTSAPIKey),
+		TTS:         ttsProvider,
 		Probe:       probe,
 		Transcriber: caption.NewWhisperRunner(whisperBin),
 		Renderer:    render.NewFFmpegRenderer(ffmpegBin, ffprobeBin),
-		Music:       music.NewJamendoSource(cfg.JamendoClientID),
+		Music:       musicSource,
 	})
 	return nil
 }
@@ -104,7 +127,7 @@ func (a *app) loadProject(projectID string) (*domain.Project, error) {
 
 func NewRootCmd() *cobra.Command {
 	a := &app{}
-	var baseDir string
+	var baseDir, cfgPath string
 
 	root := &cobra.Command{
 		Use:           "vidgen",
@@ -112,10 +135,11 @@ func NewRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return a.init(baseDir)
+			return a.init(baseDir, cfgPath)
 		},
 	}
 	root.PersistentFlags().StringVar(&baseDir, "dir", defaultBaseDir(), "projects base directory")
+	root.PersistentFlags().StringVar(&cfgPath, "config", defaultConfigPath(), "provider selection config (YAML)")
 
 	root.AddCommand(
 		newNewCmd(a),
@@ -124,6 +148,7 @@ func NewRootCmd() *cobra.Command {
 		newConfirmCmd(a),
 		newGenerateCmd(a),
 		newListCmd(a),
+		a.newPublishCmd(),
 	)
 	return root
 }
