@@ -55,6 +55,27 @@ func NewTikTokPublisher(accessToken string, opts ...TikTokOption) *TikTokPublish
 	return p
 }
 
+type initRequest struct {
+	PostInfo   postInfo   `json:"post_info"`
+	SourceInfo sourceInfo `json:"source_info"`
+}
+
+type postInfo struct {
+	Title        string `json:"title"`
+	PrivacyLevel string `json:"privacy_level"`
+}
+
+type sourceInfo struct {
+	Source          string `json:"source"`
+	VideoSize       int    `json:"video_size"`
+	ChunkSize       int    `json:"chunk_size"`
+	TotalChunkCount int    `json:"total_chunk_count"`
+}
+
+type statusRequest struct {
+	PublishID string `json:"publish_id"`
+}
+
 type initResponse struct {
 	Data struct {
 		PublishID string `json:"publish_id"`
@@ -108,16 +129,13 @@ func (p *TikTokPublisher) Publish(ctx context.Context, req PublishRequest) (Publ
 }
 
 func (p *TikTokPublisher) initUpload(ctx context.Context, req PublishRequest, size int) (initResponse, error) {
-	body := map[string]any{
-		"post_info": map[string]any{
-			"title":         req.Caption,
-			"privacy_level": privacyLevel(req.Privacy),
-		},
-		"source_info": map[string]any{
-			"source":            "FILE_UPLOAD",
-			"video_size":        size,
-			"chunk_size":        size,
-			"total_chunk_count": 1,
+	body := initRequest{
+		PostInfo: postInfo{Title: req.Caption, PrivacyLevel: privacyLevel(req.Privacy)},
+		SourceInfo: sourceInfo{
+			Source:          "FILE_UPLOAD",
+			VideoSize:       size,
+			ChunkSize:       size,
+			TotalChunkCount: 1,
 		},
 	}
 	raw, err := json.Marshal(body)
@@ -197,7 +215,7 @@ func (p *TikTokPublisher) pollStatus(ctx context.Context, publishID string) (str
 }
 
 func (p *TikTokPublisher) fetchStatus(ctx context.Context, publishID string) (statusResponse, error) {
-	raw, err := json.Marshal(map[string]string{"publish_id": publishID})
+	raw, err := json.Marshal(statusRequest{PublishID: publishID})
 	if err != nil {
 		return statusResponse{}, fmt.Errorf("marshal status request: %w", err)
 	}

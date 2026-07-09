@@ -133,6 +133,29 @@ func TestPublishEmptyFile(t *testing.T) {
 	}
 }
 
+func TestPublishStatusFailed(t *testing.T) {
+	mux := http.NewServeMux()
+	var srv *httptest.Server
+	mux.HandleFunc("POST /v2/post/publish/video/init/", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{"publish_id": "pub-1", "upload_url": srv.URL + "/upload/pub-1"},
+		})
+	})
+	mux.HandleFunc("PUT /upload/pub-1", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+	})
+	mux.HandleFunc("POST /v2/post/publish/status/fetch/", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"status": "FAILED"}})
+	})
+	srv = httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	p := newTestPublisher(srv.URL)
+	if _, err := p.Publish(context.Background(), PublishRequest{VideoPath: writeTempVideo(t)}); err == nil {
+		t.Fatal("want error when status is FAILED")
+	}
+}
+
 func TestPublishPollTimeout(t *testing.T) {
 	srv := newFakeTikTok(t, 10_000) // never completes
 	p := NewTikTokPublisher("test-token",
