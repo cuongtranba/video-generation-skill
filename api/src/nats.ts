@@ -48,6 +48,7 @@ export async function ensureStreams(jsm: JetStreamManager): Promise<void> {
     subjects: ['vidgen.job.>'],
     retention: RetentionPolicy.Workqueue,
     storage: StorageType.File,
+    duplicate_window: DUPLICATE_WINDOW_NS, // index.md §4 freezes dupe-window 2m for both streams — codify it, don't rely on the NATS default
   })
 }
 

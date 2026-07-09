@@ -106,6 +106,11 @@ describe.skipIf(!httpServerUp)('createHttpServer (integration)', () => {
     const unknownCommandRes = await fetch(`${base}/api/commands/NotACommand`, { method: 'POST', body: '{}' })
     expect(unknownCommandRes.status).toBe(404)
 
+    // A missing media file must 404 cleanly (not crash the process on an
+    // unhandled ReadStream error).
+    const missingMediaRes = await fetch(`${base}/media/does-not-exist.mp4`)
+    expect(missingMediaRes.status).toBe(404)
+
     server.close()
   })
 })

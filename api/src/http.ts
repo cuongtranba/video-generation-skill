@@ -185,11 +185,28 @@ async function serveStatic(rootDir: string, urlPath: string, res: ServerResponse
       sendJson(res, 404, { error: 'not found' })
       return
     }
+    // Re-stat the SPA fallback: if it too is absent (e.g. P1 ships no public/
+    // dir yet), 404 instead of piping a nonexistent file — an unhandled
+    // ReadStream 'error' would otherwise crash the whole api process.
     filePath = path.join(rootDir, 'index.html')
+    try {
+      await stat(filePath)
+    } catch {
+      sendJson(res, 404, { error: 'not found' })
+      return
+    }
   }
   const ext = path.extname(filePath)
+  const stream = createReadStream(filePath)
+  // Guard against a file vanishing between stat and read: never let an
+  // unhandled stream error take the process down.
+  stream.once('error', (err) => {
+    console.error('static stream error:', err)
+    if (!res.headersSent) sendJson(res, 500, { error: 'internal error' })
+    else res.destroy()
+  })
   res.writeHead(200, { 'Content-Type': CONTENT_TYPES[ext] ?? 'application/octet-stream' })
-  createReadStream(filePath).pipe(res)
+  stream.pipe(res)
 }
 
 async function routeRequest(config: HttpConfig, req: IncomingMessage, res: ServerResponse): Promise<void> {
