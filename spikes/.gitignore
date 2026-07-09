@@ -1,0 +1,5 @@
+# Spikes are throwaway learning code — never commit dependency trees.
+**/node_modules/
+
+# Go spike binaries
+go-worker/go-worker
