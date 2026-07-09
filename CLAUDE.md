@@ -13,11 +13,12 @@ go vet ./...                           # must be clean
 
 ## Architecture (1 minute)
 
-- `cmd/vidgen` → `internal/cli` (cobra) → `internal/flow` (5-step status machine: draft→material→tuned→confirmed→rendered)
+- `cmd/vidgen` → `internal/cli` (cobra) → `internal/flow` (status machine: draft→material→tuned→confirmed→rendered→published)
 - Project state = JSON manifest at `~/.vidgen/projects/<id>/manifest.json`; all assets co-located; every step saves + is resumable
 - `generate` runs an **embedded NATS JetStream** bus (`internal/bus`) with idempotent workers (`internal/worker`): parallel per-scene TTS, then caption, then render. Worker checks output file exists → skips work (safe re-run)
 - **Cost wall**: `internal/cost` enforces $0.10/video — projected at confirm, actual during generate. Never remove or weaken these checks
 - External binaries resolved by `internal/prereq` (env overrides: FFMPEG_BIN, FFPROBE_BIN, WHISPER_BIN, CLAUDE_BIN)
+- Providers selected via `~/.vidgen/config.yaml` (`config.LoadProviders`); each category package (`tts`/`music`/`material`/`publish`) has a `NewFromConfig` factory; `videogen` is an interface seam. Keys stay in `.env`, validated per-selected-provider by `config.ValidateForProviders`
 
 ## Conventions
 
@@ -38,7 +39,7 @@ go vet ./...                           # must be clean
 
 ## Keys (.env, gitignored)
 
-`FPT_TTS_API_KEY`, `PEXELS_API_KEY`, `PIXABAY_API_KEY` (optional), `JAMENDO_CLIENT_ID`
+`FPT_TTS_API_KEY`, `PEXELS_API_KEY`, `PIXABAY_API_KEY` (optional), `JAMENDO_CLIENT_ID`, `TIKTOK_ACCESS_TOKEN` (publish)
 
 ## Workflow
 
