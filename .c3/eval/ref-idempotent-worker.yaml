@@ -1,0 +1,4 @@
+fact: ref-idempotent-worker
+claim: "workers check output existence before doing paid/slow work"
+code:
+  - internal/worker/worker.go

@@ -1,0 +1,7 @@
+fact: rule-error-wrap
+claim: "errors are wrapped with op context via fmt.Errorf(...: %w)"
+code:
+  - internal/cli/root.go
+pipeline:
+  - gather: { file: internal/cli/root.go }
+  - eval:   { contains: "%w" }

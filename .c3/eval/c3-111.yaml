@@ -1,0 +1,4 @@
+fact: c3-111
+claim: "idea-to-script generator (claude CLI) lives in internal/script"
+code:
+  - internal/script/**

@@ -1,0 +1,4 @@
+fact: c3-210
+claim: "idempotent job consumers & typed messages live in internal/worker"
+code:
+  - internal/worker/**

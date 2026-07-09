@@ -1,0 +1,7 @@
+fact: c3-201
+claim: "embedded NATS JetStream bus lives in internal/bus with job/result streams"
+code:
+  - internal/bus/**
+pipeline:
+  - gather: { file: internal/bus/bus.go }
+  - eval:   { contains_all: ["VIDGEN_JOBS", "VIDGEN_RESULTS", "jetstream"] }

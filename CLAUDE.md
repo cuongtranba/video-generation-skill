@@ -2,6 +2,12 @@
 
 Go CLI generating 9:16 Vietnamese-voiced short videos: idea → script → stock material → FPT.AI TTS → whisper captions → FFmpeg render. Full docs in README.md.
 
+## Architecture docs (C3)
+
+Frozen architecture facts live in `.c3/`: system `c3-0`, containers `c3-1` (CLI process) and `c3-2` (message-bus/async plane), 14 components, plus governing refs and rules. Facts are frozen — they change **only** through a C3 change-unit, never by hand-editing `.c3/`.
+
+For architecture questions, changes, audits, or file→component context → use the **C3 skill** (`/c3`). Operations: query, audit, change, ref, rule, canvas, sweep. File lookup: `c3 lookup <file-or-glob>` maps files to their owning component + governing refs/rules. (`.c3/c3.db` is a disposable cache — rebuild with `c3 repair`.)
+
 ## Commands
 
 ```bash
