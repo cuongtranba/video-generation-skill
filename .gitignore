@@ -28,6 +28,3 @@ coverage.*
 .okra/runs/
 
 .worktrees/
-
-# C3 disposable cache (rebuild with: c3 repair)
-.c3/c3.db
