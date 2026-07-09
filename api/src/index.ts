@@ -3,7 +3,7 @@ import { connectBus, ensureStreams, createEventStore } from './nats.js'
 import { createCommandContext } from './commands.js'
 import { runProjections } from './projections.js'
 import { createHttpServer } from './http.js'
-import { stubScriptGenerator } from './script.js'
+import { sdkScriptGenerator } from './script.js'
 import { costCapFromEnv } from './cost.js'
 
 async function main(): Promise<void> {
@@ -20,7 +20,7 @@ async function main(): Promise<void> {
   await ensureStreams(bus.jsm)
 
   const store = createEventStore(bus.js)
-  const ctx = createCommandContext(store, bus.js, stubScriptGenerator, costCapFromEnv())
+  const ctx = createCommandContext(store, bus.js, sdkScriptGenerator, costCapFromEnv())
 
   runProjections(bus.js, bus.jsm, db).catch((err: unknown) => {
     console.error('projections consumer stopped:', err)
