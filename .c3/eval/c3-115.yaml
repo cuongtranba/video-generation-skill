@@ -1,0 +1,4 @@
+fact: c3-115
+claim: "platform publishing lives in internal/publish"
+code:
+  - internal/publish/**

@@ -1,0 +1,5 @@
+fact: ref-manifest-state
+claim: "project state is a JSON manifest persisted through ManifestStore, gated by a status machine"
+code:
+  - internal/domain/manifest.go
+  - internal/flow/flow.go

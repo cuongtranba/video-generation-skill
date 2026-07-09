@@ -1,0 +1,7 @@
+fact: rule-cost-wall
+claim: "CapUSD is 0.10 and both projected and actual checks exist"
+code:
+  - internal/cost/ledger.go
+pipeline:
+  - gather: { file: internal/cost/ledger.go }
+  - eval:   { contains_all: ["CapUSD = 0.10", "CheckProjected", "CheckActual"] }

@@ -1,0 +1,4 @@
+fact: c3-102
+claim: "provider selection & secret validation live in internal/config"
+code:
+  - internal/config/**

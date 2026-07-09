@@ -1,0 +1,4 @@
+fact: c3-112
+claim: "stock & local visual sourcing lives in internal/material"
+code:
+  - internal/material/**

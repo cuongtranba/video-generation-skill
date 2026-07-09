@@ -1,0 +1,4 @@
+fact: c3-103
+claim: "external binary resolver lives in internal/prereq"
+code:
+  - internal/prereq/**

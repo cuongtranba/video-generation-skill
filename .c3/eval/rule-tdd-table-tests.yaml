@@ -1,0 +1,7 @@
+fact: rule-tdd-table-tests
+claim: "tests are table-driven (tests := []struct{...})"
+code:
+  - internal/cost/ledger_test.go
+pipeline:
+  - gather: { file: internal/cost/ledger_test.go }
+  - eval:   { contains: "tests := []struct" }
