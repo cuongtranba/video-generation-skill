@@ -52,6 +52,23 @@ func TestLoadProvidersPartialFillsFromDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadProvidersNullSectionFillsFromDefaults(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("tts:\nmusic:\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadProviders(path)
+	if err != nil {
+		t.Fatalf("LoadProviders: %v", err)
+	}
+	if got.TTS.Provider != "fpt" || got.TTS.Voice != "banmai" {
+		t.Errorf("null tts section should fill from defaults, got %+v", got.TTS)
+	}
+	if got.Music.Provider != "jamendo" {
+		t.Errorf("null music section should fill from defaults, got %q", got.Music.Provider)
+	}
+}
+
 func TestLoadProvidersMalformedYAML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bad.yaml")
 	if err := os.WriteFile(path, []byte("tts: [not a map\n"), 0o600); err != nil {

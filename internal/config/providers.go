@@ -79,6 +79,10 @@ func fillDefaults(cfg ProvidersConfig) ProvidersConfig {
 	if cfg.TTS.Voice == "" {
 		cfg.TTS.Voice = d.TTS.Voice
 	}
+	// TTS.Speed is intentionally not backfilled here: its zero value (0)
+	// already equals DefaultProvidersConfig's value, and 0 is also a valid
+	// explicit user setting, so a "Speed == 0" guard would wrongly override
+	// a deliberate user choice.
 	if cfg.Music.Provider == "" {
 		cfg.Music.Provider = d.Music.Provider
 	}
