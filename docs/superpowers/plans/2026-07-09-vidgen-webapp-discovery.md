@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-07-09-vidgen-webapp-event-store-design.md`
 
-**okra note:** Run id `disc-01`. Checkpoints are the source of truth (append-only); status is derived. D1 **spends real money** — it is the only side-effecting spike and is budgeted.
+**okra note:** Run id `disc-01`. Checkpoints are the source of truth (append-only); status is derived. All spikes are free — Agent SDK uses the local `claude` CLI (subscription auth), no API key, script gen cost = $0.
 
 ---
 
@@ -282,9 +282,9 @@ git commit -m "spike(D2): event catalogue + aggregate fold, verified"
 
 ---
 
-## Task 3 (D1): Agent SDK per-video cost probe — SETS THE COST WALL
+## Task 3 (D1): Agent SDK integration probe — verify local CLI, structured output, and per-call cost
 
-**Side effects:** this task calls the paid Anthropic API. Budget: ≤ 5 calls total. Requires `ANTHROPIC_API_KEY` in the environment.
+**Side effects:** none paid. Agent SDK wraps the local `claude` CLI subprocess (subscription auth — same as the original vidgen `internal/script` package). No `ANTHROPIC_API_KEY` needed. Script generation cost = **$0** (subscription). Probe confirms the SDK works, produces valid structured JSON, and that `total_cost_usd` reports $0.
 
 **Files:**
 - Create: `spikes/agent-sdk/package.json`
@@ -351,8 +351,8 @@ for (const idea of ideas) {
 
 - [ ] **Step 3: Run the probe**
 
-Run: `cd spikes/agent-sdk && ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY npx tsx script-cost.ts`
-Expected: 3 JSON lines, each with `scriptUsd` (a real USD number) and `scenes: 3`.
+Run: `cd spikes/agent-sdk && npx tsx script-cost.ts`
+Expected: 3 JSON lines, each with `scriptUsd: 0` (subscription, no charge) and `scenes: 3`.
 
 - [ ] **Step 4: Record the readings to the ledger**
 
@@ -370,20 +370,21 @@ printf '%s\n' \
 `.okra/runs/disc-01/checkpoints/D1.md`:
 
 ```markdown
-# D1 checkpoint — Agent SDK script cost
-- Measured script_usd per video: [max of the 3 real readings].
-- Total projected per-video cost = script_usd + TTS (~$0.004) + render ($0).
-- Recommended `COST_CAP_USD` default: round the total up with headroom (candidate $0.15).
-- Admissibility rule confirmed: `result.total_cost_usd` is the authoritative per-call cost.
-- Confidence: HIGH — real API readings, not estimates.
-- FLAG if max total > $0.15 → escalate to human to ratify a higher cap before build.
+# D1 checkpoint — Agent SDK integration
+- Agent SDK wraps local `claude` CLI (subscription auth); no ANTHROPIC_API_KEY; script gen cost = $0.
+- `total_cost_usd` from the result message confirmed: [observed value, expected 0].
+- Structured output (`json_schema` format) returns valid scenes array — 3/3 ideas produced scenes: 3.
+- Total per-video cost = $0 (script) + ~$0.004 (FPT TTS) + $0 (render) = ~$0.004.
+- COST_CAP_USD default $0.15 (ratified by human) gives 37× headroom — only TTS charges are real.
+- Admissibility rule: aggregate checks projected TTS chars × rate, not script cost.
+- Confidence: HIGH — SDK runs locally, correct JSON output verified.
 ```
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add spikes/agent-sdk .okra/runs/disc-01/checkpoints/D1.md .okra/runs/disc-01/ledger.jsonl
-git commit -m "spike(D1): Agent SDK per-video cost probe; sets COST_CAP_USD default"
+git commit -m "spike(D1): Agent SDK integration probe; confirms $0 script cost + valid structured output"
 ```
 
 ---
@@ -651,7 +652,7 @@ Confirm every spike is HIGH confidence and no `cannot`/`breaking` flag is open.
 
 - [ ] **Step 2: Paired anti-goal read**
 
-Confirm: D1 max total per-video cost ≤ chosen `COST_CAP_USD`, AND no secret values were appended to any event in the probes. If cost > cap → open a `breaking`/authority flag and STOP for human ratification of a higher cap.
+Confirm: total per-video cost (TTS ~$0.004, script $0, render $0) ≤ `COST_CAP_USD` $0.15 (yes by 37×), AND no secret values (API keys, tokens) were appended to any event in the probes. If any secret appears in the event log → open a `breaking` flag and STOP.
 
 - [ ] **Step 3: Write the synthesis + go/no-go**
 
@@ -659,7 +660,7 @@ Confirm: D1 max total per-video cost ≤ chosen `COST_CAP_USD`, AND no secret va
 
 ```markdown
 # disc-01 synthesis
-- D1 cost: [value] → COST_CAP_USD default ratified at [value].
+- D1: Agent SDK $0/video (subscription, not API key) confirmed; COST_CAP_USD $0.15 ratified by human stands (37× over real TTS cost).
 - D2 event model: v1 catalogue frozen.
 - D3 nats.ws: browser live consume works (ephemeral ordered consumer).
 - D4 worker: event-level idempotency works.
@@ -668,9 +669,9 @@ Confirm: D1 max total per-video cost ≤ chosen `COST_CAP_USD`, AND no secret va
 - Next: per-subsystem implementation plans — (1) api aggregate+command handlers+projections, (2) Agent SDK script service, (3) Go worker adapter, (4) React/Zustand SPA + lint ban, (5) delete CLI + C3 change-unit.
 ```
 
-- [ ] **Step 4: Update the spec's ratified cap default (if D1 changed it)**
+- [ ] **Step 4: Confirm COST_CAP_USD in spec is correct**
 
-Edit the spec anti-goal line so `default $0.15` reflects the real D1 reading.
+D1 confirmed script gen = $0 (subscription). Cap $0.15 (ratified by human) remains correct and needs no change. Only action: verify the spec anti-goal line still reads `"default": 0.15` — no edit expected.
 
 - [ ] **Step 5: Commit**
 
