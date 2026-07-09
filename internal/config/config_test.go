@@ -69,22 +69,29 @@ func TestEnvVarOverridesDotEnv(t *testing.T) {
 	}
 }
 
-func TestValidateForGenerate(t *testing.T) {
-	tests := []struct {
-		name    string
-		cfg     Config
-		wantErr bool
-	}{
-		{"all set", Config{FPTTTSAPIKey: "a", PexelsAPIKey: "b"}, false},
-		{"missing fpt", Config{PexelsAPIKey: "b"}, true},
-		{"missing pexels", Config{FPTTTSAPIKey: "a"}, true},
+func TestValidateForProvidersMusicNoneSkipsJamendo(t *testing.T) {
+	cfg := Config{FPTTTSAPIKey: "k", PexelsAPIKey: "p", PixabayAPIKey: "x"}
+	providers := DefaultProvidersConfig()
+	providers.Music.Provider = "none"
+	if err := cfg.ValidateForProviders(providers); err != nil {
+		t.Errorf("music=none should not require jamendo key: %v", err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.cfg.ValidateForGenerate()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateForGenerate() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
+}
+
+func TestValidateForProvidersMissingSelectedKey(t *testing.T) {
+	cfg := Config{PexelsAPIKey: "p"} // no FPT key
+	providers := DefaultProvidersConfig()
+	if err := cfg.ValidateForProviders(providers); err == nil {
+		t.Fatal("want error for missing FPT_TTS_API_KEY when tts=fpt")
+	}
+}
+
+func TestValidateForProvidersOnlyListedMaterial(t *testing.T) {
+	cfg := Config{FPTTTSAPIKey: "k", PexelsAPIKey: "p"} // no pixabay key
+	providers := DefaultProvidersConfig()
+	providers.Material.Providers = []string{"pexels"}
+	providers.Music.Provider = "none"
+	if err := cfg.ValidateForProviders(providers); err != nil {
+		t.Errorf("only pexels selected, pixabay key not required: %v", err)
 	}
 }

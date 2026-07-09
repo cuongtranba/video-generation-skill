@@ -16,7 +16,8 @@ CLI tool that turns an idea into a ready-to-post short-form vertical video (9:16
 
 ## Features
 
-- **5-step guided flow** — draft → material → tune → confirm → generate, resumable at any step (manifest persisted per project)
+- **6-step guided flow** — draft → material → tune → confirm → generate → publish, resumable at any step (manifest persisted per project)
+- **Pluggable providers** — TTS/music/material/publish implementation chosen via `~/.vidgen/config.yaml`; API keys stay in `.env`
 - **Vietnamese TTS** — FPT.AI voices, northern/southern/central accents, speed control
 - **Script generation** — scene-by-scene script from one idea, via the `claude` CLI (subscription auth, no API key)
 - **Material resolution** — your own photos/videos first (`--resource`), Pexels/Pixabay stock fills the gaps; short clips loop to cover narration
@@ -48,9 +49,39 @@ FPT_TTS_API_KEY=...      # console.fpt.ai — Vietnamese TTS
 PEXELS_API_KEY=...       # pexels.com/api — stock video (free)
 PIXABAY_API_KEY=...      # optional — image fallback
 JAMENDO_CLIENT_ID=...    # devportal.jamendo.com — music search (free)
+TIKTOK_ACCESS_TOKEN=...  # developers.tiktok.com — required only for `vidgen publish`
 ```
 
 Binary overrides (optional): `FFMPEG_BIN`, `FFPROBE_BIN`, `WHISPER_BIN`, `CLAUDE_BIN`.
+
+## Provider configuration
+
+Which service implements each pipeline stage is selected via a YAML config file, not code. API keys always stay in `.env` / env vars — never in this file. Only the keys for providers you've actually selected are required (`config.ValidateForProviders`).
+
+Location: `~/.vidgen/config.yaml`. Override with `--config <path>` (persistent flag, works on every command). Absent file → defaults below, i.e. today's behavior unchanged.
+
+```yaml
+tts:
+  provider: fpt          # fpt | elevenlabs (not yet implemented)
+  voice: banmai
+  speed: 0
+music:
+  provider: jamendo      # jamendo | none
+material:
+  providers: [pexels, pixabay]   # ordered fallback; pexels | pixabay (tiktok not yet implemented)
+videogen:
+  provider: none         # none (runway/kling not yet implemented)
+publish:
+  provider: none         # none | tiktok
+```
+
+| Category | Real provider | Seam (selectable, not implemented) |
+|---|---|---|
+| `tts` | FPT.AI | ElevenLabs |
+| `music` | Jamendo | — |
+| `material` | Pexels, Pixabay | TikTok |
+| `videogen` | — | Runway, Kling |
+| `publish` | TikTok | YouTube, Instagram |
 
 ## Usage
 
@@ -76,6 +107,10 @@ Binary overrides (optional): `FFMPEG_BIN`, `FFPROBE_BIN`, `WHISPER_BIN`, `CLAUDE
 
 # 5. Generate — parallel TTS, captions, final render
 ./vidgen generate --project 7ccd643c --output video.mp4
+
+# 6. Publish — send the rendered video to the configured publish provider
+./vidgen publish --project 7ccd643c --caption "3 lý do nên uống nước ấm" --privacy public
+# → published 7ccd643c (id ...) — requires publish.provider set in config.yaml + TIKTOK_ACCESS_TOKEN
 
 # list all projects + status
 ./vidgen list

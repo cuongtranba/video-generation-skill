@@ -10,10 +10,11 @@ import (
 )
 
 type Config struct {
-	FPTTTSAPIKey    string
-	PexelsAPIKey    string
-	PixabayAPIKey   string
-	JamendoClientID string
+	FPTTTSAPIKey      string
+	PexelsAPIKey      string
+	PixabayAPIKey     string
+	JamendoClientID   string
+	TikTokAccessToken string
 }
 
 // Load reads configuration from a .env file (if envPath is non-empty and the
@@ -32,23 +33,45 @@ func Load(envPath string) (Config, error) {
 	}
 
 	return Config{
-		FPTTTSAPIKey:    get("FPT_TTS_API_KEY"),
-		PexelsAPIKey:    get("PEXELS_API_KEY"),
-		PixabayAPIKey:   get("PIXABAY_API_KEY"),
-		JamendoClientID: get("JAMENDO_CLIENT_ID"),
+		FPTTTSAPIKey:      get("FPT_TTS_API_KEY"),
+		PexelsAPIKey:      get("PEXELS_API_KEY"),
+		PixabayAPIKey:     get("PIXABAY_API_KEY"),
+		JamendoClientID:   get("JAMENDO_CLIENT_ID"),
+		TikTokAccessToken: get("TIKTOK_ACCESS_TOKEN"),
 	}, nil
 }
 
-func (c Config) ValidateForGenerate() error {
+// ValidateForProviders checks that every credential required by the SELECTED
+// providers is present. Unselected providers' keys are not required.
+func (c Config) ValidateForProviders(p ProvidersConfig) error {
 	var missing []string
-	if c.FPTTTSAPIKey == "" {
-		missing = append(missing, "FPT_TTS_API_KEY")
+
+	switch p.TTS.Provider {
+	case "fpt":
+		if c.FPTTTSAPIKey == "" {
+			missing = append(missing, "FPT_TTS_API_KEY")
+		}
 	}
-	if c.PexelsAPIKey == "" {
-		missing = append(missing, "PEXELS_API_KEY")
+
+	for _, name := range p.Material.Providers {
+		switch name {
+		case "pexels":
+			if c.PexelsAPIKey == "" {
+				missing = append(missing, "PEXELS_API_KEY")
+			}
+		case "pixabay":
+			if c.PixabayAPIKey == "" {
+				missing = append(missing, "PIXABAY_API_KEY")
+			}
+		}
 	}
+
+	if p.Music.Provider == "jamendo" && c.JamendoClientID == "" {
+		missing = append(missing, "JAMENDO_CLIENT_ID")
+	}
+
 	if len(missing) > 0 {
-		return fmt.Errorf("missing required config: %s", strings.Join(missing, ", "))
+		return fmt.Errorf("missing required config for selected providers: %s", strings.Join(missing, ", "))
 	}
 	return nil
 }
