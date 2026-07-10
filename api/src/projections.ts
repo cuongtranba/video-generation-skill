@@ -107,6 +107,12 @@ export async function applyProjection(db: Database, event: VidgenEvent): Promise
     case 'RunFailed':
       await db.query(`UPDATE projects SET status = 'failed', updated_at = $2 WHERE project_id = $1`, [event.projectId, event.at])
       break
+    case 'StyleSet':
+      await db.query(
+        `UPDATE projects SET style = $2, updated_at = $3 WHERE project_id = $1`,
+        [event.projectId, JSON.stringify({ voice: event.voice, speed: event.speed, captionStyle: event.captionStyle, music: event.music }), event.at],
+      )
+      break
   }
 }
 

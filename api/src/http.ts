@@ -4,6 +4,7 @@ import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import type { Database } from './db.js'
 import type { CommandContext, CreateProjectInput, PublishInput } from './commands.js'
+import type { StyleSpec } from './events.js'
 
 export class HttpError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -64,13 +65,14 @@ export async function listProjects(db: Database): Promise<ProjectSummary[]> {
 }
 
 export interface ProjectDetail extends ProjectSummary {
+  style: StyleSpec | null
   scenes: Array<{ idx: number; narration: string; visual: string; materialPath: string | null; mp3Path: string | null; assPath: string | null }>
 }
 
 export async function getProject(db: Database, projectId: string): Promise<ProjectDetail | null> {
   const projectResult = await db.query<{
-    project_id: string; idea: string; status: string; spent_usd: string; approved: boolean; output_path: string | null
-  }>('SELECT project_id, idea, status, spent_usd, approved, output_path FROM projects WHERE project_id = $1', [projectId])
+    project_id: string; idea: string; status: string; spent_usd: string; approved: boolean; output_path: string | null; style: unknown
+  }>('SELECT project_id, idea, status, spent_usd, approved, output_path, style FROM projects WHERE project_id = $1', [projectId])
   const row = projectResult.rows[0]
   if (!row) return null
   const sceneResult = await db.query<{
@@ -83,6 +85,7 @@ export async function getProject(db: Database, projectId: string): Promise<Proje
     spentUsd: Number(row.spent_usd),
     approved: row.approved,
     outputPath: row.output_path,
+    style: (row.style ?? null) as StyleSpec | null,
     scenes: sceneResult.rows.map((s) => ({
       idx: s.idx,
       narration: s.narration,
