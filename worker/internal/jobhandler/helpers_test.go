@@ -7,10 +7,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/cuongtranba/video-generation-skill/worker/internal/eventstore"
 )
+
+// newProjectID returns a uuid-suffixed project id so each test run publishes
+// to fresh subjects. The VIDGEN_EVENTS 2-minute msgID dupe window would
+// otherwise make a re-run with a fixed id fetch the PRIOR run's stored event
+// (ordered consumer reads from seq 0), producing spurious path mismatches.
+func newProjectID(prefix string) string {
+	return prefix + "-" + uuid.NewString()
+}
 
 // newTestStore connects to the dev NATS instance used throughout this
 // plan's tests (nats://localhost:4223 — see index doc §8; the VIDGEN_EVENTS

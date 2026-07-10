@@ -35,12 +35,13 @@ func TestTTSHandler_SynthesizesAndPublishesVoiceSynthesized(t *testing.T) {
 	store := newTestStore(t)
 	h := NewTTSHandler(provider, store)
 
-	job := TTSJob{ProjectID: "proj4", SceneIdx: 0, Text: "xin chao", Voice: domain.VoiceBanmai, Speed: 0, DestPath: destPath}
-	if err := h.Handle(context.Background(), "vidgen.job.tts.proj4.0", job); err != nil {
+	pid := newProjectID("proj")
+	job := TTSJob{ProjectID: pid, SceneIdx: 0, Text: "xin chao", Voice: domain.VoiceBanmai, Speed: 0, DestPath: destPath}
+	if err := h.Handle(context.Background(), "vidgen.job.tts."+pid+".0", job); err != nil {
 		t.Fatalf("Handle: %v", err)
 	}
 
-	got := awaitEvent[eventstore.VoiceSynthesized](t, store, "vidgen.evt.proj4.VoiceSynthesized")
+	got := awaitEvent[eventstore.VoiceSynthesized](t, store, "vidgen.evt."+pid+".VoiceSynthesized")
 	if got.SceneIdx != 0 || got.MP3Path != destPath {
 		t.Fatalf("unexpected VoiceSynthesized: %+v", got)
 	}
@@ -54,12 +55,13 @@ func TestTTSHandler_ProviderErrorPublishesRunFailed(t *testing.T) {
 	store := newTestStore(t)
 	h := NewTTSHandler(provider, store)
 
-	job := TTSJob{ProjectID: "proj5", SceneIdx: 3, Text: "loi thoai", Voice: domain.VoiceBanmai, DestPath: t.TempDir() + "/scene-3.mp3"}
-	if err := h.Handle(context.Background(), "vidgen.job.tts.proj5.3", job); err != nil {
+	pid := newProjectID("proj")
+	job := TTSJob{ProjectID: pid, SceneIdx: 3, Text: "loi thoai", Voice: domain.VoiceBanmai, DestPath: t.TempDir() + "/scene-3.mp3"}
+	if err := h.Handle(context.Background(), "vidgen.job.tts."+pid+".3", job); err != nil {
 		t.Fatalf("Handle should ack after publishing RunFailed, got error: %v", err)
 	}
 
-	got := awaitEvent[eventstore.RunFailed](t, store, "vidgen.evt.proj5.RunFailed")
+	got := awaitEvent[eventstore.RunFailed](t, store, "vidgen.evt."+pid+".RunFailed")
 	if got.Stage != "tts" {
 		t.Fatalf("unexpected RunFailed: %+v", got)
 	}

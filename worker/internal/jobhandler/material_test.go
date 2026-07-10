@@ -40,8 +40,9 @@ func TestMaterialHandler_DownloadsAndPublishesMaterialResolved(t *testing.T) {
 	store := newTestStore(t)
 	h := NewMaterialHandler(source, nil, store)
 
-	job := MaterialJob{ProjectID: "proj1", SceneIdx: 0, Query: "sunset", DestPath: destPath}
-	if err := h.Handle(context.Background(), "vidgen.job.material.proj1.0", job); err != nil {
+	pid := newProjectID("proj")
+	job := MaterialJob{ProjectID: pid, SceneIdx: 0, Query: "sunset", DestPath: destPath}
+	if err := h.Handle(context.Background(), "vidgen.job.material."+pid+".0", job); err != nil {
 		t.Fatalf("Handle: %v", err)
 	}
 
@@ -52,7 +53,7 @@ func TestMaterialHandler_DownloadsAndPublishesMaterialResolved(t *testing.T) {
 		t.Fatalf("want 1 download call, got %d", len(source.downloads))
 	}
 
-	got := awaitEvent[eventstore.MaterialResolved](t, store, "vidgen.evt.proj1.MaterialResolved")
+	got := awaitEvent[eventstore.MaterialResolved](t, store, "vidgen.evt."+pid+".MaterialResolved")
 	if got.SceneIdx != 0 || got.AssetPath != destPath || got.Source != "stub" {
 		t.Fatalf("unexpected MaterialResolved: %+v", got)
 	}
@@ -68,8 +69,9 @@ func TestMaterialHandler_LocalAssetSkipsDownload(t *testing.T) {
 	store := newTestStore(t)
 	h := NewMaterialHandler(source, nil, store)
 
-	job := MaterialJob{ProjectID: "proj2", SceneIdx: 1, LocalAssetPath: localPath, DestPath: filepath.Join(dir, "unused.mp4")}
-	if err := h.Handle(context.Background(), "vidgen.job.material.proj2.1", job); err != nil {
+	pid := newProjectID("proj")
+	job := MaterialJob{ProjectID: pid, SceneIdx: 1, LocalAssetPath: localPath, DestPath: filepath.Join(dir, "unused.mp4")}
+	if err := h.Handle(context.Background(), "vidgen.job.material."+pid+".1", job); err != nil {
 		t.Fatalf("Handle: %v", err)
 	}
 
@@ -77,7 +79,7 @@ func TestMaterialHandler_LocalAssetSkipsDownload(t *testing.T) {
 		t.Fatalf("local asset must not trigger a download, got %d calls", len(source.downloads))
 	}
 
-	got := awaitEvent[eventstore.MaterialResolved](t, store, "vidgen.evt.proj2.MaterialResolved")
+	got := awaitEvent[eventstore.MaterialResolved](t, store, "vidgen.evt."+pid+".MaterialResolved")
 	if got.AssetPath != localPath || got.Source != "local" {
 		t.Fatalf("unexpected MaterialResolved: %+v", got)
 	}
@@ -88,12 +90,13 @@ func TestMaterialHandler_NoResultsPublishesRunFailed(t *testing.T) {
 	store := newTestStore(t)
 	h := NewMaterialHandler(source, nil, store)
 
-	job := MaterialJob{ProjectID: "proj3", SceneIdx: 4, Query: "nonexistent", DestPath: t.TempDir() + "/scene-4.mp4"}
-	if err := h.Handle(context.Background(), "vidgen.job.material.proj3.4", job); err != nil {
+	pid := newProjectID("proj")
+	job := MaterialJob{ProjectID: pid, SceneIdx: 4, Query: "nonexistent", DestPath: t.TempDir() + "/scene-4.mp4"}
+	if err := h.Handle(context.Background(), "vidgen.job.material."+pid+".4", job); err != nil {
 		t.Fatalf("Handle should ack (return nil) after publishing RunFailed, got error: %v", err)
 	}
 
-	got := awaitEvent[eventstore.RunFailed](t, store, "vidgen.evt.proj3.RunFailed")
+	got := awaitEvent[eventstore.RunFailed](t, store, "vidgen.evt."+pid+".RunFailed")
 	if got.Stage != "material" {
 		t.Fatalf("unexpected RunFailed: %+v", got)
 	}

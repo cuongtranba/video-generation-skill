@@ -33,17 +33,18 @@ func TestCaptionHandler_WritesASSAndPublishesCaptionsBuilt(t *testing.T) {
 	store := newTestStore(t)
 	h := NewCaptionHandler(transcriber, caption.NewASSWriter(), store)
 
+	pid := newProjectID("proj")
 	job := CaptionJob{
-		ProjectID:  "proj6",
+		ProjectID:  pid,
 		SceneAudio: []SceneAudioRef{{AudioPath: "scene0.mp3", StartOffsetSec: 0}},
 		Style:      domain.CaptionStyle{},
 		DestPath:   destPath,
 	}
-	if err := h.Handle(context.Background(), "vidgen.job.caption.proj6.-", job); err != nil {
+	if err := h.Handle(context.Background(), "vidgen.job.caption."+pid+".-", job); err != nil {
 		t.Fatalf("Handle: %v", err)
 	}
 
-	got := awaitEvent[eventstore.CaptionsBuilt](t, store, "vidgen.evt.proj6.CaptionsBuilt")
+	got := awaitEvent[eventstore.CaptionsBuilt](t, store, "vidgen.evt."+pid+".CaptionsBuilt")
 	if got.ASSPath != destPath || got.SceneIdx != 0 {
 		t.Fatalf("unexpected CaptionsBuilt: %+v", got)
 	}
@@ -54,16 +55,17 @@ func TestCaptionHandler_TranscribeErrorPublishesRunFailed(t *testing.T) {
 	store := newTestStore(t)
 	h := NewCaptionHandler(transcriber, caption.NewASSWriter(), store)
 
+	pid := newProjectID("proj")
 	job := CaptionJob{
-		ProjectID:  "proj7",
+		ProjectID:  pid,
 		SceneAudio: []SceneAudioRef{{AudioPath: "scene0.mp3"}},
 		DestPath:   t.TempDir() + "/captions.ass",
 	}
-	if err := h.Handle(context.Background(), "vidgen.job.caption.proj7.-", job); err != nil {
+	if err := h.Handle(context.Background(), "vidgen.job.caption."+pid+".-", job); err != nil {
 		t.Fatalf("Handle should ack after publishing RunFailed, got error: %v", err)
 	}
 
-	got := awaitEvent[eventstore.RunFailed](t, store, "vidgen.evt.proj7.RunFailed")
+	got := awaitEvent[eventstore.RunFailed](t, store, "vidgen.evt."+pid+".RunFailed")
 	if got.Stage != "caption" {
 		t.Fatalf("unexpected RunFailed: %+v", got)
 	}
