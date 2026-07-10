@@ -120,7 +120,12 @@ export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi
 }
 
 const defaultDeps: VidgenStoreDeps = {
-  fetchImpl: fetch,
+  // A wrapper, not a direct `fetch` reference — this keeps the lookup dynamic so
+  // tests can reassign `globalThis.fetch = mock(...)` (bun:test has no
+  // `vi.stubGlobal`) and have it take effect through the already-constructed
+  // singleton. The cast is a boundary assertion: the delegating wrapper behaves
+  // as `fetch` but lacks its rarely-used static `preconnect`.
+  fetchImpl: ((input, init) => fetch(input, init)) as typeof fetch,
   eventBusClient: createNatsEventBusClient({
     wsUrl: import.meta.env.VITE_NATS_WS_URL ?? 'ws://localhost:8081',
   }),
