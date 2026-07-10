@@ -49,3 +49,43 @@ describe('select', () => {
     expect(store.getState().selectedId).toBe('p1')
   })
 })
+
+describe('command thunks', () => {
+  it('createProject posts to /api/commands/CreateProject with the body fields plus an idempotencyKey', async () => {
+    const fetchImpl = mock(async () => new Response(null, { status: 200 }))
+    const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
+    await store.getState().createProject({ idea: 'cats', durationSec: 30, sceneCount: 3, tone: 'fun' })
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/api/commands/CreateProject')
+    expect(init.method).toBe('POST')
+    const body = JSON.parse(init.body as string) as Record<string, unknown>
+    expect(body.idea).toBe('cats')
+    expect(body.durationSec).toBe(30)
+    expect(typeof body.idempotencyKey).toBe('string')
+  })
+
+  it.each([
+    ['generateScript', 'GenerateScript', { projectId: 'p1' }],
+    ['resolveMaterial', 'ResolveMaterial', { projectId: 'p1' }],
+    ['generateVoiceovers', 'GenerateVoiceovers', { projectId: 'p1' }],
+    ['requestApproval', 'RequestApproval', { projectId: 'p1' }],
+    ['approveStoryboard', 'ApproveStoryboard', { projectId: 'p1' }],
+    ['publish', 'Publish', { projectId: 'p1', caption: 'hi', privacy: 'public' }],
+  ] as const)('%s posts to /api/commands/%s', async (action, path, input) => {
+    const fetchImpl = mock(async () => new Response(null, { status: 200 }))
+    const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
+    await (store.getState()[action] as (i: typeof input) => Promise<void>)(input)
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    const [url] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe(`/api/commands/${path}`)
+  })
+
+  it('rejects when the server responds non-2xx', async () => {
+    const fetchImpl = mock(async () => new Response('conflict', { status: 409 }))
+    const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
+    await expect(store.getState().approveStoryboard({ projectId: 'p1' })).rejects.toThrow(/409/)
+  })
+})

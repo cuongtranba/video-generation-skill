@@ -4,6 +4,23 @@ import type { EventBusClient } from './natsClient'
 
 export type ConnectionState = 'connecting' | 'live' | 'down'
 
+export interface CreateProjectInput {
+  idea: string
+  durationSec: number
+  sceneCount: number
+  tone: string
+}
+
+export interface ProjectIdInput {
+  projectId: string
+}
+
+export interface PublishInput {
+  projectId: string
+  caption: string
+  privacy: string
+}
+
 export interface VidgenStore {
   projects: Record<string, ProjectState>
   eventLog: Record<string, VidgenEvent[]>
@@ -11,6 +28,13 @@ export interface VidgenStore {
   selectedId?: string
   applyEvent: (subject: string, event: VidgenEvent) => void
   select: (projectId: string) => void
+  createProject: (input: CreateProjectInput) => Promise<void>
+  generateScript: (input: ProjectIdInput) => Promise<void>
+  resolveMaterial: (input: ProjectIdInput) => Promise<void>
+  generateVoiceovers: (input: ProjectIdInput) => Promise<void>
+  requestApproval: (input: ProjectIdInput) => Promise<void>
+  approveStoryboard: (input: ProjectIdInput) => Promise<void>
+  publish: (input: PublishInput) => Promise<void>
 }
 
 export interface VidgenStoreDeps {
@@ -18,13 +42,27 @@ export interface VidgenStoreDeps {
   eventBusClient: EventBusClient
 }
 
-export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi<VidgenStore>> {
-  // deps.fetchImpl/deps.eventBusClient are unused in this task's slice of the
-  // store (thunks land in Task 7, connect/disconnect in Task 8) but are
-  // threaded through now so the exported factory signature doesn't change
-  // shape across tasks.
-  void deps
+// P4's assumption on wire format (index §5 specifies command names and body
+// fields, not the idempotencyKey transport): idempotencyKey rides as an
+// extra top-level JSON body field alongside the command's own fields.
+// Reconcile against P1's actual command handlers when P1 is authored.
+async function postCommand<TBody extends object>(
+  fetchImpl: typeof fetch,
+  name: string,
+  body: TBody,
+): Promise<void> {
+  const payload = { ...body, idempotencyKey: crypto.randomUUID() }
+  const res = await fetchImpl(`/api/commands/${name}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    throw new Error(`command ${name} failed: ${res.status} ${res.statusText}`)
+  }
+}
 
+export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi<VidgenStore>> {
   return create<VidgenStore>()((set) => ({
     projects: {},
     eventLog: {},
@@ -45,5 +83,13 @@ export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi
     },
 
     select: (projectId) => set({ selectedId: projectId }),
+
+    createProject: (input) => postCommand(deps.fetchImpl, 'CreateProject', input),
+    generateScript: (input) => postCommand(deps.fetchImpl, 'GenerateScript', input),
+    resolveMaterial: (input) => postCommand(deps.fetchImpl, 'ResolveMaterial', input),
+    generateVoiceovers: (input) => postCommand(deps.fetchImpl, 'GenerateVoiceovers', input),
+    requestApproval: (input) => postCommand(deps.fetchImpl, 'RequestApproval', input),
+    approveStoryboard: (input) => postCommand(deps.fetchImpl, 'ApproveStoryboard', input),
+    publish: (input) => postCommand(deps.fetchImpl, 'Publish', input),
   }))
 }
