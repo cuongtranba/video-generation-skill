@@ -1,9 +1,22 @@
-// Frozen event contract — copied verbatim from spikes/event-model/events.ts
-// (index §4: "the exact TS union lives in spikes/event-model/events.ts").
+// Frozen event contract — copied verbatim from api/src/events.ts.
 // Do NOT alter field shapes here. If the event union changes, update BOTH
-// this file and api/src/events.ts (P1) — see Design note 1 in this plan.
+// this file and api/src/events.ts in the same commit.
 
 export type Scene = { idx: number; narration: string; visual: string }
+
+export type StyleSpec = {
+  voice: string
+  speed: number
+  captionStyle: { fontName: string; fontSize: number }
+  music: { search: string; volume: number } | null
+}
+
+export const DEFAULT_STYLE: StyleSpec = {
+  voice: 'banmai',
+  speed: 0,
+  captionStyle: { fontName: 'Arial', fontSize: 64 },
+  music: null,
+}
 
 export type VidgenEvent =
   | { v: 1; type: 'ProjectCreated'; projectId: string; at: string; idea: string; durationSec: number; sceneCount: number; tone: string }
@@ -17,13 +30,22 @@ export type VidgenEvent =
   | { v: 1; type: 'RenderCompleted'; projectId: string; at: string; outputPath: string; renderUsd: number }
   | { v: 1; type: 'Published'; projectId: string; at: string; platform: string; postId: string; url: string }
   | { v: 1; type: 'RunFailed'; projectId: string; at: string; stage: string; error: string }
+  | { v: 1; type: 'StyleSet'; projectId: string; at: string; uid: string; voice: string; speed: number; captionStyle: { fontName: string; fontSize: number }; music: { search: string; volume: number } | null }
 
 export type ProjectStatus = 'draft' | 'material' | 'scripted' | 'awaiting_approval' | 'approved' | 'rendered' | 'published' | 'failed'
 
-export type ProjectState = { projectId: string; status: ProjectStatus; scenes: Scene[]; spentUsd: number; approved: boolean; outputPath?: string }
+export type ProjectState = {
+  projectId: string
+  status: ProjectStatus
+  scenes: Scene[]
+  spentUsd: number
+  approved: boolean
+  outputPath?: string
+  style: StyleSpec
+}
 
 export function foldProject(events: VidgenEvent[]): ProjectState {
-  const s: ProjectState = { projectId: '', status: 'draft', scenes: [], spentUsd: 0, approved: false }
+  const s: ProjectState = { projectId: '', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: { ...DEFAULT_STYLE, captionStyle: { ...DEFAULT_STYLE.captionStyle } } }
   for (const e of events) {
     s.projectId = e.projectId
     switch (e.type) {
@@ -37,6 +59,9 @@ export function foldProject(events: VidgenEvent[]): ProjectState {
       case 'RenderCompleted': s.spentUsd += e.renderUsd; s.outputPath = e.outputPath; s.status = 'rendered'; break
       case 'Published': s.status = 'published'; break
       case 'RunFailed': s.status = 'failed'; break
+      case 'StyleSet':
+        s.style = { voice: e.voice, speed: e.speed, captionStyle: { ...e.captionStyle }, music: e.music }
+        break
     }
   }
   return s

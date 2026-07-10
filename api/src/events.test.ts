@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test'
-import { foldProject, type VidgenEvent } from './events.js'
+import { foldProject, DEFAULT_STYLE, type VidgenEvent } from './events.js'
 
 describe('foldProject', () => {
   it('folds a lifecycle into current state', () => {
@@ -30,5 +30,39 @@ describe('foldProject', () => {
     const s = foldProject([])
     expect(s.projectId).toBe('')
     expect(s.status).toBe('draft')
+  })
+})
+
+describe('foldProject StyleSet', () => {
+  it('returns default style when no StyleSet emitted', () => {
+    const s = foldProject([
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' },
+    ])
+    expect(s.style).toEqual(DEFAULT_STYLE)
+  })
+
+  it('applies first StyleSet', () => {
+    const s = foldProject([
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' },
+      { v: 1, type: 'StyleSet', projectId: 'p1', at: 't1', uid: 'u1',
+        voice: 'lannhi', speed: 1, captionStyle: { fontName: 'Arial', fontSize: 64 }, music: null },
+    ])
+    expect(s.style.voice).toBe('lannhi')
+    expect(s.style.speed).toBe(1)
+    expect(s.style.music).toBeNull()
+  })
+
+  it('last StyleSet wins (full snapshot)', () => {
+    const s = foldProject([
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' },
+      { v: 1, type: 'StyleSet', projectId: 'p1', at: 't1', uid: 'u1',
+        voice: 'lannhi', speed: 1, captionStyle: { fontName: 'Arial', fontSize: 64 }, music: null },
+      { v: 1, type: 'StyleSet', projectId: 'p1', at: 't2', uid: 'u2',
+        voice: 'banmai', speed: 0, captionStyle: { fontName: 'Times', fontSize: 48 },
+        music: { search: 'upbeat', volume: 0.5 } },
+    ])
+    expect(s.style.voice).toBe('banmai')
+    expect(s.style.captionStyle.fontName).toBe('Times')
+    expect(s.style.music).toEqual({ search: 'upbeat', volume: 0.5 })
   })
 })
