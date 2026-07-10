@@ -62,6 +62,13 @@ func (s *Store) Close() {
 	s.nc.Close()
 }
 
+// RawJetStream exposes the underlying JetStream context for callers (test
+// helpers, ordered-consumer replay tooling) that need direct access beyond
+// PublishResult/ConsumeJobs. Not for use in job-handling hot paths.
+func (s *Store) RawJetStream() jetstream.JetStream {
+	return s.js
+}
+
 // PublishResult marshals ev to JSON and publishes it to ev.Subject() with
 // Nats-Msg-Id set to ev.MsgID(), so the VIDGEN_EVENTS stream's dupe window
 // collapses repeated publishes of the same logical fact into one stored
