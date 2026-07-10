@@ -4,8 +4,8 @@ import type { Publisher } from './nats.js'
 import type { Scene } from './events.js'
 import { createCommandContext, createProject, type ScriptGenerator } from './commands.js'
 import { generateScript } from './commands.js'
-import { InvalidTransitionError, ProjectNotFoundError } from './aggregate.js'
-import { resolveMaterial, generateVoiceovers } from './commands.js'
+import { InvalidTransitionError, ProjectNotFoundError, ValidationError } from './aggregate.js'
+import { resolveMaterial, generateVoiceovers, tuneProject } from './commands.js'
 import { CostCapExceededError } from './cost.js'
 import { requestApproval, approveStoryboard } from './commands.js'
 import { publish } from './commands.js'
@@ -151,6 +151,89 @@ describe('approveStoryboard', () => {
     expect(state.status).toBe('approved')
     expect(state.approved).toBe(true)
     expect(js.published.map((m) => m.subject)).toEqual(['vidgen.evt.p1.ApprovalGranted', 'vidgen.job.render.p1.-'])
+  })
+})
+
+const preScriptedEvents = [
+  { v: 1 as const, type: 'ProjectCreated' as const, projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' },
+]
+
+describe('tuneProject', () => {
+  it('emits StyleSet with full style snapshot', async () => {
+    const store = createInMemoryEventStore(preScriptedEvents)
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15, '/media')
+    const state = await tuneProject(ctx, { projectId: 'p1', voice: 'lannhi', speed: 1 })
+    const ev = store.events.at(-1)
+    expect(ev?.type).toBe('StyleSet')
+    if (ev?.type !== 'StyleSet') throw new Error()
+    expect(ev.voice).toBe('lannhi')
+    expect(ev.speed).toBe(1)
+    expect(ev.captionStyle).toEqual({ fontName: 'Arial', fontSize: 64 })
+    expect(ev.music).toBeNull()
+    expect(state.style.voice).toBe('lannhi')
+  })
+
+  it('merges partial input over current style', async () => {
+    const store = createInMemoryEventStore([
+      ...preScriptedEvents,
+      { v: 1 as const, type: 'StyleSet' as const, projectId: 'p1', at: 't1', uid: 'u0',
+        voice: 'lannhi', speed: 2, captionStyle: { fontName: 'Arial', fontSize: 64 }, music: null },
+    ])
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15, '/media')
+    const state = await tuneProject(ctx, { projectId: 'p1', speed: -1 })
+    const ev = store.events.at(-1)
+    if (ev?.type !== 'StyleSet') throw new Error()
+    expect(ev.voice).toBe('lannhi')  // kept from previous
+    expect(ev.speed).toBe(-1)        // updated
+    expect(state.style.voice).toBe('lannhi')
+  })
+
+  it('explicit music null clears music', async () => {
+    const store = createInMemoryEventStore([
+      ...preScriptedEvents,
+      { v: 1 as const, type: 'StyleSet' as const, projectId: 'p1', at: 't1', uid: 'u0',
+        voice: 'banmai', speed: 0, captionStyle: { fontName: 'Arial', fontSize: 64 },
+        music: { search: 'upbeat', volume: 0.5 } },
+    ])
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15, '/media')
+    await tuneProject(ctx, { projectId: 'p1', music: null })
+    const ev = store.events.at(-1)
+    if (ev?.type !== 'StyleSet') throw new Error()
+    expect(ev.music).toBeNull()
+  })
+
+  it('rejects unknown voice', async () => {
+    const store = createInMemoryEventStore(preScriptedEvents)
+    const ctx = createCommandContext(store, fakePublisher(), fixedScriptGen, 0.15, '/media')
+    await expect(tuneProject(ctx, { projectId: 'p1', voice: 'unknown' })).rejects.toThrow(ValidationError)
+  })
+
+  it('rejects speed out of range', async () => {
+    const store = createInMemoryEventStore(preScriptedEvents)
+    const ctx = createCommandContext(store, fakePublisher(), fixedScriptGen, 0.15, '/media')
+    await expect(tuneProject(ctx, { projectId: 'p1', speed: 4 })).rejects.toThrow(ValidationError)
+  })
+
+  it('rejects music volume > 1', async () => {
+    const store = createInMemoryEventStore(preScriptedEvents)
+    const ctx = createCommandContext(store, fakePublisher(), fixedScriptGen, 0.15, '/media')
+    await expect(tuneProject(ctx, { projectId: 'p1', music: { search: 'chill', volume: 1.5 } }))
+      .rejects.toThrow(ValidationError)
+  })
+
+  it('rejects tuning an approved project', async () => {
+    const store = createInMemoryEventStore([
+      ...preScriptedEvents,
+      { v: 1 as const, type: 'ScriptGenerated' as const, projectId: 'p1', at: 't1', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 },
+      { v: 1 as const, type: 'MaterialResolved' as const, projectId: 'p1', at: 't2', sceneIdx: 0, source: 'pexels', assetPath: '/a' },
+      { v: 1 as const, type: 'AwaitingApproval' as const, projectId: 'p1', at: 't3' },
+      { v: 1 as const, type: 'ApprovalGranted' as const, projectId: 'p1', at: 't4' },
+    ])
+    const ctx = createCommandContext(store, fakePublisher(), fixedScriptGen, 0.15, '/media')
+    await expect(tuneProject(ctx, { projectId: 'p1', speed: 1 })).rejects.toThrow(InvalidTransitionError)
   })
 })
 

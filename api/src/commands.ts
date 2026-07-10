@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Scene, VidgenEvent, ProjectState } from './events.js'
 import { foldProject } from './events.js'
-import { assertCanCreate, assertExists, assertTransition } from './aggregate.js'
+import { assertCanCreate, assertExists, assertTransition, ValidationError } from './aggregate.js'
 import type { EventStore, Publisher } from './nats.js'
 import { publishEvent, dispatchJob } from './nats.js'
 import { admit, costCapFromEnv, projectedTtsUsd, CostCapExceededError } from './cost.js'
@@ -22,12 +22,23 @@ export interface RequestApprovalInput { projectId: string }
 export interface ApproveStoryboardInput { projectId: string }
 export interface PublishInput { projectId: string; caption: string; privacy: string }
 
+export interface TuneInput {
+  projectId: string
+  voice?: string
+  speed?: number
+  captionStyle?: { fontName: string; fontSize: number }
+  music?: { search: string; volume: number } | null
+}
+
 export interface CommandContext {
   store: EventStore
   js: Publisher
   scriptGen: ScriptGenerator
   now: () => string
   costCapUsd: number
+  /** Root dir for per-project media assets. Consumed by later tasks; carried
+   * on the context now so the tune/material/render commands share one source. */
+  mediaDir: string
 }
 
 export function createCommandContext(
@@ -35,9 +46,13 @@ export function createCommandContext(
   js: Publisher,
   scriptGen: ScriptGenerator,
   costCapUsd: number = costCapFromEnv(),
+  mediaDir: string = 'media',
 ): CommandContext {
-  return { store, js, scriptGen, now: () => new Date().toISOString(), costCapUsd }
+  return { store, js, scriptGen, now: () => new Date().toISOString(), costCapUsd, mediaDir }
 }
+
+/** Valid FPT.AI voice identifiers — mirrors worker/internal/domain project voices. */
+const VALID_VOICES = ['banmai', 'thuminh', 'lannhi', 'linhsan', 'leminh', 'giahuy', 'myan']
 
 export async function createProject(ctx: CommandContext, input: CreateProjectInput): Promise<{ projectId: string }> {
   const projectId = randomUUID()
@@ -72,6 +87,41 @@ export async function generateScript(ctx: CommandContext, input: GenerateScriptI
     at: ctx.now(),
     scenes,
     scriptUsd: 0, // BINDING (index.md §6): Agent SDK notional cost is never enforced
+  }
+  await ctx.store.append(event)
+  await publishEvent(ctx.js, event)
+  return foldProject([...events, event])
+}
+
+export async function tuneProject(ctx: CommandContext, input: TuneInput): Promise<ProjectState> {
+  const events = await ctx.store.loadEvents(input.projectId)
+  const state = assertExists(events, input.projectId)
+  assertTransition('TuneProject', state)
+
+  if (input.voice !== undefined && !VALID_VOICES.includes(input.voice)) {
+    throw new ValidationError(`voice must be one of: ${VALID_VOICES.join(', ')}`)
+  }
+  if (input.speed !== undefined && (!Number.isInteger(input.speed) || input.speed < -3 || input.speed > 3)) {
+    throw new ValidationError('speed must be an integer in range -3..3')
+  }
+  if (input.music != null && (input.music.volume <= 0 || input.music.volume > 1)) {
+    throw new ValidationError('music.volume must be in range (0, 1]')
+  }
+
+  const cur = state.style
+  // 'music' key present (even null) means explicit set/clear; absent means keep current.
+  const music = 'music' in input ? (input.music ?? null) : cur.music
+
+  const event: VidgenEvent = {
+    v: 1,
+    type: 'StyleSet',
+    projectId: input.projectId,
+    at: ctx.now(),
+    uid: randomUUID(),
+    voice: input.voice ?? cur.voice,
+    speed: input.speed ?? cur.speed,
+    captionStyle: input.captionStyle ?? cur.captionStyle,
+    music,
   }
   await ctx.store.append(event)
   await publishEvent(ctx.js, event)
