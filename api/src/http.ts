@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createReadStream } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { stat, mkdir, writeFile, readdir, stat as fsStat } from 'node:fs/promises'
 import path from 'node:path'
 import type { Database } from './db.js'
 import type { CommandContext, CreateProjectInput, PublishInput } from './commands.js'
@@ -99,8 +99,42 @@ export async function getProject(db: Database, projectId: string): Promise<Proje
 
 import type {
   ResolveMaterialInput, GenerateVoiceoversInput, RequestApprovalInput, ApproveStoryboardInput, GenerateScriptInput,
+  TuneInput,
 } from './commands.js'
 import * as commands from './commands.js'
+import { ValidationError } from './aggregate.js'
+
+export function parseTuneInput(body: Record<string, unknown>): TuneInput {
+  const projectId = requireProjectId(body)
+  const input: TuneInput = { projectId }
+  if ('voice' in body) {
+    if (typeof body.voice !== 'string') throw new HttpError(400, 'voice must be a string')
+    input.voice = body.voice
+  }
+  if ('speed' in body) {
+    if (typeof body.speed !== 'number') throw new HttpError(400, 'speed must be a number')
+    input.speed = body.speed
+  }
+  if ('captionStyle' in body) {
+    const cs = body.captionStyle
+    if (typeof cs !== 'object' || cs === null || Array.isArray(cs)) throw new HttpError(400, 'captionStyle must be an object')
+    const { fontName, fontSize } = cs as Record<string, unknown>
+    if (typeof fontName !== 'string' || typeof fontSize !== 'number') throw new HttpError(400, 'captionStyle requires fontName:string, fontSize:number')
+    input.captionStyle = { fontName, fontSize }
+  }
+  if ('music' in body) {
+    if (body.music === null) {
+      input.music = null
+    } else {
+      const m = body.music
+      if (typeof m !== 'object' || m === null || Array.isArray(m)) throw new HttpError(400, 'music must be an object or null')
+      const { search, volume } = m as Record<string, unknown>
+      if (typeof search !== 'string' || typeof volume !== 'number') throw new HttpError(400, 'music requires search:string, volume:number')
+      input.music = { search, volume }
+    }
+  }
+  return input
+}
 
 export interface HttpConfig {
   db: Database
@@ -118,6 +152,7 @@ const COMMAND_HANDLERS: Record<string, CommandHandler> = {
   GenerateVoiceovers: (ctx, body) => commands.generateVoiceovers(ctx, { projectId: requireProjectId(body) } satisfies GenerateVoiceoversInput),
   RequestApproval: (ctx, body) => commands.requestApproval(ctx, { projectId: requireProjectId(body) } satisfies RequestApprovalInput),
   ApproveStoryboard: (ctx, body) => commands.approveStoryboard(ctx, { projectId: requireProjectId(body) } satisfies ApproveStoryboardInput),
+  TuneProject: (ctx, body) => commands.tuneProject(ctx, parseTuneInput(body)),
   Publish: (ctx, body) => commands.publish(ctx, parsePublishInput(body)),
 }
 
@@ -212,6 +247,81 @@ async function serveStatic(rootDir: string, urlPath: string, res: ServerResponse
   stream.pipe(res)
 }
 
+const ALLOWED_UPLOAD_EXTS = new Set(['.mp4', '.mov', '.jpg', '.jpeg', '.png'])
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024 // 100 MB
+
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/^\.+/, '_')
+}
+
+async function handleUploadAsset(config: HttpConfig, projectId: string, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const chunks: Buffer[] = []
+  let total = 0
+  for await (const chunk of req as AsyncIterable<Buffer>) {
+    total += chunk.length
+    if (total > MAX_UPLOAD_BYTES) {
+      sendJson(res, 413, { error: 'file too large (max 100 MB)' })
+      return
+    }
+    chunks.push(chunk)
+  }
+  const body = Buffer.concat(chunks)
+  const contentType = req.headers['content-type'] ?? ''
+  if (!contentType.startsWith('multipart/form-data')) {
+    sendJson(res, 400, { error: 'expected multipart/form-data' })
+    return
+  }
+
+  // Parse multipart using the Web Request API (Bun-native).
+  const request = new Request('http://localhost/upload', {
+    method: 'POST',
+    headers: { 'content-type': contentType },
+    body,
+  })
+  const formData = await request.formData().catch(() => null)
+  if (formData === null) {
+    sendJson(res, 400, { error: 'invalid multipart body' })
+    return
+  }
+
+  const file = formData.get('file')
+  if (!(file instanceof File)) {
+    sendJson(res, 400, { error: 'multipart field "file" is required' })
+    return
+  }
+
+  const ext = path.extname(file.name).toLowerCase()
+  if (!ALLOWED_UPLOAD_EXTS.has(ext)) {
+    sendJson(res, 400, { error: `file type ${ext} not allowed; use: ${[...ALLOWED_UPLOAD_EXTS].join(', ')}` })
+    return
+  }
+
+  const safeName = sanitizeFilename(file.name)
+  const assetsDir = path.join(config.mediaDir, projectId, 'assets')
+  await mkdir(assetsDir, { recursive: true })
+  const destPath = path.join(assetsDir, safeName)
+  const bytes = await file.arrayBuffer()
+  await writeFile(destPath, Buffer.from(bytes))
+
+  sendJson(res, 200, { filename: safeName, path: destPath, sizeBytes: file.size })
+}
+
+async function handleListAssets(config: HttpConfig, projectId: string, res: ServerResponse): Promise<void> {
+  const assetsDir = path.join(config.mediaDir, projectId, 'assets')
+  try {
+    const names = await readdir(assetsDir)
+    const items = await Promise.all(
+      names.map(async (name) => {
+        const info = await fsStat(path.join(assetsDir, name))
+        return { filename: name, sizeBytes: info.size }
+      }),
+    )
+    sendJson(res, 200, { assets: items })
+  } catch {
+    sendJson(res, 200, { assets: [] })
+  }
+}
+
 async function routeRequest(config: HttpConfig, req: IncomingMessage, res: ServerResponse): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://localhost')
   try {
@@ -221,6 +331,16 @@ async function routeRequest(config: HttpConfig, req: IncomingMessage, res: Serve
     }
     if (req.method === 'GET' && url.pathname === '/api/state') {
       sendJson(res, 200, { projects: await listProjects(config.db) })
+      return
+    }
+    if (req.method === 'POST' && url.pathname.match(/^\/api\/projects\/[^/]+\/assets$/)) {
+      const projectId = url.pathname.split('/')[3]!
+      await handleUploadAsset(config, projectId, req, res)
+      return
+    }
+    if (req.method === 'GET' && url.pathname.match(/^\/api\/projects\/[^/]+\/assets$/)) {
+      const projectId = url.pathname.split('/')[3]!
+      await handleListAssets(config, projectId, res)
       return
     }
     if (req.method === 'GET' && url.pathname.startsWith('/api/projects/')) {
@@ -245,6 +365,10 @@ async function routeRequest(config: HttpConfig, req: IncomingMessage, res: Serve
   } catch (err) {
     if (err instanceof HttpError) {
       sendJson(res, err.status, { error: err.message })
+      return
+    }
+    if (err instanceof ValidationError) {
+      sendJson(res, 400, { error: err.message })
       return
     }
     console.error('http handler error:', err)
