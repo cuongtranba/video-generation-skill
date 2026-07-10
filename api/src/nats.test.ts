@@ -21,6 +21,17 @@ describe('eventSubject', () => {
   })
 })
 
+describe('eventId StyleSet', () => {
+  it('uses uid field so each tune call gets a unique msgID', () => {
+    const e1 = { v: 1 as const, type: 'StyleSet' as const, projectId: 'p1', at: 't', uid: 'abc123',
+      voice: 'banmai', speed: 0, captionStyle: { fontName: 'Arial', fontSize: 64 }, music: null }
+    const e2 = { ...e1, uid: 'xyz789' }
+    expect(eventId(e1)).toBe('StyleSet-p1-abc123')
+    expect(eventId(e2)).toBe('StyleSet-p1-xyz789')
+    expect(eventId(e1)).not.toBe(eventId(e2))
+  })
+})
+
 describe('jobSubject', () => {
   it('builds vidgen.job.<kind>.<projectId>.<scene>', () => {
     expect(jobSubject('tts', 'p1', 2)).toBe('vidgen.job.tts.p1.2')

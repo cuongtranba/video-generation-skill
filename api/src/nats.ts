@@ -67,6 +67,7 @@ export interface Publisher {
  * logical fact into a single stored event, so worker/command retries never
  * double-append. */
 export function eventId(event: VidgenEvent): string {
+  if (event.type === 'StyleSet') return `StyleSet-${event.projectId}-${event.uid}`
   const sceneIdx = 'sceneIdx' in event ? String(event.sceneIdx) : '-'
   return `${event.type}-${event.projectId}-${sceneIdx}`
 }
