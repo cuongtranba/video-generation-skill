@@ -1,5 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test'
 import { createVidgenStore, type VidgenStoreDeps } from './store'
+import type { EventBusClient } from './natsClient'
+import type { VidgenEvent as VidgenEventType } from './events'
 
 function fakeDeps(overrides: Partial<VidgenStoreDeps> = {}): VidgenStoreDeps {
   return {
@@ -87,5 +89,41 @@ describe('command thunks', () => {
     const fetchImpl = mock(async () => new Response('conflict', { status: 409 }))
     const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
     await expect(store.getState().approveStoryboard({ projectId: 'p1' })).rejects.toThrow(/409/)
+  })
+})
+
+describe('connect/disconnect', () => {
+  it('goes live and applies events delivered by the event bus', async () => {
+    const event: VidgenEventType = {
+      v: 1, type: 'AwaitingApproval', projectId: 'p1', at: '2026-01-01T00:00:00Z',
+    }
+    const unsubscribe = mock(async () => {})
+    const eventBusClient: EventBusClient = {
+      consume: mock(async (onEvent) => {
+        onEvent('vidgen.evt.p1.AwaitingApproval', event)
+        return unsubscribe
+      }),
+    }
+    const store = createVidgenStore(fakeDeps({ eventBusClient }))
+
+    await store.getState().connect()
+
+    expect(store.getState().connection).toBe('live')
+    expect(store.getState().projects.p1.status).toBe('awaiting_approval')
+
+    await store.getState().disconnect()
+    expect(unsubscribe).toHaveBeenCalledTimes(1)
+    expect(store.getState().connection).toBe('down')
+  })
+
+  it('marks the connection down and rethrows when the event bus fails to connect', async () => {
+    const eventBusClient: EventBusClient = {
+      consume: mock(async () => {
+        throw new Error('ws refused')
+      }),
+    }
+    const store = createVidgenStore(fakeDeps({ eventBusClient }))
+    await expect(store.getState().connect()).rejects.toThrow('ws refused')
+    expect(store.getState().connection).toBe('down')
   })
 })

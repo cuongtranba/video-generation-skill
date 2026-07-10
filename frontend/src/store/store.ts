@@ -1,6 +1,6 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand'
 import { foldProject, type ProjectState, type VidgenEvent } from './events'
-import type { EventBusClient } from './natsClient'
+import { createNatsEventBusClient, type EventBusClient } from './natsClient'
 
 export type ConnectionState = 'connecting' | 'live' | 'down'
 
@@ -35,6 +35,10 @@ export interface VidgenStore {
   requestApproval: (input: ProjectIdInput) => Promise<void>
   approveStoryboard: (input: ProjectIdInput) => Promise<void>
   publish: (input: PublishInput) => Promise<void>
+  connect: () => Promise<void>
+  disconnect: () => Promise<void>
+  /** @internal set by connect(); torn down by disconnect(). Not read by components. */
+  _unsubscribe?: () => Promise<void>
 }
 
 export interface VidgenStoreDeps {
@@ -63,7 +67,7 @@ async function postCommand<TBody extends object>(
 }
 
 export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi<VidgenStore>> {
-  return create<VidgenStore>()((set) => ({
+  return create<VidgenStore>()((set, get) => ({
     projects: {},
     eventLog: {},
     connection: 'down',
@@ -91,5 +95,35 @@ export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi
     requestApproval: (input) => postCommand(deps.fetchImpl, 'RequestApproval', input),
     approveStoryboard: (input) => postCommand(deps.fetchImpl, 'ApproveStoryboard', input),
     publish: (input) => postCommand(deps.fetchImpl, 'Publish', input),
+
+    connect: async () => {
+      set({ connection: 'connecting' })
+      try {
+        const unsubscribe = await deps.eventBusClient.consume((subject, event) => {
+          get().applyEvent(subject, event)
+        })
+        set({ connection: 'live', _unsubscribe: unsubscribe })
+      } catch (err) {
+        set({ connection: 'down' })
+        throw err
+      }
+    },
+
+    disconnect: async () => {
+      const unsubscribe = get()._unsubscribe
+      set({ connection: 'down', _unsubscribe: undefined })
+      if (unsubscribe) {
+        await unsubscribe()
+      }
+    },
   }))
 }
+
+const defaultDeps: VidgenStoreDeps = {
+  fetchImpl: fetch,
+  eventBusClient: createNatsEventBusClient({
+    wsUrl: import.meta.env.VITE_NATS_WS_URL ?? 'ws://localhost:8081',
+  }),
+}
+
+export const useVidgenStore = createVidgenStore(defaultDeps)
