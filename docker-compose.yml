@@ -40,6 +40,25 @@ services:
     volumes:
       - media-data:/app/media
 
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    depends_on:
+      - nats
+    environment:
+      NATS_URL: nats://nats:4222   # compose DNS, container-internal port (index §8)
+      VIDGEN_ENV_PATH: /app/.env
+      VIDGEN_CONFIG_PATH: /app/config.yaml
+    env_file:
+      - ./.env   # FPT_TTS_API_KEY, PEXELS_API_KEY, PIXABAY_API_KEY, JAMENDO_CLIENT_ID (gitignored, root CLAUDE.md "Keys")
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      # Same named volume + mount path as api (above) so worker-produced media
+      # is served by api's GET /media/* and job DestPaths line up (index §3/§5).
+      - media-data:/app/media
+    restart: unless-stopped
+
 volumes:
   nats-data:
   postgres-data:
