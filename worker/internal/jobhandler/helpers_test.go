@@ -1,3 +1,5 @@
+//go:build integration
+
 // worker/internal/jobhandler/helpers_test.go
 package jobhandler
 

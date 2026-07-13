@@ -1,3 +1,5 @@
+//go:build integration
+
 // worker/internal/eventstore/jobs_test.go
 package eventstore
 

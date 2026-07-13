@@ -1,3 +1,5 @@
+//go:build integration
+
 // worker/internal/jobhandler/material_test.go
 package jobhandler
 
