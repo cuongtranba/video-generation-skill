@@ -1,3 +1,5 @@
+//go:build integration
+
 // worker/internal/jobhandler/render_test.go
 package jobhandler
 

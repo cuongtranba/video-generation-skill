@@ -1,6 +1,6 @@
 # vidgen
 
-CLI tool that turns an idea into a ready-to-post short-form vertical video (9:16, 15–90s) with **Vietnamese voiceover**, karaoke captions, stock footage, and background music — end to end, from your terminal.
+Web app that turns an idea into a ready-to-post short-form vertical video (9:16, 15–90s) with **Vietnamese voiceover**, karaoke captions, stock footage, and background music — end to end, from your browser.
 
 ```
 "3 lý do bạn nên uống nước ấm mỗi sáng"
@@ -14,109 +14,56 @@ CLI tool that turns an idea into a ready-to-post short-form vertical video (9:16
 
 ## Demo
 
-▶️ [docs/demo.mp4](docs/demo.mp4) — generated from the idea above: 3 scenes, Pexels footage, FPT.AI `banmai` voice, word-timed captions, Jamendo background music.
+[docs/demo.mp4](docs/demo.mp4) — generated from the idea above: 3 scenes, Pexels footage, FPT.AI `banmai` voice, word-timed captions, Jamendo background music.
 
 ## Features
 
-- **6-step guided flow** — draft → material → tune → confirm → generate → publish, resumable at any step (manifest persisted per project)
-- **Pluggable providers** — TTS/music/material/publish implementation chosen via `~/.vidgen/config.yaml`; API keys stay in `.env`
-- **Vietnamese TTS** — FPT.AI voices, northern/southern/central accents, speed control
-- **Script generation** — scene-by-scene script from one idea, via the `claude` CLI (subscription auth, no API key)
-- **Material resolution** — your own photos/videos first (`--resource`), Pexels/Pixabay stock fills the gaps; short clips loop to cover narration
+- **7-step browser flow** — New Project → script → material → voiceovers → approve → render → download/publish, resumable at any step (event-sourced per project)
+- **Vietnamese TTS** — FPT.AI voices, northern/southern/central accents
+- **Script generation** — scene-by-scene script from one idea, via Anthropic Agent SDK
+- **Material resolution** — Pexels/Pixabay stock footage per scene; short clips loop to cover narration
 - **Karaoke captions** — Whisper word-level timestamps → ASS subtitles burned into the video
-- **Background music** — search Jamendo by mood (`--music-search "upbeat acoustic"`) or bring your own file; looped, ducked under the voice, faded out
-- **Cost wall** — hard $0.10/video cap enforced *before* generation (projection) and *during* (actual spend); breach halts the pipeline
-- **Event-driven pipeline** — embedded NATS JetStream; parallel per-scene TTS workers; idempotent jobs (crash → rerun skips finished work)
+- **Background music** — Jamendo search by mood; looped, ducked under the voice, faded out
+- **Cost wall** — hard `COST_CAP_USD` (default `$0.15`) cap enforced before generation (projection) and during (actual spend via `cost_ledger`); breach halts the pipeline
+- **Event-sourced pipeline** — NATS JetStream (`VIDGEN_EVENTS`) is the source of truth; idempotent jobs (crash → rerun skips finished work); Postgres is a disposable read-model projection
 
 ## Installation
 
-```bash
-# binaries
-brew install homebrew-ffmpeg/ffmpeg/ffmpeg   # ffmpeg WITH libass (core formula lacks subtitle filters)
-brew install openai-whisper                  # caption timing
-# claude CLI: https://claude.ai/code — must be logged in
+**Requirements:** Docker (all other dependencies are in containers — no Go, brew, or whisper install needed on the host).
 
-# build
+```bash
 git clone https://github.com/cuongtranba/video-generation-skill
 cd video-generation-skill
-go build -o vidgen ./cmd/vidgen
+cp .env.example .env   # fill in your API keys
+docker compose up --build
 ```
+
+Then open [http://localhost:3000](http://localhost:3000).
 
 ## Configuration
 
-Create `.env` in the working directory:
+Create `.env` in the repo root:
 
 ```env
 FPT_TTS_API_KEY=...      # console.fpt.ai — Vietnamese TTS
 PEXELS_API_KEY=...       # pexels.com/api — stock video (free)
 PIXABAY_API_KEY=...      # optional — image fallback
 JAMENDO_CLIENT_ID=...    # devportal.jamendo.com — music search (free)
-TIKTOK_ACCESS_TOKEN=...  # developers.tiktok.com — required only for `vidgen publish`
+TIKTOK_ACCESS_TOKEN=...  # developers.tiktok.com — required only for publish
+COST_CAP_USD=0.15        # hard cost ceiling per video (default 0.15)
 ```
-
-Binary overrides (optional): `FFMPEG_BIN`, `FFPROBE_BIN`, `WHISPER_BIN`, `CLAUDE_BIN`.
-
-## Provider configuration
-
-Which service implements each pipeline stage is selected via a YAML config file, not code. API keys always stay in `.env` / env vars — never in this file. Only the keys for providers you've actually selected are required (`config.ValidateForProviders`).
-
-Location: `~/.vidgen/config.yaml`. Override with `--config <path>` (persistent flag, works on every command). Absent file → defaults below, i.e. today's behavior unchanged.
-
-```yaml
-tts:
-  provider: fpt          # fpt | elevenlabs (not yet implemented)
-  voice: banmai
-  speed: 0
-music:
-  provider: jamendo      # jamendo | none
-material:
-  providers: [pexels, pixabay]   # ordered fallback; pexels | pixabay (tiktok not yet implemented)
-videogen:
-  provider: none         # none (runway/kling not yet implemented)
-publish:
-  provider: none         # none | tiktok
-```
-
-| Category | Real provider | Seam (selectable, not implemented) |
-|---|---|---|
-| `tts` | FPT.AI | ElevenLabs |
-| `music` | Jamendo | — |
-| `material` | Pexels, Pixabay | TikTok |
-| `videogen` | — | Runway, Kling |
-| `publish` | TikTok | YouTube, Instagram |
 
 ## Usage
 
-```bash
-# 1. Draft — idea → scene script (Vietnamese narration + visual notes)
-./vidgen new "3 lý do bạn nên uống nước ấm mỗi sáng" --duration 30 --scenes 3 --tone casual
-# → Project 7ccd643c created (3 scenes)
+The browser flow is **7 steps**:
 
-# with your own media (scenes are written AROUND your assets):
-./vidgen new "review quán cà phê" --duration 45 --resource ./my-photos
-
-# 2. Material — fetch stock clips for every scene
-./vidgen material --project 7ccd643c
-
-# 3. Tune — voice, speed, captions, music
-./vidgen tune --project 7ccd643c \
-  --voice banmai --speed 0 \
-  --music-search "calm inspiring acoustic" --music-volume 0.3
-
-# 4. Confirm — review projected cost against the $0.10 cap
-./vidgen confirm --project 7ccd643c
-# → Projected cost: $0.0036 (cap $0.10) — OK
-
-# 5. Generate — parallel TTS, captions, final render
-./vidgen generate --project 7ccd643c --output video.mp4
-
-# 6. Publish — send the rendered video to the configured publish provider
-./vidgen publish --project 7ccd643c --caption "3 lý do nên uống nước ấm" --privacy public
-# → published 7ccd643c (id ...) — requires publish.provider set in config.yaml + TIKTOK_ACCESS_TOKEN
-
-# list all projects + status
-./vidgen list
-```
+1. **New Project** — enter your idea, choose duration and number of scenes
+2. **Script** — Agent SDK generates a scene-by-scene Vietnamese script (Anthropic API, `scriptUsd = $0`)
+3. **Material** — fetch Pexels/Pixabay stock clips for each scene
+4. **Voiceovers** — FPT.AI TTS per scene (async, polls until ready); cost projected against `COST_CAP_USD`
+5. **Approve** — review projected cost in the approval-gate UI before committing to render
+6. **Render** — parallel TTS → Whisper captions → FFmpeg filter-graph; idempotent (crash → rerun at $0)
+7. **Download / Publish** — download the final MP4 or push to TikTok
 
 ### Voices (FPT.AI)
 
@@ -130,85 +77,76 @@ publish:
 | `giahuy` | male | central |
 | `myan` | female | central |
 
-### Tune flags
+### v1 limitations
 
-| Flag | Meaning |
-|---|---|
-| `--voice` | FPT voice (table above) |
-| `--speed` | speech rate −3..+3 |
-| `--caption-font`, `--caption-size` | ASS caption style |
-| `--music <file>` | local music file, looped + ducked |
-| `--music-search "<tags>"` | Jamendo mood/genre search, top track auto-downloaded |
-| `--music-volume` | 0–1, default 0.15 (0.3–0.4 recommended) |
+- No local-asset upload (`--resource` descoped for v1)
+- No tune step (voice, speed, caption style, music — all fixed defaults in v1)
+- No re-publish (`--force` descoped for v1)
 
 ## Architecture
 
 ```mermaid
 flowchart TB
-    subgraph CLI["6-step CLI (cobra) + list"]
-        S1["new"] --> S2["material"] --> S3["tune"] --> S4["confirm"] --> S5["generate"] --> S6["publish"]
+    BROWSER["browser · React + Zustand"]
+    subgraph COMPOSE["docker-compose"]
+        NATS["nats · JetStream EVENT STORE + WS"]
+        API["api · TS · command handlers + aggregate + projections + Agent SDK"]
+        WORKER["worker · Go · ffmpeg/whisper"]
+        PG[("postgres · read models")]
     end
+    ANTHROPIC["Anthropic API"]
 
-    subgraph GEN["generate: embedded NATS JetStream"]
-        ORCH["flow orchestrator"] -- "job.tts.<scene>" --> W1["TTS workers (parallel)"]
-        ORCH -- "job.caption" --> W2["caption worker<br/>whisper → ASS"]
-        ORCH -- "job.render" --> W3["render worker<br/>FFmpeg filter-graph"]
-        W1 -- results --> ORCH
-        W2 -- results --> ORCH
-        W3 -- results --> ORCH
-    end
-
-    S5 --> ORCH
-    S4 -- "cost cap check" --> WALL["$0.10 wall"]
-    ORCH -- "actual cost check" --> WALL
+    BROWSER -- "nats.ws: subscribe events / issue commands" --> NATS
+    BROWSER -- "HTTP: SPA + media + baseline query" --> API
+    API -- "append events (source of truth)" --> NATS
+    API -- "consume events → fold → project" --> NATS
+    API -- "materialize read models" --> PG
+    API -- "query baseline" --> PG
+    API -- "Agent SDK: idea→scenes" --> ANTHROPIC
+    NATS -- "job events" --> WORKER
+    WORKER -- "result / asset events" --> NATS
+    NATS -- "VIDGEN_EVENTS (durable, replay)" --> BROWSER
 ```
 
-| Package | Responsibility |
-|---|---|
-| `internal/domain` | project manifest, scenes, style, cost ledger (JSON at `~/.vidgen/projects/<id>/`) |
-| `internal/script` | claude CLI subprocess → scene JSON |
-| `internal/material` | Pexels / Pixabay / local assets, priority chain |
-| `internal/tts` | FPT.AI async API (submit → poll mp3 → download) |
-| `internal/caption` | Whisper word timestamps → ASS karaoke (gap-aware line splits) |
-| `internal/music` | Jamendo search + download |
-| `internal/render` | FFmpeg filter-graph: 9:16 crop, ken-burns stills, clip looping, subtitle burn, music mix |
-| `internal/bus` | embedded NATS server + JetStream job/result streams |
-| `internal/worker` | idempotent TTS / material / caption / render workers |
-| `internal/cost` | ledger + $0.10 admissibility checks |
-| `internal/flow` | step orchestration + status machine |
-| `internal/cli` | cobra commands, prereq checks |
+### Services
+
+| Service | Lang | Role |
+|---|---|---|
+| `nats` | — | JetStream event store (`VIDGEN_EVENTS`, `VIDGEN_JOBS`) + WebSocket listener |
+| `postgres` | — | read-model projections, rebuildable from the event log |
+| `api` | TypeScript/Node | command handlers, Project aggregate, Agent SDK script gen, cost-wall admissibility, projections, serves SPA + media |
+| `worker` | Go | consumes job events, runs ffmpeg+libass/whisper (tts/material/caption/render), emits result/asset events |
+| `frontend` | Vite/React/TS/Zustand | SPA; served by `api` in prod |
 
 ### Design notes
 
-- **Idempotency** — every worker checks its output file before working; re-running `generate` after a crash re-uses finished TTS/captions ($0)
-- **Cost wall** — three checkpoints: projected at confirm, actual after each API call, paired at completion
-- **NATS in-process** — no external infra for the CLI; the same workers can attach to an external NATS cluster for the future webapp
+- **Event sourcing** — `VIDGEN_EVENTS` (NATS JetStream) is the append-only source of truth; Postgres read models are projections that can be fully rebuilt by replaying the event log
+- **Idempotency** — worker checks its output file before working; re-running generate after a crash re-uses finished TTS/captions ($0); event appends deduplicated by `Nats-Msg-Id` (2-minute dedup window per NATS index)
+- **Cost wall** — `COST_CAP_USD` enforced in `api` aggregate at `GenerateVoiceovers` (projected) and tracked via `cost_ledger` events (actual). `ScriptGenerated.scriptUsd = 0` always. Never remove or weaken.
 
 ## Cost
 
 | Item | Per 30s video |
 |---|---|
-| Script (claude CLI) | $0 (subscription) |
+| Script (Agent SDK) | $0 (scriptUsd=0) |
 | FPT.AI TTS ~400 chars | ~$0.004 |
 | Pexels / Jamendo | $0 (free tiers) |
-| Whisper + FFmpeg (local) | $0 |
+| Whisper + FFmpeg (in worker container) | $0 |
 | **Total** | **< $0.01** |
 
 ## Development
 
 ```bash
-go test ./...                                        # unit tests (93)
-go test -tags=integration ./internal/render/...      # real FFmpeg render test
-go vet ./...
+cd worker && go test ./...                                    # Go worker unit tests
+cd worker && go test -tags=integration ./internal/render/...  # real FFmpeg render test
+cd worker && go vet ./...
+cd api && bun test
+cd frontend && bun test && bun run lint
+docker compose up --build                                     # full stack
 ```
-
-## Roadmap
-
-- **v1.1** — YouTube Shorts auto-post (direct API), Meta app review for IG/FB Reels
-- **v2** — webapp, TikTok (audit or aggregator), optional AI b-roll, F5-TTS self-hosted voice cloning
 
 ## Attribution
 
 - Stock footage: [Pexels](https://pexels.com) / [Pixabay](https://pixabay.com) (free commercial licenses)
-- Music: [Jamendo](https://jamendo.com) — track attribution recorded in each project manifest (`music_track`)
+- Music: [Jamendo](https://jamendo.com) — track attribution recorded in each project's event log
 - Demo track: The.madpix.project — *Wish You Were Here*

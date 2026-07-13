@@ -1,154 +1,82 @@
 # Getting Started with vidgen
 
-From zero to a ready-to-post 9:16 Vietnamese-voiced short video, step by step.
+From zero to a ready-to-post 9:16 Vietnamese-voiced short video, step by step — entirely in your browser.
 
-This guide takes you from install through your **first rendered video** and out to
-publishing. Every step writes to a per-project JSON manifest, so you can stop after
-any step and resume later — nothing is lost.
+This guide takes you from install through your **first rendered video** and out to publishing. Every step is persisted as events in NATS JetStream, so you can stop at any point and resume — nothing is lost.
 
 ---
 
 ## 1. Prerequisites
 
-vidgen orchestrates a few external binaries. Install these first.
+vidgen runs as a set of Docker containers. You only need:
 
 | Tool | Why | Install |
 |---|---|---|
-| **Go 1.22+** | build vidgen | [go.dev/dl](https://go.dev/dl/) |
-| **FFmpeg _with libass_** | render + burn-in captions | `brew install homebrew-ffmpeg/ffmpeg/ffmpeg` |
-| **Whisper** | word-level caption timing | `brew install openai-whisper` (or `pip install openai-whisper`) |
-| **claude CLI** | script generation (uses your subscription, no API key) | [claude.ai/code](https://claude.ai/code) — must be logged in |
+| **Docker** | runs all services (nats, postgres, api, worker, frontend) | [docs.docker.com](https://docs.docker.com/get-docker/) |
 
-> **⚠️ FFmpeg must have libass.** The Homebrew *core* formula dropped subtitle
-> filters. Install from the `homebrew-ffmpeg` tap above, or captions fail with a
-> confusing `ass=` filter error. Verify: `ffmpeg -filters | grep ass`.
-
-If a binary lives somewhere non-standard, point vidgen at it with an env override:
-`FFMPEG_BIN`, `FFPROBE_BIN`, `WHISPER_BIN`, `CLAUDE_BIN`.
+No Go, Homebrew, Whisper, or claude CLI install is needed on the host — everything runs inside the containers.
 
 ---
 
-## 2. Build
+## 2. Clone and configure
 
 ```bash
 git clone https://github.com/cuongtranba/video-generation-skill
 cd video-generation-skill
-go build -o vidgen ./cmd/vidgen
-./vidgen --help          # sanity check
+cp .env.example .env
 ```
 
----
-
-## 3. API keys (`.env`)
-
-Create a `.env` file in your working directory. **Only the keys for the providers
-you actually use are required** — vidgen validates per-selected-provider.
+Edit `.env` and fill in your API keys:
 
 ```env
-FPT_TTS_API_KEY=...      # console.fpt.ai        — Vietnamese TTS (required by default)
-PEXELS_API_KEY=...       # pexels.com/api        — stock video (free, default material)
+FPT_TTS_API_KEY=...      # console.fpt.ai        — Vietnamese TTS (required)
+PEXELS_API_KEY=...       # pexels.com/api        — stock video (free, required)
 PIXABAY_API_KEY=...      # optional              — image fallback
-JAMENDO_CLIENT_ID=...    # devportal.jamendo.com — background music (free)
-TIKTOK_ACCESS_TOKEN=...  # developers.tiktok.com — only for `vidgen publish`
+JAMENDO_CLIENT_ID=...    # devportal.jamendo.com — background music (free, required)
+TIKTOK_ACCESS_TOKEN=...  # developers.tiktok.com — only for publish step
+COST_CAP_USD=0.15        # hard cost ceiling per video (default 0.15)
 ```
 
 `.env` is gitignored. Real environment variables take precedence over the file.
 
-For the default setup (FPT + Pexels + Jamendo) you need `FPT_TTS_API_KEY`,
-`PEXELS_API_KEY`, and `JAMENDO_CLIENT_ID`.
+---
+
+## 3. Start the stack
+
+```bash
+docker compose up --build
+```
+
+This starts five services: `nats`, `postgres`, `api`, `worker`, and `frontend`. When all services are healthy, open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 4. (Optional) Choose your providers
+## 4. Make your first video
 
-Which service implements each pipeline stage is selected in a YAML config — **not**
-in code. Skip this entirely to use the defaults.
+The browser flow is **7 steps**: New Project → script → material → voiceovers → approve → render → download/publish.
 
-Location: `~/.vidgen/config.yaml` (override per-command with `--config <path>`).
-An absent file means pure defaults, i.e. the behavior below.
+### Step 1 — New Project
 
-```yaml
-tts:
-  provider: fpt          # fpt (ElevenLabs = seam, not implemented yet)
-  voice: banmai
-  speed: 0
-music:
-  provider: jamendo      # jamendo | none
-material:
-  providers: [pexels, pixabay]   # ordered fallback chain
-videogen:
-  provider: none         # none (Runway/Kling = seam, not implemented yet)
-publish:
-  provider: none         # none | tiktok
-```
+Click **New Project** and enter:
+- Your idea (e.g. `3 lý do bạn nên uống nước ấm mỗi sáng`)
+- Duration in seconds (e.g. 30)
+- Number of scenes (e.g. 3)
 
-### Providers currently supported
+### Step 2 — Script
 
-| Category | ✅ Implemented | 🕳️ Selectable seam (returns "not implemented") |
-|---|---|---|
-| `tts` | **FPT.AI** (`fpt`) | ElevenLabs |
-| `music` | **Jamendo** (`jamendo`), `none` | — |
-| `material` | **Pexels**, **Pixabay** (ordered fallback) | TikTok |
-| `videogen` | — (`none` only) | Runway, Kling |
-| `publish` | **TikTok** (`tiktok`) | YouTube, Instagram |
+The Anthropic Agent SDK generates a scene-by-scene Vietnamese script (narration + visual notes). Script generation costs `$0` (`scriptUsd = 0` always).
 
----
+Note the **project ID** shown in the URL — you can return to this project at any time.
 
-## 5. Make your first video
+### Step 3 — Material
 
-The flow is six steps: **new → material → tune → confirm → generate → publish**.
-Each step advances the project's status and persists it.
+The app fetches Pexels/Pixabay stock clips for each scene. Clips shorter than the narration are looped automatically so there is no black tail.
 
-### Step 1 — `new`: idea → scene script
+### Step 4 — Voiceovers
 
-The `claude` CLI turns your one-line idea into a scene-by-scene script (Vietnamese
-narration + visual notes).
+FPT.AI TTS is dispatched per scene (async — polls until the mp3 URL is ready, 5s–2min per scene). The projected cost is checked against `COST_CAP_USD` before dispatching. If the projection would breach the cap, the pipeline halts.
 
-```bash
-./vidgen new "3 lý do bạn nên uống nước ấm mỗi sáng" \
-  --duration 30 --scenes 3 --tone casual
-# → Project 7ccd643c created (3 scenes)
-```
-
-Bring your own media — scenes are written *around* your assets:
-
-```bash
-./vidgen new "review quán cà phê" --duration 45 --resource ./my-photos
-```
-
-> Note the **project ID** it prints (`7ccd643c` here). Every later command takes
-> `--project <id>`. `./vidgen list` shows all projects and their status any time.
-
-### Step 2 — `material`: fetch stock clips
-
-Pulls a clip/image for every scene. Your own assets (`--resource`) come first; Pexels
-then Pixabay fill the gaps. Clips shorter than the narration are looped so there's no
-black tail.
-
-```bash
-./vidgen material --project 7ccd643c
-```
-
-### Step 3 — `tune`: voice, captions, music
-
-```bash
-./vidgen tune --project 7ccd643c \
-  --voice banmai --speed 0 \
-  --music-search "calm inspiring acoustic" --music-volume 0.3
-```
-
-Common flags:
-
-| Flag | Meaning |
-|---|---|
-| `--voice` | FPT voice (table below) |
-| `--speed` | speech rate −3..+3 |
-| `--caption-font`, `--caption-size` | ASS caption style |
-| `--music <file>` | local music file, looped + ducked |
-| `--music-search "<tags>"` | Jamendo mood/genre search, top track auto-downloaded |
-| `--music-volume` | 0–1, default 0.15 (0.3–0.4 recommended) |
-
-**FPT.AI voices:**
+**FPT.AI voices available:**
 
 | Voice | Gender | Accent |
 |---|---|---|
@@ -160,79 +88,56 @@ Common flags:
 | `giahuy` | male | central |
 | `myan` | female | central |
 
-### Step 4 — `confirm`: cost gate
+> Voice, speed, caption style, and music are fixed defaults in v1. The tune step is planned for a future release.
 
-vidgen enforces a hard **$0.10/video cap**. `confirm` projects the cost and refuses to
-proceed if it would breach.
+### Step 5 — Approve
 
-```bash
-./vidgen confirm --project 7ccd643c
-# → Projected cost: $0.0036 (cap $0.10) — OK
-```
+The approval-gate UI shows the projected cost for the full render. Review it, then click **Approve** to proceed. The cost wall checks again at render time using actual `cost_ledger` events — the pipeline halts if the cap is exceeded.
 
-### Step 5 — `generate`: render
+### Step 6 — Render
 
-Runs the pipeline on an embedded NATS JetStream bus: parallel per-scene TTS, then
-captions (Whisper → ASS karaoke), then the FFmpeg render.
+The worker runs the full pipeline: Whisper captions → ASS karaoke subtitles → FFmpeg filter-graph (9:16 crop, ken-burns stills, clip looping, subtitle burn, music mix).
 
-```bash
-./vidgen generate --project 7ccd643c --output video.mp4
-```
+**Idempotent and resumable:** if the render is interrupted, re-approving re-runs only the missing pieces. Finished TTS/captions are reused at **$0**.
 
-**Idempotent & resumable:** every worker checks its output file before doing work. If
-`generate` crashes or you rerun it, finished TTS/captions are reused at **$0** — only
-missing pieces are recomputed.
+### Step 7 — Download / Publish
 
-### Step 6 — `publish` (optional)
-
-Uploads the rendered video to the configured publish provider. Requires
-`publish.provider: tiktok` in `config.yaml` **and** `TIKTOK_ACCESS_TOKEN`.
-
-```bash
-./vidgen publish --project 7ccd643c \
-  --caption "3 lý do nên uống nước ấm" --privacy public
-```
+Download the final MP4 directly, or push to TikTok (requires `TIKTOK_ACCESS_TOKEN` and `publish.provider: tiktok` in worker config).
 
 ---
 
-## 6. Where your files live
-
-```
-~/.vidgen/projects/<id>/
-  manifest.json      # project state, scenes, style, cost ledger
-  <assets...>        # stock clips, TTS mp3s, captions, music — all co-located
-```
-
-Because everything is in the manifest + co-located assets, projects are fully
-resumable and re-runnable.
-
----
-
-## 7. Cost
+## 5. Cost
 
 | Item | Per 30s video |
 |---|---|
-| Script (claude CLI) | $0 (subscription) |
+| Script (Agent SDK) | $0 (scriptUsd=0) |
 | FPT.AI TTS (~400 chars) | ~$0.004 |
 | Pexels / Jamendo | $0 (free tiers) |
-| Whisper + FFmpeg (local) | $0 |
+| Whisper + FFmpeg (worker container) | $0 |
 | **Total** | **< $0.01** |
 
-The $0.10 cap is checked three times: projected at `confirm`, actual after each API
-call, and paired at completion. Never disabled.
+The `COST_CAP_USD` cap (default `$0.15`) is checked at voiceover dispatch (projected) and tracked via `cost_ledger` events during render. Never disabled.
 
 ---
 
-## 8. Troubleshooting
+## 6. Troubleshooting
 
 | Symptom | Cause / fix |
 |---|---|
-| `ass=` / subtitle filter error | FFmpeg lacks libass — reinstall from `homebrew-ffmpeg/ffmpeg/ffmpeg` |
-| `missing required config for selected providers` | add the missing key to `.env` (only selected providers are checked) |
-| Script step hangs or errors | `claude` CLI not logged in — run it once interactively first |
-| TTS seems stuck | FPT.AI is async; it polls the returned mp3 URL until ready (5s–2min) — normal |
-| Black tail at end of a scene | stock clip shorter than narration; vidgen loops it — re-run `material` if it persists |
-| `provider "x" not implemented yet` | you selected a seam-only provider; pick an implemented one (see table in §4) |
+| Container fails to start | Check `docker compose logs <service>` — most commonly a missing `.env` key |
+| `ass=` / subtitle filter error in worker logs | Worker container build missing libass — rebuild with `docker compose build worker` |
+| `missing required config for selected providers` | Add the missing key to `.env` (only selected providers are checked) |
+| TTS scene seems stuck | FPT.AI is async; it polls the returned mp3 URL until ready (5s–2min) — normal |
+| Black tail at end of a scene | Stock clip shorter than narration; worker loops it — if it persists, re-run material step |
+| Approval gate shows cost over cap | Reduce number of scenes or duration; or increase `COST_CAP_USD` in `.env` |
+
+---
+
+## 7. v1 limitations
+
+- **No local-asset upload** (`--resource` descoped for v1) — stock footage only
+- **No tune step** (voice, speed, caption style, music are fixed defaults in v1)
+- **No re-publish** (`--force` descoped for v1)
 
 ---
 
