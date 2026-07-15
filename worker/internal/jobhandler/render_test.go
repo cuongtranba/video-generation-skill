@@ -133,3 +133,45 @@ func TestRenderHandler_MusicSearchResolution(t *testing.T) {
 		t.Fatalf("unexpected RenderCompleted output path: %s", got.OutputPath)
 	}
 }
+
+// TestRenderHandler_MusicSearchErrorPublishesRunFailed verifies that when the
+// music source's Search returns an error, Handle publishes a RunFailed event
+// (not a RenderCompleted) and does not panic.
+func TestRenderHandler_MusicSearchErrorPublishesRunFailed(t *testing.T) {
+	dir := t.TempDir()
+	outputPath := filepath.Join(dir, "out.mp4")
+
+	ms := &stubMusicSource{
+		searchFn: func(ctx context.Context, q music.Query) ([]music.Track, error) {
+			return nil, errors.New("music search failed")
+		},
+		downloadFn: func(ctx context.Context, track music.Track, dest string) error {
+			return nil
+		},
+	}
+
+	renderer := &stubRenderer{result: render.RenderResult{OutputPath: outputPath, DurationSec: 5.0, FileSizeBytes: 512}}
+	store := newTestStore(t)
+	h := NewRenderHandler(renderer, ms, store)
+
+	pid := newProjectID("proj")
+	job := RenderJob{
+		ProjectID:  pid,
+		Scenes:     []RenderSceneJob{{MediaPath: "/m.mp4", AudioPath: "/a.mp3", DurationSec: 5, MediaDurationSec: 5}},
+		ASSPath:    "/cap.ass",
+		OutputPath: outputPath,
+		Music:      &RenderMusicJob{Search: "chill acoustic", Volume: 0.3, Path: ""},
+	}
+
+	if err := h.Handle(context.Background(), "vidgen.job.render."+pid+".-", job); err != nil {
+		t.Fatalf("Handle should ack after publishing RunFailed, got error: %v", err)
+	}
+
+	got := awaitEvent[eventstore.RunFailed](t, store, "vidgen.evt."+pid+".RunFailed")
+	if got.Stage != "render" {
+		t.Fatalf("unexpected RunFailed stage: %q, want %q", got.Stage, "render")
+	}
+	if got.ProjectID != pid {
+		t.Fatalf("unexpected RunFailed project id: %q, want %q", got.ProjectID, pid)
+	}
+}

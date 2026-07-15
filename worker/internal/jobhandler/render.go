@@ -49,6 +49,9 @@ func (h *RenderHandler) resolveMusicPath(ctx context.Context, m *RenderMusicJob,
 	if m.Search == "" {
 		return "", nil
 	}
+	if h.musicSource == nil {
+		return "", fmt.Errorf("music source not configured")
+	}
 	tracks, err := h.musicSource.Search(ctx, music.Query{Tags: m.Search, Limit: 1})
 	if err != nil {
 		return "", fmt.Errorf("search music %q: %w", m.Search, err)
