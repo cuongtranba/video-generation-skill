@@ -19,8 +19,10 @@ const (
 	// ELEVENLABS_VOICE_ID. ElevenLabs selects the voice by ID, not by the
 	// FPT-style names the tune feature uses.
 	elevenLabsDefaultVoice = "Na15FlRRkMEDtEW4nVVP"
-	// eleven_multilingual_v2 handles Vietnamese narration.
-	elevenLabsDefaultModel  = "eleven_multilingual_v2"
+	// eleven_turbo_v2_5 (unlike the older multilingual_v2) supports Vietnamese
+	// with correct tones/pronunciation. Override with ELEVENLABS_MODEL_ID
+	// (e.g. eleven_flash_v2_5, eleven_v3).
+	elevenLabsDefaultModel  = "eleven_turbo_v2_5"
 	elevenLabsOutputFormat  = "mp3_44100_128"
 	elevenLabsRequestTimeout = 60 * time.Second
 )
@@ -60,11 +62,15 @@ func NewElevenLabsProvider(apiKey string, opts ...ElevenLabsOption) *ElevenLabsP
 	if v := os.Getenv("ELEVENLABS_VOICE_ID"); v != "" {
 		voiceID = v
 	}
+	modelID := elevenLabsDefaultModel
+	if m := os.Getenv("ELEVENLABS_MODEL_ID"); m != "" {
+		modelID = m
+	}
 	p := &ElevenLabsProvider{
 		apiKey:        apiKey,
 		baseURL:       elevenLabsBaseURL,
 		voiceID:       voiceID,
-		modelID:       elevenLabsDefaultModel,
+		modelID:       modelID,
 		outputFormat:  elevenLabsOutputFormat,
 		httpClient:    &http.Client{Timeout: elevenLabsRequestTimeout},
 		durationProbe: FFProbeDuration("ffprobe"),
