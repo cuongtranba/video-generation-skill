@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/cuongtranba/video-generation-skill/worker/internal/eventstore"
+	"github.com/cuongtranba/video-generation-skill/worker/internal/music"
 	"github.com/cuongtranba/video-generation-skill/worker/internal/render"
 )
 
@@ -32,7 +33,7 @@ func TestRenderHandler_RendersAndPublishesRenderCompleted(t *testing.T) {
 	outputPath := filepath.Join(dir, "out.mp4")
 	renderer := &stubRenderer{result: render.RenderResult{OutputPath: outputPath, DurationSec: 12.0, FileSizeBytes: 1024}}
 	store := newTestStore(t)
-	h := NewRenderHandler(renderer, store)
+	h := NewRenderHandler(renderer, nil, store)
 
 	pid := newProjectID("proj")
 	job := RenderJob{
@@ -62,7 +63,7 @@ func TestRenderHandler_RendersAndPublishesRenderCompleted(t *testing.T) {
 func TestRenderHandler_RenderErrorPublishesRunFailed(t *testing.T) {
 	renderer := &stubRenderer{err: errors.New("ffmpeg exit 1")}
 	store := newTestStore(t)
-	h := NewRenderHandler(renderer, store)
+	h := NewRenderHandler(renderer, nil, store)
 
 	pid := newProjectID("proj")
 	job := RenderJob{ProjectID: pid, Scenes: []RenderSceneJob{{MediaPath: "scene0.mp4"}}, OutputPath: t.TempDir() + "/out.mp4"}
@@ -73,5 +74,62 @@ func TestRenderHandler_RenderErrorPublishesRunFailed(t *testing.T) {
 	got := awaitEvent[eventstore.RunFailed](t, store, "vidgen.evt."+pid+".RunFailed")
 	if got.Stage != "render" {
 		t.Fatalf("unexpected RunFailed: %+v", got)
+	}
+}
+
+// TestRenderHandler_MusicSearchResolution verifies that when a RenderJob has
+// Music.Search set and Music.Path empty, the handler calls the music source's
+// Search then Download with a non-empty destination path, and render completes.
+func TestRenderHandler_MusicSearchResolution(t *testing.T) {
+	dir := t.TempDir()
+	outputPath := filepath.Join(dir, "out.mp4")
+
+	downloaded := make(chan string, 1)
+	ms := &stubMusicSource{
+		searchFn: func(ctx context.Context, q music.Query) ([]music.Track, error) {
+			return []music.Track{{ID: "1", Name: "Chill Track", DurationSec: 60, DownloadURL: "http://example.com/track.mp3"}}, nil
+		},
+		downloadFn: func(ctx context.Context, track music.Track, dest string) error {
+			downloaded <- dest
+			return nil
+		},
+	}
+
+	renderer := &stubRenderer{result: render.RenderResult{OutputPath: outputPath, DurationSec: 5.0, FileSizeBytes: 512}}
+	store := newTestStore(t)
+	h := NewRenderHandler(renderer, ms, store)
+
+	pid := newProjectID("proj")
+	job := RenderJob{
+		ProjectID:  pid,
+		Scenes:     []RenderSceneJob{{MediaPath: "/m.mp4", AudioPath: "/a.mp3", DurationSec: 5, MediaDurationSec: 5}},
+		ASSPath:    "/cap.ass",
+		OutputPath: outputPath,
+		Music:      &RenderMusicJob{Search: "chill acoustic", Volume: 0.3, Path: ""},
+	}
+
+	if err := h.Handle(context.Background(), "vidgen.job.render."+pid+".-", job); err != nil {
+		t.Fatalf("Handle error: %v", err)
+	}
+
+	select {
+	case dest := <-downloaded:
+		if dest == "" {
+			t.Error("expected non-empty download dest path")
+		}
+	default:
+		t.Error("music was not downloaded")
+	}
+
+	if renderer.got.Music == nil {
+		t.Fatal("expected renderer to receive music input, got nil")
+	}
+	if renderer.got.Music.Path == "" {
+		t.Error("expected renderer music path to be non-empty resolved path")
+	}
+
+	got := awaitEvent[eventstore.RenderCompleted](t, store, "vidgen.evt."+pid+".RenderCompleted")
+	if got.OutputPath != outputPath {
+		t.Fatalf("unexpected RenderCompleted output path: %s", got.OutputPath)
 	}
 }

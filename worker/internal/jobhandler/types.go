@@ -55,7 +55,10 @@ type RenderSceneJob struct {
 }
 
 // RenderMusicJob is the optional background music track.
+// When Search is set and Path is empty, the render handler resolves a track
+// via the Jamendo music source at render time.
 type RenderMusicJob struct {
+	Search      string  `json:"search"`
 	Path        string  `json:"path"`
 	DurationSec float64 `json:"durationSec"`
 	Volume      float64 `json:"volume"`

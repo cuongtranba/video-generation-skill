@@ -15,6 +15,7 @@ import (
 	"github.com/cuongtranba/video-generation-skill/worker/internal/eventstore"
 	"github.com/cuongtranba/video-generation-skill/worker/internal/jobhandler"
 	"github.com/cuongtranba/video-generation-skill/worker/internal/material"
+	"github.com/cuongtranba/video-generation-skill/worker/internal/music"
 	"github.com/cuongtranba/video-generation-skill/worker/internal/prereq"
 	"github.com/cuongtranba/video-generation-skill/worker/internal/render"
 	"github.com/cuongtranba/video-generation-skill/worker/internal/tts"
@@ -70,6 +71,10 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("build material source: %w", err)
 	}
+	musicSource, err := music.NewFromConfig(providers.Music, cfg.JamendoClientID)
+	if err != nil {
+		return fmt.Errorf("build music source: %w", err)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -83,7 +88,7 @@ func run() error {
 	materialHandler := jobhandler.NewMaterialHandler(materialSource, material.DurationProbe(probe), store)
 	ttsHandler := jobhandler.NewTTSHandler(ttsProvider, store)
 	captionHandler := jobhandler.NewCaptionHandler(caption.NewWhisperRunner(whisperBin), caption.NewASSWriter(), store)
-	renderHandler := jobhandler.NewRenderHandler(render.NewFFmpegRenderer(ffmpegBin, ffprobeBin), store)
+	renderHandler := jobhandler.NewRenderHandler(render.NewFFmpegRenderer(ffmpegBin, ffprobeBin), musicSource, store)
 
 	type consumer struct {
 		kind    eventstore.JobKind
