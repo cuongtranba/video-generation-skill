@@ -143,6 +143,7 @@ describe('tuneProject', () => {
     expect(body.projectId).toBe('p1')
     expect(body.voice).toBe('lannhi')
     expect(body.speed).toBe(1)
+    expect(typeof body.idempotencyKey).toBe('string')
   })
 })
 
@@ -158,6 +159,8 @@ describe('uploadAssets', () => {
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe('/api/projects/p1/assets')
     expect(init.method).toBe('POST')
+    expect(init.body).toBeInstanceOf(FormData)
+    expect((init.body as FormData).get('file')).toBeInstanceOf(File)
     expect(results).toHaveLength(1)
     expect(results[0]?.filename).toBe('a.mp4')
     expect(results[0]?.sizeBytes).toBe(100)
@@ -181,8 +184,8 @@ describe('fetchAssets', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit | undefined]
     expect(url).toBe('/api/projects/p1/assets')
-    // GET — no method override expected (undefined or 'GET')
-    expect(init?.method ?? undefined).toBeUndefined()
+    // GET — no method override expected
+    expect(init?.method).toBeUndefined()
     expect(result).toHaveLength(1)
     expect(result[0]?.filename).toBe('clip.mp4')
     expect(result[0]?.sizeBytes).toBe(999)
