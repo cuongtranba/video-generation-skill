@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test'
-import { HttpError, requireProjectId, parseCreateProjectInput, parsePublishInput } from './http.js'
+import { HttpError, requireProjectId, parseCreateProjectInput, parsePublishInput, guardProjectId } from './http.js'
 
 describe('requireProjectId', () => {
   it('returns projectId when present', () => {
@@ -30,5 +30,27 @@ describe('parsePublishInput', () => {
 
   it('rejects a body missing caption', () => {
     expect(() => parsePublishInput({ projectId: 'p1', privacy: 'public' })).toThrow(HttpError)
+  })
+})
+
+describe('guardProjectId', () => {
+  it('accepts a normal uuid-style projectId', () => {
+    expect(() => guardProjectId('abc123-def')).not.toThrow()
+  })
+
+  it('rejects ".."', () => {
+    expect(() => guardProjectId('..')).toThrow(HttpError)
+  })
+
+  it('rejects "."', () => {
+    expect(() => guardProjectId('.')).toThrow(HttpError)
+  })
+
+  it('rejects a projectId containing a forward slash', () => {
+    expect(() => guardProjectId('p1/../../etc')).toThrow(HttpError)
+  })
+
+  it('rejects a projectId containing a backslash', () => {
+    expect(() => guardProjectId('p1\\evil')).toThrow(HttpError)
   })
 })

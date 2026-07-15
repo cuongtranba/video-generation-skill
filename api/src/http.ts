@@ -17,6 +17,15 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/** Rejects projectId values that could escape the mediaDir via path traversal.
+ * A single '.' or '..' component, or any value containing a path separator,
+ * is refused with a 400 HttpError. */
+export function guardProjectId(projectId: string): void {
+  if (projectId === '.' || projectId === '..' || projectId.includes('/') || projectId.includes('\\')) {
+    throw new HttpError(400, 'invalid projectId')
+  }
+}
+
 export function requireProjectId(body: Record<string, unknown>): string {
   if (typeof body.projectId !== 'string' || body.projectId.length === 0) {
     throw new HttpError(400, 'projectId:string is required')
@@ -150,6 +159,7 @@ const COMMAND_HANDLERS: Record<string, CommandHandler> = {
   GenerateScript: (ctx, body) => commands.generateScript(ctx, { projectId: requireProjectId(body) } satisfies GenerateScriptInput),
   ResolveMaterial: async (ctx, body) => {
     const projectId = requireProjectId(body)
+    guardProjectId(projectId)
     const assetsDir = path.join(ctx.mediaDir, projectId, 'assets')
     let uploadedPaths: string[] = []
     try {
@@ -346,11 +356,13 @@ async function routeRequest(config: HttpConfig, req: IncomingMessage, res: Serve
     }
     if (req.method === 'POST' && url.pathname.match(/^\/api\/projects\/[^/]+\/assets$/)) {
       const projectId = url.pathname.split('/')[3]!
+      guardProjectId(projectId)
       await handleUploadAsset(config, projectId, req, res)
       return
     }
     if (req.method === 'GET' && url.pathname.match(/^\/api\/projects\/[^/]+\/assets$/)) {
       const projectId = url.pathname.split('/')[3]!
+      guardProjectId(projectId)
       await handleListAssets(config, projectId, res)
       return
     }

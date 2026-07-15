@@ -135,7 +135,7 @@ describe('generateVoiceovers', () => {
   it('appends CostProjected then dispatches tts and caption jobs when under the cap', async () => {
     const store = createInMemoryEventStore(materialEvents)
     const js = fakePublisher()
-    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15)
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15, '/media')
     const state = await generateVoiceovers(ctx, { projectId: 'p1' })
     expect(state.status).toBe('material') // CostProjected does not change status
     expect(store.events.at(-1)).toMatchObject({ type: 'CostProjected', capUsd: 0.15 })
@@ -143,9 +143,31 @@ describe('generateVoiceovers', () => {
       'vidgen.evt.p1.CostProjected',
       'vidgen.job.tts.p1.0',
       'vidgen.job.tts.p1.1',
-      'vidgen.job.caption.p1.0',
-      'vidgen.job.caption.p1.1',
+      'vidgen.job.caption.p1.-',
     ])
+    // tts payload matches TTSJob worker contract
+    const tts0 = JSON.parse(js.published[1]!.data) as Record<string, unknown>
+    expect(tts0.text).toBe('scene zero narration')
+    expect(tts0.voice).toBe('banmai') // default style voice
+    expect(tts0.speed).toBe(0)        // default style speed
+    expect(tts0.destPath).toBe('/media/p1/tts0.mp3')
+    const tts1 = JSON.parse(js.published[2]!.data) as Record<string, unknown>
+    expect(tts1.text).toBe('scene one narration')
+    expect(tts1.destPath).toBe('/media/p1/tts1.mp3')
+    // caption payload matches CaptionJob worker contract (single job, sceneIdx null)
+    const caption = JSON.parse(js.published[3]!.data) as Record<string, unknown>
+    expect(caption.sceneIdx).toBeNull()
+    expect(caption.destPath).toBe('/media/p1/captions.ass')
+    const sceneAudio = caption.sceneAudio as Array<Record<string, unknown>>
+    expect(sceneAudio).toHaveLength(2)
+    expect(sceneAudio[0]!.audioPath).toBe('/media/p1/tts0.mp3')
+    expect(sceneAudio[1]!.audioPath).toBe('/media/p1/tts1.mp3')
+    const style = caption.style as Record<string, unknown>
+    expect(style.font_name).toBe('Arial')
+    expect(style.font_size).toBe(64)
+    expect(style.primary).toBe('#FFFFFF')
+    expect(style.outline).toBe('#000000')
+    expect(style.bold).toBe(true)
   })
 
   it('vetoes when projected cost exceeds the cap — no event, no jobs', async () => {
@@ -174,11 +196,43 @@ describe('approveStoryboard', () => {
     const events = [...materialEvents, { v: 1 as const, type: 'AwaitingApproval' as const, projectId: 'p1', at: 't4' }]
     const store = createInMemoryEventStore(events)
     const js = fakePublisher()
-    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15)
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15, '/media')
     const state = await approveStoryboard(ctx, { projectId: 'p1' })
     expect(state.status).toBe('approved')
     expect(state.approved).toBe(true)
     expect(js.published.map((m) => m.subject)).toEqual(['vidgen.evt.p1.ApprovalGranted', 'vidgen.job.render.p1.-'])
+    // render payload matches RenderJob worker contract
+    const render = JSON.parse(js.published[1]!.data) as Record<string, unknown>
+    expect(render.assPath).toBe('/media/p1/captions.ass')
+    expect(render.outputPath).toBe('/media/p1/output.mp4')
+    expect(render.music).toBeUndefined() // no music in default style
+    const scenes = render.scenes as Array<Record<string, unknown>>
+    expect(scenes).toHaveLength(2)
+    expect(scenes[0]!.mediaPath).toBe('/media/p1/material0.mp4')
+    expect(scenes[0]!.audioPath).toBe('/media/p1/tts0.mp3')
+    expect(scenes[0]!.isImage).toBe(false)
+    expect(scenes[1]!.mediaPath).toBe('/media/p1/material1.mp4')
+    expect(scenes[1]!.audioPath).toBe('/media/p1/tts1.mp3')
+  })
+
+  it('includes music in render job when style.music is set', async () => {
+    const events = [
+      ...materialEvents,
+      { v: 1 as const, type: 'StyleSet' as const, projectId: 'p1', at: 't3b', uid: 'u1',
+        voice: 'banmai', speed: 0, captionStyle: { fontName: 'Arial', fontSize: 64 },
+        music: { search: 'upbeat', volume: 0.4 } },
+      { v: 1 as const, type: 'AwaitingApproval' as const, projectId: 'p1', at: 't4' },
+    ]
+    const store = createInMemoryEventStore(events)
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15, '/media')
+    await approveStoryboard(ctx, { projectId: 'p1' })
+    const render = JSON.parse(js.published[1]!.data) as Record<string, unknown>
+    const music = render.music as Record<string, unknown>
+    expect(music).toBeDefined()
+    expect(music.search).toBe('upbeat')
+    expect(music.volume).toBe(0.4)
+    expect(music.path).toBe('')
   })
 })
 

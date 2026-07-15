@@ -146,7 +146,22 @@ export async function approveStoryboard(ctx: CommandContext, input: ApproveStory
   const event: VidgenEvent = { v: 1, type: 'ApprovalGranted', projectId: input.projectId, at: ctx.now() }
   await ctx.store.append(event)
   await publishEvent(ctx.js, event)
-  await dispatchJob(ctx.js, 'render', input.projectId, null, {})
+  const projectMediaDir = path.join(ctx.mediaDir, input.projectId)
+  const renderJob: Record<string, unknown> = {
+    scenes: state.scenes.map((s) => ({
+      mediaPath: path.join(projectMediaDir, `material${s.idx}.mp4`),
+      audioPath: path.join(projectMediaDir, `tts${s.idx}.mp3`),
+      isImage: false,
+      durationSec: 0,
+      mediaDurationSec: 0,
+    })),
+    assPath: path.join(projectMediaDir, 'captions.ass'),
+    outputPath: path.join(projectMediaDir, 'output.mp4'),
+  }
+  if (state.style.music !== null) {
+    renderJob.music = { search: state.style.music.search, volume: state.style.music.volume, path: '' }
+  }
+  await dispatchJob(ctx.js, 'render', input.projectId, null, renderJob)
   return foldProject([...events, event])
 }
 
@@ -174,13 +189,7 @@ export async function publish(ctx: CommandContext, input: PublishInput): Promise
 }
 
 export async function resolveMaterial(ctx: CommandContext, input: ResolveMaterialInput): Promise<ProjectState> {
-  const events = await ctx.store.loadEvents(input.projectId)
-  const state = assertExists(events, input.projectId)
-  assertTransition('ResolveMaterial', state)
-  for (const scene of state.scenes) {
-    await dispatchJob(ctx.js, 'material', input.projectId, scene.idx, { narration: scene.narration, visual: scene.visual })
-  }
-  return state
+  return resolveMaterialWithAssets(ctx, input, [])
 }
 
 /** Variant of resolveMaterial that injects uploaded local asset paths.
@@ -227,11 +236,28 @@ export async function generateVoiceovers(ctx: CommandContext, input: GenerateVoi
   }
   await ctx.store.append(event)
   await publishEvent(ctx.js, event)
+  const projectMediaDir = path.join(ctx.mediaDir, input.projectId)
   for (const scene of state.scenes) {
-    await dispatchJob(ctx.js, 'tts', input.projectId, scene.idx, { narration: scene.narration })
+    await dispatchJob(ctx.js, 'tts', input.projectId, scene.idx, {
+      text: scene.narration,
+      voice: state.style.voice,
+      speed: state.style.speed,
+      destPath: path.join(projectMediaDir, `tts${scene.idx}.mp3`),
+    })
   }
-  for (const scene of state.scenes) {
-    await dispatchJob(ctx.js, 'caption', input.projectId, scene.idx, {})
-  }
+  await dispatchJob(ctx.js, 'caption', input.projectId, null, {
+    sceneAudio: state.scenes.map((s) => ({
+      audioPath: path.join(projectMediaDir, `tts${s.idx}.mp3`),
+      startOffsetSec: 0,
+    })),
+    style: {
+      font_name: state.style.captionStyle.fontName,
+      font_size: state.style.captionStyle.fontSize,
+      primary: '#FFFFFF',
+      outline: '#000000',
+      bold: true,
+    },
+    destPath: path.join(projectMediaDir, 'captions.ass'),
+  })
   return foldProject([...events, event])
 }
