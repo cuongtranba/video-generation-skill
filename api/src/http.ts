@@ -148,7 +148,18 @@ type CommandHandler = (ctx: CommandContext, body: Record<string, unknown>) => Pr
 const COMMAND_HANDLERS: Record<string, CommandHandler> = {
   CreateProject: (ctx, body) => commands.createProject(ctx, parseCreateProjectInput(body)),
   GenerateScript: (ctx, body) => commands.generateScript(ctx, { projectId: requireProjectId(body) } satisfies GenerateScriptInput),
-  ResolveMaterial: (ctx, body) => commands.resolveMaterial(ctx, { projectId: requireProjectId(body) } satisfies ResolveMaterialInput),
+  ResolveMaterial: async (ctx, body) => {
+    const projectId = requireProjectId(body)
+    const assetsDir = path.join(ctx.mediaDir, projectId, 'assets')
+    let uploadedPaths: string[] = []
+    try {
+      const names = (await readdir(assetsDir)).sort()
+      uploadedPaths = names.map((n) => path.join(assetsDir, n))
+    } catch {
+      // no assets uploaded — all scenes fall back to stock
+    }
+    return commands.resolveMaterialWithAssets(ctx, { projectId }, uploadedPaths)
+  },
   GenerateVoiceovers: (ctx, body) => commands.generateVoiceovers(ctx, { projectId: requireProjectId(body) } satisfies GenerateVoiceoversInput),
   RequestApproval: (ctx, body) => commands.requestApproval(ctx, { projectId: requireProjectId(body) } satisfies RequestApprovalInput),
   ApproveStoryboard: (ctx, body) => commands.approveStoryboard(ctx, { projectId: requireProjectId(body) } satisfies ApproveStoryboardInput),

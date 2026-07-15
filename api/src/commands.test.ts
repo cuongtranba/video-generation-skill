@@ -5,7 +5,7 @@ import type { Scene } from './events.js'
 import { createCommandContext, createProject, type ScriptGenerator } from './commands.js'
 import { generateScript } from './commands.js'
 import { InvalidTransitionError, ProjectNotFoundError, ValidationError } from './aggregate.js'
-import { resolveMaterial, generateVoiceovers, tuneProject } from './commands.js'
+import { resolveMaterial, generateVoiceovers, tuneProject, resolveMaterialWithAssets } from './commands.js'
 import { CostCapExceededError } from './cost.js'
 import { requestApproval, approveStoryboard } from './commands.js'
 import { publish } from './commands.js'
@@ -100,6 +100,34 @@ describe('resolveMaterial', () => {
     await resolveMaterial(ctx, { projectId: 'p1' })
     expect(store.events).toHaveLength(before)
     expect(js.published.map((m) => m.subject)).toEqual(['vidgen.job.material.p1.0', 'vidgen.job.material.p1.1'])
+  })
+})
+
+describe('resolveMaterialWithAssets', () => {
+  it('dispatches material jobs with localAssetPath when an uploaded path exists for that scene index', async () => {
+    const store = createInMemoryEventStore(scriptedEvents)
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15, '/media')
+    const before = store.events.length
+    await resolveMaterialWithAssets(ctx, { projectId: 'p1' }, ['/media/p1/assets/clip0.mp4', '/media/p1/assets/clip1.mp4'])
+    expect(store.events).toHaveLength(before)
+    expect(js.published.map((m) => m.subject)).toEqual(['vidgen.job.material.p1.0', 'vidgen.job.material.p1.1'])
+    const job0 = JSON.parse(js.published[0]!.data) as Record<string, unknown>
+    const job1 = JSON.parse(js.published[1]!.data) as Record<string, unknown>
+    expect(job0.localAssetPath).toBe('/media/p1/assets/clip0.mp4')
+    expect(job1.localAssetPath).toBe('/media/p1/assets/clip1.mp4')
+  })
+
+  it('dispatches material jobs without localAssetPath when no uploaded path exists for that scene index', async () => {
+    const store = createInMemoryEventStore(scriptedEvents)
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15, '/media')
+    await resolveMaterialWithAssets(ctx, { projectId: 'p1' }, [])
+    expect(js.published.map((m) => m.subject)).toEqual(['vidgen.job.material.p1.0', 'vidgen.job.material.p1.1'])
+    const job0 = JSON.parse(js.published[0]!.data) as Record<string, unknown>
+    const job1 = JSON.parse(js.published[1]!.data) as Record<string, unknown>
+    expect('localAssetPath' in job0).toBe(false)
+    expect('localAssetPath' in job1).toBe(false)
   })
 })
 

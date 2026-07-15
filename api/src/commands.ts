@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import path from 'node:path'
 import type { Scene, VidgenEvent, ProjectState } from './events.js'
 import { foldProject } from './events.js'
 import { assertCanCreate, assertExists, assertTransition, ValidationError } from './aggregate.js'
@@ -178,6 +179,31 @@ export async function resolveMaterial(ctx: CommandContext, input: ResolveMateria
   assertTransition('ResolveMaterial', state)
   for (const scene of state.scenes) {
     await dispatchJob(ctx.js, 'material', input.projectId, scene.idx, { narration: scene.narration, visual: scene.visual })
+  }
+  return state
+}
+
+/** Variant of resolveMaterial that injects uploaded local asset paths.
+ * Called by the http layer when the project has uploaded assets. */
+export async function resolveMaterialWithAssets(
+  ctx: CommandContext,
+  input: ResolveMaterialInput,
+  uploadedPaths: string[],
+): Promise<ProjectState> {
+  const events = await ctx.store.loadEvents(input.projectId)
+  const state = assertExists(events, input.projectId)
+  assertTransition('ResolveMaterial', state)
+
+  const projectMediaDir = path.join(ctx.mediaDir, input.projectId)
+
+  for (const scene of state.scenes) {
+    const destPath = path.join(projectMediaDir, `material${scene.idx}.mp4`)
+    const localAssetPath = uploadedPaths[scene.idx] ?? ''
+    await dispatchJob(ctx.js, 'material', input.projectId, scene.idx, {
+      query: scene.visual,
+      destPath,
+      ...(localAssetPath ? { localAssetPath } : {}),
+    })
   }
   return state
 }
