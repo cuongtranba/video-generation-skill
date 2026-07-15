@@ -14,10 +14,11 @@ import (
 
 const (
 	elevenLabsBaseURL = "https://api.elevenlabs.io"
-	// A public multilingual voice ("George"). ElevenLabs selects the voice by
-	// ID, not by the FPT-style names the tune feature uses, so every project
-	// renders with this voice until per-provider voice mapping lands.
-	elevenLabsDefaultVoice = "JBFqnCBsd6RMkjVDRZzb"
+	// Default voice ID. A Vietnamese-capable voice so multilingual_v2 speaks
+	// Vietnamese narration natively; override per deployment with
+	// ELEVENLABS_VOICE_ID. ElevenLabs selects the voice by ID, not by the
+	// FPT-style names the tune feature uses.
+	elevenLabsDefaultVoice = "Na15FlRRkMEDtEW4nVVP"
 	// eleven_multilingual_v2 handles Vietnamese narration.
 	elevenLabsDefaultModel  = "eleven_multilingual_v2"
 	elevenLabsOutputFormat  = "mp3_44100_128"
@@ -55,10 +56,14 @@ func WithElevenLabsDurationProbe(probe DurationProbe) ElevenLabsOption {
 }
 
 func NewElevenLabsProvider(apiKey string, opts ...ElevenLabsOption) *ElevenLabsProvider {
+	voiceID := elevenLabsDefaultVoice
+	if v := os.Getenv("ELEVENLABS_VOICE_ID"); v != "" {
+		voiceID = v
+	}
 	p := &ElevenLabsProvider{
 		apiKey:        apiKey,
 		baseURL:       elevenLabsBaseURL,
-		voiceID:       elevenLabsDefaultVoice,
+		voiceID:       voiceID,
 		modelID:       elevenLabsDefaultModel,
 		outputFormat:  elevenLabsOutputFormat,
 		httpClient:    &http.Client{Timeout: elevenLabsRequestTimeout},
