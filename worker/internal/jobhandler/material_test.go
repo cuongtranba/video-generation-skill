@@ -61,6 +61,27 @@ func TestMaterialHandler_DownloadsAndPublishesMaterialResolved(t *testing.T) {
 	}
 }
 
+func TestMaterialHandler_CreatesMissingDestDir(t *testing.T) {
+	// DestPath lives in a project media dir that does not exist yet (no local
+	// asset was uploaded to create it). The handler must mkdir it before writing.
+	dir := t.TempDir()
+	destPath := filepath.Join(dir, "proj-xyz", "scene-0.mp4") // proj-xyz/ absent
+	source := &stubMaterialSource{assets: []material.Asset{
+		{ID: "a1", Type: material.AssetVideo, Source: "stub", DurationSec: 5},
+	}}
+	store := newTestStore(t)
+	h := NewMaterialHandler(source, nil, store)
+
+	pid := newProjectID("proj")
+	job := MaterialJob{ProjectID: pid, SceneIdx: 0, Query: "sunset", DestPath: destPath}
+	if err := h.Handle(context.Background(), "vidgen.job.material."+pid+".0", job); err != nil {
+		t.Fatalf("Handle should create the missing dir and succeed, got: %v", err)
+	}
+	if _, err := os.Stat(destPath); err != nil {
+		t.Fatalf("expected downloaded file at %s: %v", destPath, err)
+	}
+}
+
 func TestMaterialHandler_LocalAssetSkipsDownload(t *testing.T) {
 	dir := t.TempDir()
 	localPath := filepath.Join(dir, "user-photo.jpg")

@@ -1,5 +1,6 @@
 import { Board } from './components/Board'
 import { ConnectionStatus } from './components/ConnectionStatus'
+import { CreateProjectForm } from './components/CreateProjectForm'
 
 export default function App() {
   return (
@@ -8,6 +9,7 @@ export default function App() {
         <h1>vidgen</h1>
         <ConnectionStatus />
       </header>
+      <CreateProjectForm />
       <Board />
     </main>
   )

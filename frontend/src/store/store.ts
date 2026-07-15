@@ -9,6 +9,7 @@ export interface CreateProjectInput {
   durationSec: number
   sceneCount: number
   tone: string
+  language: string
 }
 
 export interface ProjectIdInput {
@@ -19,6 +20,19 @@ export interface PublishInput {
   projectId: string
   caption: string
   privacy: string
+}
+
+export interface TuneInput {
+  projectId: string
+  voice?: string
+  speed?: number
+  captionStyle?: { fontName: string; fontSize: number }
+  music?: { search: string; volume: number } | null
+}
+
+export interface UploadedAsset {
+  filename: string
+  sizeBytes: number
 }
 
 export interface VidgenStore {
@@ -35,6 +49,9 @@ export interface VidgenStore {
   requestApproval: (input: ProjectIdInput) => Promise<void>
   approveStoryboard: (input: ProjectIdInput) => Promise<void>
   publish: (input: PublishInput) => Promise<void>
+  tuneProject: (input: TuneInput) => Promise<void>
+  uploadAssets: (projectId: string, files: File[]) => Promise<UploadedAsset[]>
+  fetchAssets: (projectId: string) => Promise<UploadedAsset[]>
   connect: () => Promise<void>
   disconnect: () => Promise<void>
   /** @internal set by connect(); torn down by disconnect(). Not read by components. */
@@ -95,6 +112,26 @@ export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi
     requestApproval: (input) => postCommand(deps.fetchImpl, 'RequestApproval', input),
     approveStoryboard: (input) => postCommand(deps.fetchImpl, 'ApproveStoryboard', input),
     publish: (input) => postCommand(deps.fetchImpl, 'Publish', input),
+    tuneProject: (input) => postCommand(deps.fetchImpl, 'TuneProject', input),
+
+    uploadAssets: async (projectId, files) => {
+      const results: UploadedAsset[] = []
+      for (const file of files) {
+        const fd = new FormData()
+        fd.append('file', file)
+        const res = await deps.fetchImpl(`/api/projects/${projectId}/assets`, { method: 'POST', body: fd })
+        if (!res.ok) throw new Error(`upload ${file.name} failed: ${res.status}`)
+        results.push(await res.json() as UploadedAsset)
+      }
+      return results
+    },
+
+    fetchAssets: async (projectId) => {
+      const res = await deps.fetchImpl(`/api/projects/${projectId}/assets`)
+      if (!res.ok) throw new Error(`fetchAssets failed: ${res.status}`)
+      const data = await res.json() as { assets: UploadedAsset[] }
+      return data.assets
+    },
 
     connect: async () => {
       set({ connection: 'connecting' })

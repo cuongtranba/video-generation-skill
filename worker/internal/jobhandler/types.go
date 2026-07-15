@@ -32,6 +32,10 @@ type TTSJob struct {
 type SceneAudioRef struct {
 	AudioPath      string  `json:"audioPath"`
 	StartOffsetSec float64 `json:"startOffsetSec"`
+	// Narration is the authoritative scene text. Captions display these words
+	// (aligned to whisper's timings) instead of whisper's own transcript, so
+	// caption text never inherits TTS pronunciation errors.
+	Narration string `json:"narration"`
 }
 
 // CaptionJob transcribes every scene's audio and writes one ASS file for
@@ -55,7 +59,10 @@ type RenderSceneJob struct {
 }
 
 // RenderMusicJob is the optional background music track.
+// When Search is set and Path is empty, the render handler resolves a track
+// via the Jamendo music source at render time.
 type RenderMusicJob struct {
+	Search      string  `json:"search"`
 	Path        string  `json:"path"`
 	DurationSec float64 `json:"durationSec"`
 	Volume      float64 `json:"volume"`

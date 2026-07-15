@@ -1,4 +1,0 @@
-fact: c3-110
-claim: "pipeline status machine & orchestrator live in internal/flow"
-code:
-  - internal/flow/**

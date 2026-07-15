@@ -12,7 +12,9 @@ export function createPool(connectionString: string): Database {
 }
 
 export async function migrate(db: Database): Promise<void> {
-  const sqlPath = path.join(__dirname, '..', 'migrations', '001_init.sql')
-  const sql = await readFile(sqlPath, 'utf8')
-  await db.query(sql)
+  for (const name of ['001_init.sql', '002_style.sql']) {
+    const sqlPath = path.join(__dirname, '..', 'migrations', name)
+    const sql = await readFile(sqlPath, 'utf8')
+    await db.query(sql)
+  }
 }

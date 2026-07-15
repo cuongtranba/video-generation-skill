@@ -39,7 +39,7 @@ func TestMaterialResolved(t *testing.T) {
 }
 
 func TestVoiceSynthesized(t *testing.T) {
-	ev := NewVoiceSynthesized("proj1", 1, "/data/media/proj1/scene-1.mp3", 0.00042)
+	ev := NewVoiceSynthesized("proj1", 1, "/data/media/proj1/scene-1.mp3", 3.5, 0.00042)
 
 	if got, want := ev.Subject(), "vidgen.evt.proj1.VoiceSynthesized"; got != want {
 		t.Errorf("Subject() = %q, want %q", got, want)
@@ -51,7 +51,7 @@ func TestVoiceSynthesized(t *testing.T) {
 	data := mustJSON(t, ev)
 	for _, want := range []string{
 		`"v":1`, `"type":"VoiceSynthesized"`, `"projectId":"proj1"`,
-		`"sceneIdx":1`, `"mp3Path":"/data/media/proj1/scene-1.mp3"`, `"ttsUsd":0.00042`,
+		`"sceneIdx":1`, `"mp3Path":"/data/media/proj1/scene-1.mp3"`, `"durationSec":3.5`, `"ttsUsd":0.00042`,
 	} {
 		if !strings.Contains(data, want) {
 			t.Errorf("JSON %s missing %s", data, want)

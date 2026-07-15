@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useVidgenStore } from '../store/store'
+import { DEFAULT_STYLE } from '../store/events'
 import { ProjectCard } from './ProjectCard'
 
 beforeEach(() => {
   useVidgenStore.setState({
-    projects: { p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0, approved: false } },
+    projects: { p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false, language: 'English' } },
     eventLog: {}, connection: 'down', selectedId: undefined, _unsubscribe: undefined,
   })
 })

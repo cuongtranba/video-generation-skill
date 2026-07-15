@@ -13,7 +13,24 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/cuongtranba/video-generation-skill/worker/internal/eventstore"
+	"github.com/cuongtranba/video-generation-skill/worker/internal/music"
 )
+
+// stubMusicSource is a test double for music.MusicSource that records calls
+// and delegates to caller-supplied function fields. Naming follows stubRenderer
+// in render_test.go.
+type stubMusicSource struct {
+	searchFn   func(ctx context.Context, q music.Query) ([]music.Track, error)
+	downloadFn func(ctx context.Context, track music.Track, dest string) error
+}
+
+func (s *stubMusicSource) Search(ctx context.Context, q music.Query) ([]music.Track, error) {
+	return s.searchFn(ctx, q)
+}
+
+func (s *stubMusicSource) Download(ctx context.Context, track music.Track, dest string) error {
+	return s.downloadFn(ctx, track, dest)
+}
 
 // newProjectID returns a uuid-suffixed project id so each test run publishes
 // to fresh subjects. The VIDGEN_EVENTS 2-minute msgID dupe window would

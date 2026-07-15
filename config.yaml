@@ -1,0 +1,13 @@
+tts:
+  provider: elevenlabs
+  voice: banmai
+  speed: 0
+music:
+  provider: jamendo
+material:
+  providers:
+    - pexels
+videogen:
+  provider: none
+publish:
+  provider: none

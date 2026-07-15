@@ -11,6 +11,7 @@ export type CommandName =
   | 'GenerateVoiceovers'
   | 'RequestApproval'
   | 'ApproveStoryboard'
+  | 'TuneProject'
   | 'Publish'
 
 export class ProjectAlreadyExistsError extends Error {
@@ -34,6 +35,15 @@ export class InvalidTransitionError extends Error {
   }
 }
 
+/** Input failed a domain rule (bad voice, speed/volume out of range). Distinct
+ * from InvalidTransitionError, which is about lifecycle status, not payload. */
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ValidationError'
+  }
+}
+
 /** Legal status a command may run from. Mirrors the linear pipeline the Go
  * CLI already proved (draft→scripted→material→awaiting_approval→approved→
  * rendered→published), renamed to the frozen ProjectStatus values. */
@@ -43,6 +53,7 @@ const LEGAL_FROM: Record<Exclude<CommandName, 'CreateProject'>, ReadonlyArray<Pr
   GenerateVoiceovers: ['material'],
   RequestApproval: ['material'],
   ApproveStoryboard: ['awaiting_approval'],
+  TuneProject: ['draft', 'scripted', 'material', 'awaiting_approval'],
   Publish: ['rendered'],
 }
 

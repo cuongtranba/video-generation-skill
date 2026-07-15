@@ -1,5 +1,0 @@
-fact: c3-114
-claim: "visual assembly groups captions (internal/caption) and FFmpeg render (internal/render)"
-code:
-  - internal/caption/**
-  - internal/render/**

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'bun:test'
-import { foldProject, type VidgenEvent } from './events.js'
+import { foldProject, DEFAULT_STYLE, type VidgenEvent } from './events.js'
 
 describe('foldProject', () => {
   it('folds a lifecycle into current state', () => {
     const events: VidgenEvent[] = [
-      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'nước ấm', durationSec: 30, sceneCount: 3, tone: 'casual' },
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'nước ấm', durationSec: 30, sceneCount: 3, tone: 'casual', language: 'English' },
       { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: '2026-07-09T00:01:00Z', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0.012 },
       { v: 1, type: 'AwaitingApproval', projectId: 'p1', at: '2026-07-09T00:02:00Z' },
       { v: 1, type: 'ApprovalGranted', projectId: 'p1', at: '2026-07-09T00:03:00Z' },
@@ -19,7 +19,7 @@ describe('foldProject', () => {
 
   it('reports awaiting_approval before approval', () => {
     const s = foldProject([
-      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' },
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' },
       { v: 1, type: 'AwaitingApproval', projectId: 'p1', at: 't' },
     ])
     expect(s.status).toBe('awaiting_approval')
@@ -30,5 +30,74 @@ describe('foldProject', () => {
     const s = foldProject([])
     expect(s.projectId).toBe('')
     expect(s.status).toBe('draft')
+  })
+})
+
+describe('foldProject StyleSet', () => {
+  it('returns default style when no StyleSet emitted', () => {
+    const s = foldProject([
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' },
+    ])
+    expect(s.style).toEqual(DEFAULT_STYLE)
+  })
+
+  it('applies first StyleSet', () => {
+    const s = foldProject([
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' },
+      { v: 1, type: 'StyleSet', projectId: 'p1', at: 't1', uid: 'u1',
+        voice: 'lannhi', speed: 1, captionStyle: { fontName: 'Arial', fontSize: 64 }, music: null },
+    ])
+    expect(s.style.voice).toBe('lannhi')
+    expect(s.style.speed).toBe(1)
+    expect(s.style.music).toBeNull()
+  })
+
+  it('last StyleSet wins (full snapshot)', () => {
+    const s = foldProject([
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' },
+      { v: 1, type: 'StyleSet', projectId: 'p1', at: 't1', uid: 'u1',
+        voice: 'lannhi', speed: 1, captionStyle: { fontName: 'Arial', fontSize: 64 }, music: null },
+      { v: 1, type: 'StyleSet', projectId: 'p1', at: 't2', uid: 'u2',
+        voice: 'banmai', speed: 0, captionStyle: { fontName: 'Times', fontSize: 48 },
+        music: { search: 'upbeat', volume: 0.5 } },
+    ])
+    expect(s.style.voice).toBe('banmai')
+    expect(s.style.captionStyle.fontName).toBe('Times')
+    expect(s.style.music).toEqual({ search: 'upbeat', volume: 0.5 })
+  })
+})
+
+describe('foldProject render-integration fields', () => {
+  const base: VidgenEvent[] = [
+    { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 2, tone: 'casual', language: 'English' },
+    { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: 't1', scriptUsd: 0, scenes: [
+      { idx: 0, narration: 'a', visual: 'b' },
+      { idx: 1, narration: 'c', visual: 'd' },
+    ] },
+  ]
+
+  it('folds MaterialResolved into per-scene materialPath + materialSource', () => {
+    const s = foldProject([
+      ...base,
+      { v: 1, type: 'MaterialResolved', projectId: 'p1', at: 't2', sceneIdx: 0, source: 'local', assetPath: '/m/p1/assets/x.jpg' },
+    ])
+    expect(s.scenes[0]?.materialPath).toBe('/m/p1/assets/x.jpg')
+    expect(s.scenes[0]?.materialSource).toBe('local')
+    expect(s.scenes[1]?.materialPath).toBeUndefined()
+  })
+
+  it('folds VoiceSynthesized durationSec into the scene and captionsReady from CaptionsBuilt', () => {
+    const s = foldProject([
+      ...base,
+      { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at: 't3', sceneIdx: 1, mp3Path: '/m/p1/tts1.mp3', durationSec: 6.5, ttsUsd: 0.001 },
+      { v: 1, type: 'CaptionsBuilt', projectId: 'p1', at: 't4', sceneIdx: 0, assPath: '/m/p1/captions.ass' },
+    ])
+    expect(s.scenes[1]?.audioDurationSec).toBe(6.5)
+    expect(s.scenes[0]?.audioDurationSec).toBeUndefined()
+    expect(s.captionsReady).toBe(true)
+  })
+
+  it('captionsReady defaults false before CaptionsBuilt', () => {
+    expect(foldProject(base).captionsReady).toBe(false)
   })
 })

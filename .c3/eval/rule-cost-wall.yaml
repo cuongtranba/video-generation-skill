@@ -1,7 +1,8 @@
 fact: rule-cost-wall
-claim: "CapUSD is 0.10 and both projected and actual checks exist"
+claim: "cost cap is enforced before TTS job dispatch in generateVoiceovers"
 code:
-  - internal/cost/ledger.go
+  - api/src/cost.ts
+  - api/src/commands.ts
 pipeline:
-  - gather: { file: internal/cost/ledger.go }
-  - eval:   { contains_all: ["CapUSD = 0.10", "CheckProjected", "CheckActual"] }
+  - gather: { file: api/src/cost.ts }
+  - eval:   { contains_all: ["DEFAULT_COST_CAP_USD", "admit", "CostCapExceededError"] }

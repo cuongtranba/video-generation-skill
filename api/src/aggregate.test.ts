@@ -9,7 +9,7 @@ import {
   ProjectAlreadyExistsError,
 } from './aggregate.js'
 
-const created: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' }
+const created: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' }
 const scripted: VidgenEvent = { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: 't', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 }
 
 describe('assertCanCreate', () => {

@@ -37,8 +37,15 @@ export const scriptSchema = {
   required: ['scenes'],
 } as const
 
-export function buildScriptPrompt(input: ScriptInput): string {
-  return `Viết kịch bản video dọc ${input.durationSec} giây (${input.sceneCount} cảnh) cho ý tưởng: "${input.idea}". Giọng điệu: ${input.tone}. Mỗi cảnh có lời thoại tiếng Việt (narration) và ghi chú hình ảnh (visual). Trả về đúng ${input.sceneCount} cảnh, không nhiều hơn hoặc ít hơn.`
+export const DEFAULT_LANGUAGE = 'English'
+
+/** Builds the script prompt in `language` (a freeform name the user picks per
+ * project, e.g. "English", "Vietnamese", "Français"). The narration is written
+ * in that language so the TTS voice (ElevenLabs multilingual speaks the text's
+ * language) and the burned-in captions stay consistent with it. */
+export function buildScriptPrompt(input: ScriptInput, language: string = DEFAULT_LANGUAGE): string {
+  const lang = language.trim() || DEFAULT_LANGUAGE
+  return `Write a vertical short-video script: ${input.durationSec} seconds, exactly ${input.sceneCount} scenes, for the idea: "${input.idea}". Tone: ${input.tone}. Write the spoken narration entirely in ${lang}. Each scene has the narration and a short visual note. Return exactly ${input.sceneCount} scenes, no more and no fewer.`
 }
 
 export function parseScenes(structuredOutput: unknown): Scene[] {
@@ -72,8 +79,8 @@ export function mapScriptGeneratedEvent(projectId: string, at: string, result: S
   }
 }
 
-export async function generateScenes(input: ScriptInput): Promise<ScriptResult> {
-  const prompt = buildScriptPrompt(input)
+export async function generateScenes(input: ScriptInput, language: string = DEFAULT_LANGUAGE): Promise<ScriptResult> {
+  const prompt = buildScriptPrompt(input, language)
   let result: ScriptResult | undefined
 
   for await (const message of query({
@@ -101,8 +108,8 @@ export async function generateScenes(input: ScriptInput): Promise<ScriptResult> 
  * observability only — per the D1 BINDING rule it never enters the event or
  * the enforced cost ledger (scriptUsd stays 0). */
 export const sdkScriptGenerator: ScriptGenerator = {
-  async generateScenes(idea: string, durationSec: number, sceneCount: number, tone: string): Promise<{ scenes: Scene[] }> {
-    const result = await generateScenes({ idea, durationSec, sceneCount, tone })
+  async generateScenes(idea: string, durationSec: number, sceneCount: number, tone: string, language: string): Promise<{ scenes: Scene[] }> {
+    const result = await generateScenes({ idea, durationSec, sceneCount, tone }, language)
     console.log(`script gen notional cost (observability only, not billed): $${result.notionalUsd}`)
     return { scenes: result.scenes }
   },
@@ -112,11 +119,11 @@ export const sdkScriptGenerator: ScriptGenerator = {
 // (script.test.ts, e2e.integration.test.ts). Production wiring in index.ts
 // uses `sdkScriptGenerator` (the real Agent SDK path) instead.
 export const stubScriptGenerator: ScriptGenerator = {
-  async generateScenes(idea: string, durationSec: number, sceneCount: number, tone: string): Promise<{ scenes: Scene[] }> {
+  async generateScenes(idea: string, durationSec: number, sceneCount: number, tone: string, language: string): Promise<{ scenes: Scene[] }> {
     const perSceneSec = Math.max(1, Math.round(durationSec / sceneCount))
     const scenes: Scene[] = Array.from({ length: sceneCount }, (_, idx) => ({
       idx,
-      narration: `[${tone}] ${idea} — scene ${idx + 1} of ${sceneCount} (${perSceneSec}s)`,
+      narration: `[${tone}/${language}] ${idea} — scene ${idx + 1} of ${sceneCount} (${perSceneSec}s)`,
       visual: `stock footage matching "${idea}"`,
     }))
     return { scenes }

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useVidgenStore } from '../store/store'
+import { DEFAULT_STYLE } from '../store/events'
 import { StoryboardApproval } from './StoryboardApproval'
 
 // bun:test has no `vi.stubGlobal`/`vi.unstubAllGlobals` — reset `fetch` to
@@ -16,7 +17,7 @@ beforeEach(() => {
 describe('StoryboardApproval', () => {
   it('renders nothing before the project reaches awaiting_approval', () => {
     useVidgenStore.setState({
-      projects: { p1: { projectId: 'p1', status: 'scripted', scenes: [], spentUsd: 0, approved: false } },
+      projects: { p1: { projectId: 'p1', status: 'scripted', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false, language: 'English' } },
     })
     render(<StoryboardApproval projectId="p1" />)
     expect(screen.queryByTestId('storyboard-approval')).not.toBeInTheDocument()
@@ -28,7 +29,7 @@ describe('StoryboardApproval', () => {
     useVidgenStore.setState({
       projects: {
         p1: {
-          projectId: 'p1', status: 'awaiting_approval', approved: false, spentUsd: 0,
+          projectId: 'p1', status: 'awaiting_approval', approved: false, spentUsd: 0, style: DEFAULT_STYLE, captionsReady: false, language: 'English',
           scenes: [{ idx: 0, narration: 'n', visual: 'v' }],
         },
       },

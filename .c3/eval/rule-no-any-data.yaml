@@ -1,7 +1,7 @@
 fact: rule-no-any-data
 claim: "bus messages are concrete typed structs, not map[string]any"
 code:
-  - internal/worker/types.go
+  - worker/internal/jobhandler/types.go
 pipeline:
-  - gather: { file: internal/worker/types.go }
+  - gather: { file: worker/internal/jobhandler/types.go }
   - eval:   { contains: "type TTSJob struct" }

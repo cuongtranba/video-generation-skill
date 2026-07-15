@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { render, screen } from '@testing-library/react'
 import { useVidgenStore } from '../store/store'
+import { DEFAULT_STYLE } from '../store/events'
 import { CostBadge } from './CostBadge'
 
 beforeEach(() => {
@@ -10,7 +11,7 @@ beforeEach(() => {
 describe('CostBadge', () => {
   it('renders the project spend formatted as dollars', () => {
     useVidgenStore.setState({
-      projects: { p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0.045, approved: false } },
+      projects: { p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0.045, approved: false, style: DEFAULT_STYLE, captionsReady: false, language: 'English' } },
     })
     render(<CostBadge projectId="p1" />)
     expect(screen.getByText('$0.05')).toBeInTheDocument()

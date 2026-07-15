@@ -48,7 +48,7 @@ describe.skipIf(!up || bus === null)('full command flow (integration)', () => {
     const store = createEventStore(bus.js)
     const ctxCmd = createCommandContext(store, bus.js, stubScriptGenerator, 0.15)
 
-    const { projectId } = await createProject(ctxCmd, { idea: 'nước ấm', durationSec: 30, sceneCount: 1, tone: 'casual' })
+    const { projectId } = await createProject(ctxCmd, { idea: 'nước ấm', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' })
     let state = await generateScript(ctxCmd, { projectId })
     expect(state.status).toBe('scripted')
 

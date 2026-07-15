@@ -1,0 +1,43 @@
+---
+target: c3-2008
+scope: whole
+type: component
+parent: c3-20
+title: config — provider selection and secret loading
+---
+## Goal
+
+Load config.yaml (provider selection) and .env (secrets); validate that required secrets exist for the selected providers before any work starts.
+
+## Parent Fit
+
+| Field | Value |
+| --- | --- |
+| Container | c3-20 worker |
+| Category | foundation |
+| Boundary | In-process Go; reads config.yaml and VIDGEN_ENV_PATH/.env at startup |
+| Status | active |
+
+## Purpose
+
+Owns Config struct (tts, material, music, publish selection), LoadProviders, and ValidateForProviders. Secrets stay in .env; config.yaml only names the selected implementation. Non-goal: does not own provider constructors — those are in tts/, material/, music/ factories.
+
+## Governance
+
+| Reference | Type | Governs | Precedence | Notes |
+| --- | --- | --- | --- | --- |
+| ref-provider-seam | ref | Config names the provider; the factory switch constructs it | high | Config.yaml is the selection point |
+| rule-no-any-data | rule | Config struct uses concrete typed fields | high | N.A - no additional notes |
+
+## Contract
+
+| Surface | Direction | Contract | Boundary | Evidence |
+| --- | --- | --- | --- | --- |
+| LoadProviders | OUT | Loads config.yaml from VIDGEN_CONFIG_PATH; returns typed Config | in-process | worker/internal/config/ |
+| ValidateForProviders | OUT | Errors if required env secrets are absent for selected providers | in-process | worker/internal/config/ |
+
+## Derived Materials
+
+| Material | Must derive from | Allowed variance | Evidence |
+| --- | --- | --- | --- |
+| config.yaml schema | Contract | N.A - exact key names | config.yaml |

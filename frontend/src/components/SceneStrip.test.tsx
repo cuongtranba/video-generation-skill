@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { render, screen } from '@testing-library/react'
 import { useVidgenStore } from '../store/store'
+import { DEFAULT_STYLE } from '../store/events'
 import { SceneStrip } from './SceneStrip'
 
 beforeEach(() => {
@@ -12,7 +13,7 @@ describe('SceneStrip', () => {
     useVidgenStore.setState({
       projects: {
         p1: {
-          projectId: 'p1', status: 'scripted', spentUsd: 0, approved: false,
+          projectId: 'p1', status: 'scripted', spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false, language: 'English',
           scenes: [
             { idx: 0, narration: 'A cat wakes up', visual: 'sunrise' },
             { idx: 1, narration: 'The cat stretches', visual: 'yawn' },

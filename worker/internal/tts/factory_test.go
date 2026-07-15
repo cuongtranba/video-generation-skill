@@ -11,13 +11,13 @@ func TestNewFromConfig(t *testing.T) {
 	tests := []struct {
 		name       string
 		provider   string
-		wantFPT    bool
+		wantType   string
 		wantErrSub string
 	}{
-		{"fpt", "fpt", true, ""},
-		{"elevenlabs not implemented", "elevenlabs", false, "not implemented"},
-		{"unknown", "bogus", false, "unknown tts provider"},
-		{"empty", "", false, "unknown tts provider"},
+		{"fpt", "fpt", "fpt", ""},
+		{"elevenlabs", "elevenlabs", "elevenlabs", ""},
+		{"unknown", "bogus", "", "unknown tts provider"},
+		{"empty", "", "", "unknown tts provider"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -34,9 +34,14 @@ func TestNewFromConfig(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewFromConfig: %v", err)
 			}
-			if tt.wantFPT {
+			switch tt.wantType {
+			case "fpt":
 				if _, ok := p.(*FPTAIProvider); !ok {
 					t.Errorf("want *FPTAIProvider, got %T", p)
+				}
+			case "elevenlabs":
+				if _, ok := p.(*ElevenLabsProvider); !ok {
+					t.Errorf("want *ElevenLabsProvider, got %T", p)
 				}
 			}
 		})

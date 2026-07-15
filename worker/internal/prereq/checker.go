@@ -48,11 +48,6 @@ func NewChecker() *Checker {
 				EnvOverride: "WHISPER_BIN",
 				DefaultBin:  "whisper",
 			},
-			{
-				Name:        "claude",
-				EnvOverride: "CLAUDE_BIN",
-				DefaultBin:  "claude",
-			},
 		},
 		resolved: map[string]string{},
 	}

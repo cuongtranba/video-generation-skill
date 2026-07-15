@@ -4,7 +4,7 @@ import type { Scene } from './events.js'
 
 describe('stubScriptGenerator', () => {
   it('returns exactly sceneCount scenes with sequential idx starting at 0', async () => {
-    const { scenes } = await stubScriptGenerator.generateScenes('nước ấm', 30, 3, 'casual')
+    const { scenes } = await stubScriptGenerator.generateScenes('nước ấm', 30, 3, 'casual', 'Vietnamese')
     expect(scenes.map((s) => s.idx)).toEqual([0, 1, 2])
     for (const scene of scenes) {
       expect(scene.narration.length).toBeGreaterThan(0)
@@ -14,21 +14,19 @@ describe('stubScriptGenerator', () => {
 })
 
 describe('buildScriptPrompt', () => {
-  it('includes idea, duration, scene count, and tone in the Vietnamese prompt', () => {
-    const input: ScriptInput = { idea: '3 lý do bạn nên uống nước ấm mỗi sáng', durationSec: 30, sceneCount: 3, tone: 'casual' }
-    const prompt = buildScriptPrompt(input)
-    expect(prompt).toContain('30 giây')
-    expect(prompt).toContain('3 cảnh')
-    expect(prompt).toContain('3 lý do bạn nên uống nước ấm mỗi sáng')
-    expect(prompt).toContain('casual')
+  it('injects the chosen language, idea, duration, scene count, and tone', () => {
+    const input: ScriptInput = { idea: 'a snail wins a tiny race', durationSec: 45, sceneCount: 5, tone: 'energetic' }
+    const prompt = buildScriptPrompt(input, 'Vietnamese')
+    expect(prompt).toContain('45 seconds')
+    expect(prompt).toContain('5 scenes')
+    expect(prompt).toContain('a snail wins a tiny race')
+    expect(prompt).toContain('energetic')
+    expect(prompt).toContain('narration entirely in Vietnamese')
   })
 
-  it('reflects a different duration, scene count, and tone', () => {
-    const input: ScriptInput = { idea: '5 mẹo tiết kiệm pin điện thoại', durationSec: 45, sceneCount: 5, tone: 'energetic' }
-    const prompt = buildScriptPrompt(input)
-    expect(prompt).toContain('45 giây')
-    expect(prompt).toContain('5 cảnh')
-    expect(prompt).toContain('energetic')
+  it('defaults to English when no language is given', () => {
+    const input: ScriptInput = { idea: 'x', durationSec: 30, sceneCount: 3, tone: 'casual' }
+    expect(buildScriptPrompt(input)).toContain('narration entirely in English')
   })
 })
 

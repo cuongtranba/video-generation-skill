@@ -35,6 +35,12 @@ services:
       PORT: "8080"
       SPA_DIR: /app/public
       MEDIA_DIR: /app/media
+      # Agent SDK auth for GenerateScript. The SDK bundles its own runtime, so
+      # no claude binary is needed — only credentials. A Claude subscription
+      # OAuth token (from `claude setup-token`) or ANTHROPIC_API_KEY works;
+      # passed through from the host env, empty if unset.
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
       - "8080:8080"
     volumes:

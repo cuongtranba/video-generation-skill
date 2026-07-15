@@ -1,8 +1,8 @@
 fact: rule-di-constructor
 claim: "implementations declare compile-time interface checks var _ I = (*T)(nil)"
 code:
-  - internal/render/renderer.go
-  - internal/flow/flow.go
+  - worker/internal/jobhandler/material.go
+  - worker/internal/tts/provider.go
 pipeline:
-  - gather: { file: internal/render/renderer.go }
-  - eval:   { contains: "var _ Renderer = (*FFmpegRenderer)(nil)" }
+  - gather: { file: worker/internal/tts/provider.go }
+  - eval:   { contains: "var _ TTSProvider" }
