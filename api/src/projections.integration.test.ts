@@ -42,14 +42,14 @@ describe.skipIf(!up)('applyProjection (integration)', () => {
   })
 
   it('ProjectCreated inserts a draft project row', async () => {
-    const event: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' }
+    const event: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' }
     await applyProjection(db, event)
     const result = await db.query('SELECT project_id, idea, status FROM projects WHERE project_id = $1', ['p1'])
     expect(result.rows).toEqual([{ project_id: 'p1', idea: 'x', status: 'draft' }])
   })
 
   it('ScriptGenerated sets status to scripted and inserts scene rows', async () => {
-    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 2, tone: 'casual' })
+    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 2, tone: 'casual', language: 'English' })
     await applyProjection(db, {
       v: 1,
       type: 'ScriptGenerated',
@@ -68,7 +68,7 @@ describe.skipIf(!up)('applyProjection (integration)', () => {
   })
 
   it('re-applying the same events is idempotent (upsert, not duplicate rows)', async () => {
-    const created: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' }
+    const created: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' }
     await applyProjection(db, created)
     await applyProjection(db, created)
     const result = await db.query('SELECT count(*)::int AS n FROM projects WHERE project_id = $1', ['p1'])
@@ -76,7 +76,7 @@ describe.skipIf(!up)('applyProjection (integration)', () => {
   })
 
   it('MaterialResolved sets status to material and records a material asset', async () => {
-    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
+    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' })
     await applyProjection(db, { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: '2026-07-09T00:00:01Z', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 })
     await applyProjection(db, { v: 1, type: 'MaterialResolved', projectId: 'p1', at: '2026-07-09T00:00:02Z', sceneIdx: 0, source: 'pexels', assetPath: '/m/0.mp4' })
     const project = await db.query('SELECT status FROM projects WHERE project_id = $1', ['p1'])
@@ -86,7 +86,7 @@ describe.skipIf(!up)('applyProjection (integration)', () => {
   })
 
   it('VoiceSynthesized records a voice asset, a ledger row, and recomputes spent_usd', async () => {
-    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
+    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' })
     await applyProjection(db, { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: '2026-07-09T00:00:01Z', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 })
     await applyProjection(db, { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at: '2026-07-09T00:00:02Z', sceneIdx: 0, mp3Path: '/m/0.mp3', durationSec: 3.5, ttsUsd: 0.0007 })
     const project = await db.query('SELECT spent_usd FROM projects WHERE project_id = $1', ['p1'])
@@ -96,7 +96,7 @@ describe.skipIf(!up)('applyProjection (integration)', () => {
   })
 
   it('CaptionsBuilt records an ass_path on the scene and a caption asset', async () => {
-    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
+    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' })
     await applyProjection(db, { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: '2026-07-09T00:00:01Z', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 })
     await applyProjection(db, { v: 1, type: 'CaptionsBuilt', projectId: 'p1', at: '2026-07-09T00:00:02Z', sceneIdx: 0, assPath: '/m/0.ass' })
     const scene = await db.query('SELECT ass_path FROM scenes WHERE project_id = $1 AND idx = 0', ['p1'])
@@ -104,14 +104,14 @@ describe.skipIf(!up)('applyProjection (integration)', () => {
   })
 
   it('CostProjected does not error and does not add to the ledger (observability only)', async () => {
-    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
+    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' })
     await applyProjection(db, { v: 1, type: 'CostProjected', projectId: 'p1', at: '2026-07-09T00:00:01Z', projectedUsd: 0.01, capUsd: 0.15 })
     const ledger = await db.query('SELECT count(*)::int AS n FROM cost_ledger WHERE project_id = $1', ['p1'])
     expect(ledger.rows[0]).toEqual({ n: 0 })
   })
 
   it('AwaitingApproval / ApprovalGranted / RenderCompleted / Published / RunFailed drive status forward', async () => {
-    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
+    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' })
     await applyProjection(db, { v: 1, type: 'AwaitingApproval', projectId: 'p1', at: '2026-07-09T00:00:01Z' })
     expect((await db.query('SELECT status FROM projects WHERE project_id = $1', ['p1'])).rows[0]).toEqual({ status: 'awaiting_approval' })
 
@@ -130,7 +130,7 @@ describe.skipIf(!up)('applyProjection (integration)', () => {
   })
 
   it('RunFailed sets status to failed', async () => {
-    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
+    await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' })
     await applyProjection(db, { v: 1, type: 'RunFailed', projectId: 'p1', at: '2026-07-09T00:00:01Z', stage: 'render', error: 'ffmpeg exit 1' })
     expect((await db.query('SELECT status FROM projects WHERE project_id = $1', ['p1'])).rows[0]).toEqual({ status: 'failed' })
   })
@@ -145,7 +145,7 @@ describe.skipIf(!up || !natsUp)('rebuildProjections (integration)', () => {
     // hermetic test reconstructs only from its own known-ISO events.
     await bus.jsm.streams.purge(EVENTS_STREAM)
     const projectId = `p-${Date.now()}`
-    const created: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId, at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' }
+    const created: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId, at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' }
     const scripted: VidgenEvent = { v: 1, type: 'ScriptGenerated', projectId, at: '2026-07-09T00:00:01Z', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 }
     await publishEvent(bus.js, created)
     await publishEvent(bus.js, scripted)

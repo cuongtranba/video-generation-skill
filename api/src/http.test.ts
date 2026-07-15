@@ -13,8 +13,8 @@ describe('requireProjectId', () => {
 
 describe('parseCreateProjectInput', () => {
   it('parses a valid body', () => {
-    const input = parseCreateProjectInput({ idea: 'x', durationSec: 30, sceneCount: 3, tone: 'casual' })
-    expect(input).toEqual({ idea: 'x', durationSec: 30, sceneCount: 3, tone: 'casual' })
+    const input = parseCreateProjectInput({ idea: 'x', durationSec: 30, sceneCount: 3, tone: 'casual', language: 'English' })
+    expect(input).toEqual({ idea: 'x', durationSec: 30, sceneCount: 3, tone: 'casual', language: 'English' })
   })
 
   it('rejects a body missing durationSec', () => {

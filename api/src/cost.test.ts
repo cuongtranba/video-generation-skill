@@ -3,7 +3,7 @@ import type { Scene, ProjectState } from './events.js'
 import { DEFAULT_STYLE } from './events.js'
 import { FPT_TTS_USD_PER_CHAR, DEFAULT_COST_CAP_USD, costCapFromEnv, projectedTtsUsd, admit } from './cost.js'
 
-const emptyState: ProjectState = { projectId: 'p1', status: 'material', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false }
+const emptyState: ProjectState = { projectId: 'p1', status: 'material', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false, language: 'English' }
 
 describe('costCapFromEnv', () => {
   it('defaults to 0.15 when COST_CAP_USD is unset', () => {

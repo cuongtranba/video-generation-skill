@@ -18,7 +18,7 @@ describe('applyEvent', () => {
     const store = createVidgenStore(fakeDeps())
     store.getState().applyEvent('vidgen.evt.p1.ProjectCreated', {
       v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-01-01T00:00:00Z',
-      idea: 'cats', durationSec: 30, sceneCount: 3, tone: 'fun',
+      idea: 'cats', durationSec: 30, sceneCount: 3, tone: 'fun', language: 'English',
     })
     store.getState().applyEvent('vidgen.evt.p1.ScriptGenerated', {
       v: 1, type: 'ScriptGenerated', projectId: 'p1', at: '2026-01-01T00:00:01Z',
@@ -34,11 +34,11 @@ describe('applyEvent', () => {
     const store = createVidgenStore(fakeDeps())
     store.getState().applyEvent('vidgen.evt.p1.ProjectCreated', {
       v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-01-01T00:00:00Z',
-      idea: 'cats', durationSec: 30, sceneCount: 1, tone: 'fun',
+      idea: 'cats', durationSec: 30, sceneCount: 1, tone: 'fun', language: 'English',
     })
     store.getState().applyEvent('vidgen.evt.p2.ProjectCreated', {
       v: 1, type: 'ProjectCreated', projectId: 'p2', at: '2026-01-01T00:00:00Z',
-      idea: 'dogs', durationSec: 30, sceneCount: 1, tone: 'fun',
+      idea: 'dogs', durationSec: 30, sceneCount: 1, tone: 'fun', language: 'English',
     })
     expect(Object.keys(store.getState().projects).sort()).toEqual(['p1', 'p2'])
   })
@@ -56,7 +56,7 @@ describe('command thunks', () => {
   it('createProject posts to /api/commands/CreateProject with the body fields plus an idempotencyKey', async () => {
     const fetchImpl = mock(async () => new Response(null, { status: 200 }))
     const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
-    await store.getState().createProject({ idea: 'cats', durationSec: 30, sceneCount: 3, tone: 'fun' })
+    await store.getState().createProject({ idea: 'cats', durationSec: 30, sceneCount: 3, tone: 'fun', language: 'English' })
 
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]

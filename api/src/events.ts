@@ -23,7 +23,7 @@ export const DEFAULT_STYLE: StyleSpec = {
 }
 
 export type VidgenEvent =
-  | { v: 1; type: 'ProjectCreated'; projectId: string; at: string; idea: string; durationSec: number; sceneCount: number; tone: string }
+  | { v: 1; type: 'ProjectCreated'; projectId: string; at: string; idea: string; durationSec: number; sceneCount: number; tone: string; language: string }
   | { v: 1; type: 'ScriptGenerated'; projectId: string; at: string; scenes: Scene[]; scriptUsd: number }
   | { v: 1; type: 'MaterialResolved'; projectId: string; at: string; sceneIdx: number; source: string; assetPath: string }
   | { v: 1; type: 'VoiceSynthesized'; projectId: string; at: string; sceneIdx: number; mp3Path: string; durationSec: number; ttsUsd: number }
@@ -47,14 +47,15 @@ export type ProjectState = {
   outputPath?: string
   style: StyleSpec
   captionsReady: boolean
+  language: string
 }
 
 export function foldProject(events: VidgenEvent[]): ProjectState {
-  const s: ProjectState = { projectId: '', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: { ...DEFAULT_STYLE, captionStyle: { ...DEFAULT_STYLE.captionStyle } }, captionsReady: false }
+  const s: ProjectState = { projectId: '', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: { ...DEFAULT_STYLE, captionStyle: { ...DEFAULT_STYLE.captionStyle } }, captionsReady: false, language: 'English' }
   for (const e of events) {
     s.projectId = e.projectId
     switch (e.type) {
-      case 'ProjectCreated': s.status = 'draft'; break
+      case 'ProjectCreated': s.status = 'draft'; s.language = e.language; break
       case 'ScriptGenerated': s.scenes = e.scenes.map((sc) => ({ ...sc })); s.spentUsd += e.scriptUsd; s.status = 'scripted'; break
       case 'MaterialResolved': {
         const sc = s.scenes.find((x) => x.idx === e.sceneIdx)

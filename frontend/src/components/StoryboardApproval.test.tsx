@@ -17,7 +17,7 @@ beforeEach(() => {
 describe('StoryboardApproval', () => {
   it('renders nothing before the project reaches awaiting_approval', () => {
     useVidgenStore.setState({
-      projects: { p1: { projectId: 'p1', status: 'scripted', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false } },
+      projects: { p1: { projectId: 'p1', status: 'scripted', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false, language: 'English' } },
     })
     render(<StoryboardApproval projectId="p1" />)
     expect(screen.queryByTestId('storyboard-approval')).not.toBeInTheDocument()
@@ -29,7 +29,7 @@ describe('StoryboardApproval', () => {
     useVidgenStore.setState({
       projects: {
         p1: {
-          projectId: 'p1', status: 'awaiting_approval', approved: false, spentUsd: 0, style: DEFAULT_STYLE, captionsReady: false,
+          projectId: 'p1', status: 'awaiting_approval', approved: false, spentUsd: 0, style: DEFAULT_STYLE, captionsReady: false, language: 'English',
           scenes: [{ idx: 0, narration: 'n', visual: 'v' }],
         },
       },

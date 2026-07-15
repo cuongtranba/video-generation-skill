@@ -38,7 +38,9 @@ export function parseCreateProjectInput(body: Record<string, unknown>): CreatePr
   if (typeof idea !== 'string' || typeof durationSec !== 'number' || typeof sceneCount !== 'number' || typeof tone !== 'string') {
     throw new HttpError(400, 'CreateProject requires idea:string, durationSec:number, sceneCount:number, tone:string')
   }
-  return { idea, durationSec, sceneCount, tone }
+  // Freeform narration language chosen per project; defaults to English.
+  const language = typeof body.language === 'string' && body.language.trim() ? body.language.trim() : 'English'
+  return { idea, durationSec, sceneCount, tone, language }
 }
 
 export function parsePublishInput(body: Record<string, unknown>): PublishInput {

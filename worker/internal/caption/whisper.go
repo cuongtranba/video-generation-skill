@@ -48,7 +48,9 @@ func (w *WhisperRunner) Transcribe(ctx context.Context, audioPath string) ([]Wor
 
 	cmd := exec.CommandContext(ctx, w.bin,
 		audioPath,
-		"--language", "vi",
+		// No --language: whisper auto-detects, so captions time correctly for
+		// any narration language. Text is discarded (caption content is the
+		// authoritative narration), only timings are used.
 		"--word_timestamps", "True",
 		"--output_format", "json",
 		"--output_dir", outDir,

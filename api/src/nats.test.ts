@@ -9,7 +9,7 @@ describe('eventId', () => {
   })
 
   it("uses '-' when the event has no scene idx", () => {
-    const event: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't', idea: 'x', durationSec: 30, sceneCount: 3, tone: 'casual' }
+    const event: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't', idea: 'x', durationSec: 30, sceneCount: 3, tone: 'casual', language: 'English' }
     expect(eventId(event)).toBe('ProjectCreated-p1--')
   })
 })

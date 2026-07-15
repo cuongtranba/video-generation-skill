@@ -12,10 +12,10 @@ export type { EventStore } from './nats.js'
 /** Authored fully in P2 (docs/superpowers/plans/2026-07-09-vidgen-webapp-02-agent-sdk-script.md).
  * P1 depends only on this interface and injects a stub for its own tests. */
 export interface ScriptGenerator {
-  generateScenes(idea: string, durationSec: number, sceneCount: number, tone: string): Promise<{ scenes: Scene[] }>
+  generateScenes(idea: string, durationSec: number, sceneCount: number, tone: string, language: string): Promise<{ scenes: Scene[] }>
 }
 
-export interface CreateProjectInput { idea: string; durationSec: number; sceneCount: number; tone: string }
+export interface CreateProjectInput { idea: string; durationSec: number; sceneCount: number; tone: string; language: string }
 export interface GenerateScriptInput { projectId: string }
 export interface ResolveMaterialInput { projectId: string }
 export interface GenerateVoiceoversInput { projectId: string }
@@ -76,6 +76,7 @@ export async function createProject(ctx: CommandContext, input: CreateProjectInp
     durationSec: input.durationSec,
     sceneCount: input.sceneCount,
     tone: input.tone,
+    language: input.language,
   }
   await ctx.store.append(event)
   await publishEvent(ctx.js, event)
@@ -88,7 +89,7 @@ export async function generateScript(ctx: CommandContext, input: GenerateScriptI
   assertTransition('GenerateScript', state)
   const created = events.find((e): e is Extract<VidgenEvent, { type: 'ProjectCreated' }> => e.type === 'ProjectCreated')
   if (!created) throw new Error(`project ${input.projectId} missing ProjectCreated event`)
-  const { scenes } = await ctx.scriptGen.generateScenes(created.idea, created.durationSec, created.sceneCount, created.tone)
+  const { scenes } = await ctx.scriptGen.generateScenes(created.idea, created.durationSec, created.sceneCount, created.tone, created.language)
   const event: VidgenEvent = {
     v: 1,
     type: 'ScriptGenerated',

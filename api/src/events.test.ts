@@ -4,7 +4,7 @@ import { foldProject, DEFAULT_STYLE, type VidgenEvent } from './events.js'
 describe('foldProject', () => {
   it('folds a lifecycle into current state', () => {
     const events: VidgenEvent[] = [
-      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'nước ấm', durationSec: 30, sceneCount: 3, tone: 'casual' },
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'nước ấm', durationSec: 30, sceneCount: 3, tone: 'casual', language: 'English' },
       { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: '2026-07-09T00:01:00Z', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0.012 },
       { v: 1, type: 'AwaitingApproval', projectId: 'p1', at: '2026-07-09T00:02:00Z' },
       { v: 1, type: 'ApprovalGranted', projectId: 'p1', at: '2026-07-09T00:03:00Z' },
@@ -19,7 +19,7 @@ describe('foldProject', () => {
 
   it('reports awaiting_approval before approval', () => {
     const s = foldProject([
-      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' },
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' },
       { v: 1, type: 'AwaitingApproval', projectId: 'p1', at: 't' },
     ])
     expect(s.status).toBe('awaiting_approval')
@@ -36,14 +36,14 @@ describe('foldProject', () => {
 describe('foldProject StyleSet', () => {
   it('returns default style when no StyleSet emitted', () => {
     const s = foldProject([
-      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' },
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' },
     ])
     expect(s.style).toEqual(DEFAULT_STYLE)
   })
 
   it('applies first StyleSet', () => {
     const s = foldProject([
-      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' },
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' },
       { v: 1, type: 'StyleSet', projectId: 'p1', at: 't1', uid: 'u1',
         voice: 'lannhi', speed: 1, captionStyle: { fontName: 'Arial', fontSize: 64 }, music: null },
     ])
@@ -54,7 +54,7 @@ describe('foldProject StyleSet', () => {
 
   it('last StyleSet wins (full snapshot)', () => {
     const s = foldProject([
-      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' },
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' },
       { v: 1, type: 'StyleSet', projectId: 'p1', at: 't1', uid: 'u1',
         voice: 'lannhi', speed: 1, captionStyle: { fontName: 'Arial', fontSize: 64 }, music: null },
       { v: 1, type: 'StyleSet', projectId: 'p1', at: 't2', uid: 'u2',
@@ -69,7 +69,7 @@ describe('foldProject StyleSet', () => {
 
 describe('foldProject render-integration fields', () => {
   const base: VidgenEvent[] = [
-    { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 2, tone: 'casual' },
+    { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 2, tone: 'casual', language: 'English' },
     { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: 't1', scriptUsd: 0, scenes: [
       { idx: 0, narration: 'a', visual: 'b' },
       { idx: 1, narration: 'c', visual: 'd' },

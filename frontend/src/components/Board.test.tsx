@@ -17,8 +17,8 @@ describe('Board', () => {
   it('renders a card per project', () => {
     useVidgenStore.setState({
       projects: {
-        p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false },
-        p2: { projectId: 'p2', status: 'scripted', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false },
+        p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false, language: 'English' },
+        p2: { projectId: 'p2', status: 'scripted', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false, language: 'English' },
       },
     })
     render(<Board />)

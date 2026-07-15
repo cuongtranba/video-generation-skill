@@ -9,6 +9,7 @@ export interface CreateProjectInput {
   durationSec: number
   sceneCount: number
   tone: string
+  language: string
 }
 
 export interface ProjectIdInput {

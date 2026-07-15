@@ -32,9 +32,9 @@ describe('createProject', () => {
     const store = createInMemoryEventStore()
     const js = fakePublisher()
     const ctx = createCommandContext(store, js, fixedScriptGen, 0.15)
-    const { projectId } = await createProject(ctx, { idea: 'nước ấm', durationSec: 30, sceneCount: 3, tone: 'casual' })
+    const { projectId } = await createProject(ctx, { idea: 'nước ấm', durationSec: 30, sceneCount: 3, tone: 'casual', language: 'English' })
     expect(store.events).toHaveLength(1)
-    expect(store.events[0]).toMatchObject({ type: 'ProjectCreated', projectId, idea: 'nước ấm', durationSec: 30, sceneCount: 3, tone: 'casual' })
+    expect(store.events[0]).toMatchObject({ type: 'ProjectCreated', projectId, idea: 'nước ấm', durationSec: 30, sceneCount: 3, tone: 'casual', language: 'English' })
     expect(js.published).toHaveLength(1)
     expect(js.published[0]?.subject).toBe(`vidgen.evt.${projectId}.ProjectCreated`)
   })
@@ -43,7 +43,7 @@ describe('createProject', () => {
 describe('generateScript', () => {
   it('appends ScriptGenerated with scriptUsd forced to 0, regardless of what the generator reports', async () => {
     const store = createInMemoryEventStore([
-      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'nước ấm', durationSec: 30, sceneCount: 1, tone: 'casual' },
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'nước ấm', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' },
     ])
     const js = fakePublisher()
     const ctx = createCommandContext(store, js, fixedScriptGen, 0.15)
@@ -62,7 +62,7 @@ describe('generateScript', () => {
 
   it('rejects a project that is already scripted', async () => {
     const store = createInMemoryEventStore([
-      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' },
+      { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' },
       { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: 't1', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 },
     ])
     const ctx = createCommandContext(store, fakePublisher(), fixedScriptGen, 0.15)
@@ -71,7 +71,7 @@ describe('generateScript', () => {
 })
 
 const scriptedEvents = [
-  { v: 1 as const, type: 'ProjectCreated' as const, projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 2, tone: 'casual' },
+  { v: 1 as const, type: 'ProjectCreated' as const, projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 2, tone: 'casual', language: 'English' },
   {
     v: 1 as const,
     type: 'ScriptGenerated' as const,
@@ -287,7 +287,7 @@ describe('approveStoryboard', () => {
 })
 
 const preScriptedEvents = [
-  { v: 1 as const, type: 'ProjectCreated' as const, projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' },
+  { v: 1 as const, type: 'ProjectCreated' as const, projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' },
 ]
 
 describe('tuneProject', () => {
