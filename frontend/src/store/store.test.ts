@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test'
-import { createVidgenStore, type VidgenStoreDeps } from './store'
+import { createVidgenStore, type VidgenStoreDeps, type TuneInput, type UploadedAsset } from './store'
 import type { EventBusClient } from './natsClient'
 import type { VidgenEvent as VidgenEventType } from './events'
 
@@ -125,5 +125,72 @@ describe('connect/disconnect', () => {
     const store = createVidgenStore(fakeDeps({ eventBusClient }))
     await expect(store.getState().connect()).rejects.toThrow('ws refused')
     expect(store.getState().connection).toBe('down')
+  })
+})
+
+describe('tuneProject', () => {
+  it('posts TuneProject command with correct URL and body fields', async () => {
+    const fetchImpl = mock(async () => new Response('{}', { status: 200 }))
+    const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
+    const input: TuneInput = { projectId: 'p1', voice: 'lannhi', speed: 1 }
+    await store.getState().tuneProject(input)
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/api/commands/TuneProject')
+    expect(init.method).toBe('POST')
+    const body = JSON.parse(init.body as string) as Record<string, unknown>
+    expect(body.projectId).toBe('p1')
+    expect(body.voice).toBe('lannhi')
+    expect(body.speed).toBe(1)
+  })
+})
+
+describe('uploadAssets', () => {
+  it('posts files to /api/projects/:id/assets and returns UploadedAsset[]', async () => {
+    const asset: UploadedAsset = { filename: 'a.mp4', sizeBytes: 100 }
+    const fetchImpl = mock(async () => new Response(JSON.stringify(asset), { status: 200 }))
+    const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
+    const file = new File(['content'], 'a.mp4', { type: 'video/mp4' })
+    const results = await store.getState().uploadAssets('p1', [file])
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/api/projects/p1/assets')
+    expect(init.method).toBe('POST')
+    expect(results).toHaveLength(1)
+    expect(results[0]?.filename).toBe('a.mp4')
+    expect(results[0]?.sizeBytes).toBe(100)
+  })
+
+  it('throws on non-ok response', async () => {
+    const fetchImpl = mock(async () => new Response('fail', { status: 500 }))
+    const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
+    const file = new File(['x'], 'b.mp4', { type: 'video/mp4' })
+    await expect(store.getState().uploadAssets('p1', [file])).rejects.toThrow(/500/)
+  })
+})
+
+describe('fetchAssets', () => {
+  it('GETs /api/projects/:id/assets and returns the assets array', async () => {
+    const assets: UploadedAsset[] = [{ filename: 'clip.mp4', sizeBytes: 999 }]
+    const fetchImpl = mock(async () => new Response(JSON.stringify({ assets }), { status: 200 }))
+    const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
+    const result = await store.getState().fetchAssets('p1')
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit | undefined]
+    expect(url).toBe('/api/projects/p1/assets')
+    // GET — no method override expected (undefined or 'GET')
+    expect(init?.method ?? undefined).toBeUndefined()
+    expect(result).toHaveLength(1)
+    expect(result[0]?.filename).toBe('clip.mp4')
+    expect(result[0]?.sizeBytes).toBe(999)
+  })
+
+  it('throws on non-ok response', async () => {
+    const fetchImpl = mock(async () => new Response('not found', { status: 404 }))
+    const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
+    await expect(store.getState().fetchAssets('p1')).rejects.toThrow(/404/)
   })
 })
