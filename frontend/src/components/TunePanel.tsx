@@ -28,15 +28,27 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
   // Text fields are draft-then-commit: fully-controlled inputs with an
   // onChange that ignored keystrokes would be impossible to type into, so the
   // draft lives in local state and commits (dispatches TuneProject) on blur.
+  const fontNameRef = useRef<HTMLInputElement>(null)
+  const fontSizeRef = useRef<HTMLInputElement>(null)
+  const musicSearchRef = useRef<HTMLInputElement>(null)
+
   const [fontName, setFontName] = useState(cur.captionStyle.fontName)
   const [fontSize, setFontSize] = useState(String(cur.captionStyle.fontSize))
   const [musicSearch, setMusicSearch] = useState(cur.music?.search ?? '')
 
   // Re-seed drafts when the folded style changes underneath us (another tune
-  // event, a projection replay). Keyed on the committed values, not the drafts.
-  useEffect(() => { setFontName(cur.captionStyle.fontName) }, [cur.captionStyle.fontName])
-  useEffect(() => { setFontSize(String(cur.captionStyle.fontSize)) }, [cur.captionStyle.fontSize])
-  useEffect(() => { setMusicSearch(cur.music?.search ?? '') }, [cur.music?.search])
+  // event, a projection replay). Skip the field the user is actively editing —
+  // StyleSet events arrive mid-session over NATS, and re-seeding a focused
+  // input would discard the keystrokes not yet committed on blur.
+  useEffect(() => {
+    if (document.activeElement !== fontNameRef.current) setFontName(cur.captionStyle.fontName)
+  }, [cur.captionStyle.fontName])
+  useEffect(() => {
+    if (document.activeElement !== fontSizeRef.current) setFontSize(String(cur.captionStyle.fontSize))
+  }, [cur.captionStyle.fontSize])
+  useEffect(() => {
+    if (document.activeElement !== musicSearchRef.current) setMusicSearch(cur.music?.search ?? '')
+  }, [cur.music?.search])
 
   const [assets, setAssets] = useState<UploadedAsset[]>([])
   const [uploading, setUploading] = useState(false)
@@ -104,6 +116,7 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
         <label htmlFor={`font-${projectId}`}>Caption font</label>
         <input
           id={`font-${projectId}`}
+          ref={fontNameRef}
           type="text"
           value={fontName}
           onChange={(e) => setFontName(e.target.value)}
@@ -116,14 +129,21 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
           aria-label="caption font name"
         />
         <input
+          id={`font-size-${projectId}`}
+          ref={fontSizeRef}
           type="number"
           min={8}
           max={200}
           value={fontSize}
           onChange={(e) => setFontSize(e.target.value)}
           onBlur={() => {
-            const size = Number(fontSize)
-            if (Number.isFinite(size) && size !== cur.captionStyle.fontSize) {
+            const raw = Number(fontSize)
+            if (!Number.isFinite(raw)) { setFontSize(String(cur.captionStyle.fontSize)); return }
+            // min/max only bind the spinner UI; clamp the committed value so an
+            // out-of-range keystroke can't reach the event store.
+            const size = Math.min(200, Math.max(8, Math.round(raw)))
+            setFontSize(String(size))
+            if (size !== cur.captionStyle.fontSize) {
               commit({ captionStyle: { ...cur.captionStyle, fontSize: size } })
             }
           }}
@@ -135,6 +155,7 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
         <label htmlFor={`music-${projectId}`}>Music search</label>
         <input
           id={`music-${projectId}`}
+          ref={musicSearchRef}
           type="text"
           placeholder="e.g. upbeat acoustic"
           value={musicSearch}
