@@ -20,7 +20,7 @@ async function main(): Promise<void> {
   await ensureStreams(bus.jsm)
 
   const store = createEventStore(bus.js)
-  const ctx = createCommandContext(store, bus.js, sdkScriptGenerator, costCapFromEnv())
+  const ctx = createCommandContext(store, bus.js, sdkScriptGenerator, costCapFromEnv(), mediaDir)
 
   runProjections(bus.js, bus.jsm, db).catch((err: unknown) => {
     console.error('projections consumer stopped:', err)
