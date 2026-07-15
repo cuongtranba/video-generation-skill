@@ -98,7 +98,7 @@ export async function getProject(db: Database, projectId: string): Promise<Proje
 }
 
 import type {
-  ResolveMaterialInput, GenerateVoiceoversInput, RequestApprovalInput, ApproveStoryboardInput, GenerateScriptInput,
+  GenerateVoiceoversInput, RequestApprovalInput, ApproveStoryboardInput, GenerateScriptInput,
   TuneInput,
 } from './commands.js'
 import * as commands from './commands.js'
