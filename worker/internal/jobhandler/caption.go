@@ -38,6 +38,8 @@ func (h *CaptionHandler) Handle(ctx context.Context, subject string, job Caption
 		if err != nil {
 			return publishFailure(ctx, h.store, job.ProjectID, "caption", -1, fmt.Errorf("transcribe %s: %w", ref.AudioPath, err))
 		}
+		// Display the authoritative narration text on whisper's timings.
+		words = caption.AlignNarration(ref.Narration, words)
 		for _, w := range words {
 			allWords = append(allWords, caption.WordTimestamp{
 				Word:  w.Word,

@@ -162,6 +162,9 @@ describe('generateVoiceovers', () => {
     expect(sceneAudio).toHaveLength(2)
     expect(sceneAudio[0]!.audioPath).toBe('/media/p1/tts0.mp3')
     expect(sceneAudio[1]!.audioPath).toBe('/media/p1/tts1.mp3')
+    // caption text comes from the authoritative narration, not the transcript
+    expect(sceneAudio[0]!.narration).toBe('scene zero narration')
+    expect(sceneAudio[1]!.narration).toBe('scene one narration')
     const style = caption.style as Record<string, unknown>
     expect(style.font_name).toBe('Arial')
     expect(style.font_size).toBe(64)

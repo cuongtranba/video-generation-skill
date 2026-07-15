@@ -32,6 +32,10 @@ type TTSJob struct {
 type SceneAudioRef struct {
 	AudioPath      string  `json:"audioPath"`
 	StartOffsetSec float64 `json:"startOffsetSec"`
+	// Narration is the authoritative scene text. Captions display these words
+	// (aligned to whisper's timings) instead of whisper's own transcript, so
+	// caption text never inherits TTS pronunciation errors.
+	Narration string `json:"narration"`
 }
 
 // CaptionJob transcribes every scene's audio and writes one ASS file for

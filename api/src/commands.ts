@@ -278,6 +278,7 @@ export async function generateVoiceovers(ctx: CommandContext, input: GenerateVoi
     sceneAudio: state.scenes.map((s) => ({
       audioPath: path.join(projectMediaDir, `tts${s.idx}.mp3`),
       startOffsetSec: 0,
+      narration: s.narration,
     })),
     style: {
       font_name: state.style.captionStyle.fontName,
