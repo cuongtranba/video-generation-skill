@@ -201,6 +201,7 @@ describe('approveStoryboard', () => {
       { v: 1 as const, type: 'MaterialResolved' as const, projectId: 'p1', at: 't3', sceneIdx: 1, source: 'pexels', assetPath: '/media/p1/material1.mp4' },
       { v: 1 as const, type: 'VoiceSynthesized' as const, projectId: 'p1', at: 't3a', sceneIdx: 0, mp3Path: '/media/p1/tts0.mp3', durationSec: 4, ttsUsd: 0.001 },
       { v: 1 as const, type: 'VoiceSynthesized' as const, projectId: 'p1', at: 't3b', sceneIdx: 1, mp3Path: '/media/p1/tts1.mp3', durationSec: 5, ttsUsd: 0.001 },
+      { v: 1 as const, type: 'CaptionsBuilt' as const, projectId: 'p1', at: 't3c', sceneIdx: 0, assPath: '/media/p1/captions.ass' },
       { v: 1 as const, type: 'AwaitingApproval' as const, projectId: 'p1', at: 't4' },
     ]
     const store = createInMemoryEventStore(events)
@@ -231,6 +232,9 @@ describe('approveStoryboard', () => {
   it('includes music in render job when style.music is set', async () => {
     const events = [
       ...materialEvents,
+      { v: 1 as const, type: 'VoiceSynthesized' as const, projectId: 'p1', at: 'v0', sceneIdx: 0, mp3Path: '/media/p1/tts0.mp3', durationSec: 4, ttsUsd: 0.001 },
+      { v: 1 as const, type: 'VoiceSynthesized' as const, projectId: 'p1', at: 'v1', sceneIdx: 1, mp3Path: '/media/p1/tts1.mp3', durationSec: 5, ttsUsd: 0.001 },
+      { v: 1 as const, type: 'CaptionsBuilt' as const, projectId: 'p1', at: 'cb', sceneIdx: 0, assPath: '/media/p1/captions.ass' },
       { v: 1 as const, type: 'StyleSet' as const, projectId: 'p1', at: 't3b', uid: 'u1',
         voice: 'banmai', speed: 0, captionStyle: { fontName: 'Arial', fontSize: 64 },
         music: { search: 'upbeat', volume: 0.4 } },
@@ -246,6 +250,36 @@ describe('approveStoryboard', () => {
     expect(music.search).toBe('upbeat')
     expect(music.volume).toBe(0.4)
     expect(music.path).toBe('')
+  })
+
+  it('rejects approval while captions are still generating', async () => {
+    // Voiceovers + material done, but no CaptionsBuilt yet.
+    const events = [
+      ...materialEvents,
+      { v: 1 as const, type: 'VoiceSynthesized' as const, projectId: 'p1', at: 'v0', sceneIdx: 0, mp3Path: '/media/p1/tts0.mp3', durationSec: 4, ttsUsd: 0.001 },
+      { v: 1 as const, type: 'VoiceSynthesized' as const, projectId: 'p1', at: 'v1', sceneIdx: 1, mp3Path: '/media/p1/tts1.mp3', durationSec: 5, ttsUsd: 0.001 },
+      { v: 1 as const, type: 'AwaitingApproval' as const, projectId: 'p1', at: 't4' },
+    ]
+    const store = createInMemoryEventStore(events)
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15, '/media')
+    await expect(approveStoryboard(ctx, { projectId: 'p1' })).rejects.toThrow(ValidationError)
+    expect(js.published).toHaveLength(0)
+  })
+
+  it('rejects approval while a scene still lacks its voiceover', async () => {
+    // Only scene 0 voiced; captions built. Scene 1 has no VoiceSynthesized.
+    const events = [
+      ...materialEvents,
+      { v: 1 as const, type: 'VoiceSynthesized' as const, projectId: 'p1', at: 'v0', sceneIdx: 0, mp3Path: '/media/p1/tts0.mp3', durationSec: 4, ttsUsd: 0.001 },
+      { v: 1 as const, type: 'CaptionsBuilt' as const, projectId: 'p1', at: 'cb', sceneIdx: 0, assPath: '/media/p1/captions.ass' },
+      { v: 1 as const, type: 'AwaitingApproval' as const, projectId: 'p1', at: 't4' },
+    ]
+    const store = createInMemoryEventStore(events)
+    const js = fakePublisher()
+    const ctx = createCommandContext(store, js, fixedScriptGen, 0.15, '/media')
+    await expect(approveStoryboard(ctx, { projectId: 'p1' })).rejects.toThrow(ValidationError)
+    expect(js.published).toHaveLength(0)
   })
 })
 

@@ -13,7 +13,7 @@ describe('SceneStrip', () => {
     useVidgenStore.setState({
       projects: {
         p1: {
-          projectId: 'p1', status: 'scripted', spentUsd: 0, approved: false, style: DEFAULT_STYLE,
+          projectId: 'p1', status: 'scripted', spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false,
           scenes: [
             { idx: 0, narration: 'A cat wakes up', visual: 'sunrise' },
             { idx: 1, narration: 'The cat stretches', visual: 'yawn' },

@@ -66,3 +66,38 @@ describe('foldProject StyleSet', () => {
     expect(s.style.music).toEqual({ search: 'upbeat', volume: 0.5 })
   })
 })
+
+describe('foldProject render-integration fields', () => {
+  const base: VidgenEvent[] = [
+    { v: 1, type: 'ProjectCreated', projectId: 'p1', at: 't0', idea: 'x', durationSec: 30, sceneCount: 2, tone: 'casual' },
+    { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: 't1', scriptUsd: 0, scenes: [
+      { idx: 0, narration: 'a', visual: 'b' },
+      { idx: 1, narration: 'c', visual: 'd' },
+    ] },
+  ]
+
+  it('folds MaterialResolved into per-scene materialPath + materialSource', () => {
+    const s = foldProject([
+      ...base,
+      { v: 1, type: 'MaterialResolved', projectId: 'p1', at: 't2', sceneIdx: 0, source: 'local', assetPath: '/m/p1/assets/x.jpg' },
+    ])
+    expect(s.scenes[0]?.materialPath).toBe('/m/p1/assets/x.jpg')
+    expect(s.scenes[0]?.materialSource).toBe('local')
+    expect(s.scenes[1]?.materialPath).toBeUndefined()
+  })
+
+  it('folds VoiceSynthesized durationSec into the scene and captionsReady from CaptionsBuilt', () => {
+    const s = foldProject([
+      ...base,
+      { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at: 't3', sceneIdx: 1, mp3Path: '/m/p1/tts1.mp3', durationSec: 6.5, ttsUsd: 0.001 },
+      { v: 1, type: 'CaptionsBuilt', projectId: 'p1', at: 't4', sceneIdx: 0, assPath: '/m/p1/captions.ass' },
+    ])
+    expect(s.scenes[1]?.audioDurationSec).toBe(6.5)
+    expect(s.scenes[0]?.audioDurationSec).toBeUndefined()
+    expect(s.captionsReady).toBe(true)
+  })
+
+  it('captionsReady defaults false before CaptionsBuilt', () => {
+    expect(foldProject(base).captionsReady).toBe(false)
+  })
+})

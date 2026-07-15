@@ -11,7 +11,7 @@ beforeEach(() => {
 describe('CostBadge', () => {
   it('renders the project spend formatted as dollars', () => {
     useVidgenStore.setState({
-      projects: { p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0.045, approved: false, style: DEFAULT_STYLE } },
+      projects: { p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0.045, approved: false, style: DEFAULT_STYLE, captionsReady: false } },
     })
     render(<CostBadge projectId="p1" />)
     expect(screen.getByText('$0.05')).toBeInTheDocument()

@@ -7,7 +7,7 @@ import { ProjectCard } from './ProjectCard'
 
 beforeEach(() => {
   useVidgenStore.setState({
-    projects: { p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE } },
+    projects: { p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false } },
     eventLog: {}, connection: 'down', selectedId: undefined, _unsubscribe: undefined,
   })
 })

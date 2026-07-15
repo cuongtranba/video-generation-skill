@@ -46,10 +46,11 @@ export type ProjectState = {
   approved: boolean
   outputPath?: string
   style: StyleSpec
+  captionsReady: boolean
 }
 
 export function foldProject(events: VidgenEvent[]): ProjectState {
-  const s: ProjectState = { projectId: '', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: { ...DEFAULT_STYLE, captionStyle: { ...DEFAULT_STYLE.captionStyle } } }
+  const s: ProjectState = { projectId: '', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: { ...DEFAULT_STYLE, captionStyle: { ...DEFAULT_STYLE.captionStyle } }, captionsReady: false }
   for (const e of events) {
     s.projectId = e.projectId
     switch (e.type) {
@@ -67,7 +68,7 @@ export function foldProject(events: VidgenEvent[]): ProjectState {
         if (sc) { sc.audioDurationSec = e.durationSec }
         break
       }
-      case 'CaptionsBuilt': break
+      case 'CaptionsBuilt': s.captionsReady = true; break
       case 'AwaitingApproval': s.status = 'awaiting_approval'; break
       case 'ApprovalGranted': s.approved = true; s.status = 'approved'; break
       case 'RenderCompleted': s.spentUsd += e.renderUsd; s.outputPath = e.outputPath; s.status = 'rendered'; break

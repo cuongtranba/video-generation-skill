@@ -151,6 +151,18 @@ export async function approveStoryboard(ctx: CommandContext, input: ApproveStory
   const events = await ctx.store.loadEvents(input.projectId)
   const state = assertExists(events, input.projectId)
   assertTransition('ApproveStoryboard', state)
+
+  // Render consumes every scene's voiceover + resolved media plus the caption
+  // file, all produced asynchronously by the worker. Refuse approval until they
+  // exist, otherwise the render fires against missing inputs and fails.
+  const unresolved = state.scenes.filter((s) => s.audioDurationSec === undefined || s.materialPath === undefined)
+  if (unresolved.length > 0) {
+    throw new ValidationError(`storyboard not ready: scene(s) ${unresolved.map((s) => s.idx).join(', ')} still awaiting voiceover or material`)
+  }
+  if (!state.captionsReady) {
+    throw new ValidationError('storyboard not ready: captions are still being generated')
+  }
+
   const event: VidgenEvent = { v: 1, type: 'ApprovalGranted', projectId: input.projectId, at: ctx.now() }
   await ctx.store.append(event)
   await publishEvent(ctx.js, event)

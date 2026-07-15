@@ -15,7 +15,7 @@ beforeEach(() => {
   globalThis.fetch = mock(async () => new Response('{}', { status: 200 })) as unknown as typeof fetch
   useVidgenStore.setState({
     projects: {
-      p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE },
+      p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false },
     },
     eventLog: {}, connection: 'down', selectedId: undefined, _unsubscribe: undefined,
   })
