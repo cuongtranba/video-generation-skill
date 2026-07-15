@@ -73,6 +73,11 @@ func (h *MaterialHandler) resolve(ctx context.Context, job MaterialJob) (assetPa
 	}
 
 	asset := assets[0]
+	// The project media dir may not exist yet (e.g. no local asset was uploaded
+	// to create it), so ensure it before writing the downloaded clip.
+	if err := os.MkdirAll(filepath.Dir(job.DestPath), 0o755); err != nil {
+		return "", "", fmt.Errorf("create media dir for %q: %w", job.DestPath, err)
+	}
 	if err := h.source.Download(ctx, asset, job.DestPath); err != nil {
 		return "", "", fmt.Errorf("download material for %q: %w", job.Query, err)
 	}
