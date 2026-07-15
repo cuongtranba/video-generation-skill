@@ -94,7 +94,7 @@ describe('durable consumer + createEventStore (integration)', () => {
     if (!bus) return
     await ensureStreams(bus.jsm)
     const projectId = randomUUID()
-    const created: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId, at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' }
+    const created: VidgenEvent = { v: 1, type: 'ProjectCreated', projectId, at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', language: 'English' }
     const scripted: VidgenEvent = { v: 1, type: 'ScriptGenerated', projectId, at: '2026-07-09T00:01:00Z', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 }
     await publishEvent(bus.js, created)
     await publishEvent(bus.js, scripted)
