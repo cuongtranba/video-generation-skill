@@ -1,10 +1,9 @@
 fact: ref-provider-seam
 claim: "each provider category exposes a NewFromConfig factory returning its interface"
 code:
-  - internal/tts/factory.go
-  - internal/music/factory.go
-  - internal/material/factory.go
-  - internal/publish/publish.go
+  - worker/internal/tts/factory.go
+  - worker/internal/material/
+  - worker/internal/music/
 pipeline:
-  - gather: { file: internal/tts/factory.go }
+  - gather: { file: worker/internal/tts/factory.go }
   - eval:   { contains: "func NewFromConfig" }

@@ -1,6 +1,6 @@
 ---
 id: ref-idempotent-worker
-c3-seal: 415a73aa7dc543b59842b70f27ef30ab168b473c390dc93289b496778f6d61a2
+c3-seal: 054c9a730d4579db03bd266219d76c7698b7441c7a6cae98dcbc1ed0d749f879
 title: Output-exists idempotency for re-runnable workers
 type: ref
 goal: Re-running generation after a crash, partial failure, or JetStream redelivery must never repeat expensive or paid work. The pattern standardizes how every worker decides whether its job is already done.
@@ -20,12 +20,21 @@ TTS is the only paid step (per-character FPT.AI billing) and renders are slow; N
 
 ## How
 
-Golden pattern — resolve the destination path, stat it, and short-circuit before the vendor/subprocess call (REQUIRED: existence check precedes work; the existing file is returned as the result). Source: `internal/worker/worker.go`.
+Golden pattern — resolve the destination path, stat it, and short-circuit before the vendor/subprocess call (REQUIRED: existence check precedes work; the existing path is returned as the cached result). Source: `worker/internal/jobhandler/material.go`.
 
 ```go
-// before invoking the paid/slow operation:
+// cheap short-circuit: msgID dedup at publish time is the correctness
+// boundary, this just avoids redundant downloads on redelivery.
 if _, err := os.Stat(job.DestPath); err == nil {
-	// already produced by a prior run — skip and reuse
-	return existingResult(job), nil
+    return job.DestPath, "cached", nil  // REQUIRED: return cached result, skip work
 }
 ```
+
+```````go
+// cheap short-circuit: msgID dedup at publish time is the correctness
+// boundary, this just avoids redundant downloads on redelivery.
+if _, err := os.Stat(job.DestPath); err == nil {
+    return job.DestPath, "cached", nil  // REQUIRED: return cached result, skip work
+}
+```
+````

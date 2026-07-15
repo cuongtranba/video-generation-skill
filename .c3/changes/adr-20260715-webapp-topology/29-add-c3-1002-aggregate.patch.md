@@ -1,0 +1,43 @@
+---
+target: c3-1002
+scope: whole
+type: component
+parent: c3-10
+title: aggregate — command-transition guards
+---
+## Goal
+
+Assert that a project exists and that each command is legal from its current status, providing the state-machine gate for all command handlers.
+
+## Parent Fit
+
+| Field | Value |
+| --- | --- |
+| Container | c3-10 api |
+| Category | foundation |
+| Boundary | In-process module; called by every command handler in commands.ts |
+| Status | active |
+
+## Purpose
+
+Owns assertCanCreate, assertExists, and assertTransition guards; the LEGAL_FROM status-machine table; and the error types (ProjectAlreadyExistsError, ProjectNotFoundError, InvalidTransitionError, ValidationError). Non-goal: does not load or append events — it receives them from the caller and returns state or throws.
+
+## Governance
+
+| Reference | Type | Governs | Precedence | Notes |
+| --- | --- | --- | --- | --- |
+| rule-no-any-data | rule | LEGAL_FROM table uses concrete CommandName and ProjectStatus enums | high | No string literals for status comparisons |
+
+## Contract
+
+| Surface | Direction | Contract | Boundary | Evidence |
+| --- | --- | --- | --- | --- |
+| assertCanCreate | OUT | Throws ProjectAlreadyExistsError if events.length > 0 | in-process | api/src/aggregate.ts |
+| assertExists | OUT | Throws ProjectNotFoundError if events.length === 0; returns foldProject(events) | in-process | api/src/aggregate.ts |
+| assertTransition | OUT | Throws InvalidTransitionError if command is not in LEGAL_FROM[command] for current status | in-process | api/src/aggregate.ts |
+
+## Derived Materials
+
+| Material | Must derive from | Allowed variance | Evidence |
+| --- | --- | --- | --- |
+| LEGAL_FROM table | Contract | TuneProject may run from multiple statuses | api/src/aggregate.ts |

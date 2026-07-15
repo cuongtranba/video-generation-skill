@@ -1,0 +1,43 @@
+---
+target: c3-1005
+scope: whole
+type: component
+parent: c3-10
+title: projections — Postgres read model
+---
+## Goal
+
+Consume VIDGEN_EVENTS via a durable NATS consumer and fold every event into Postgres tables for the HTTP read path.
+
+## Parent Fit
+
+| Field | Value |
+| --- | --- |
+| Container | c3-10 api |
+| Category | feature |
+| Boundary | In-process long-running loop; reads from NATS JetStream, writes to Postgres |
+| Status | active |
+
+## Purpose
+
+Owns applyProjection (switch over all 12 VidgenEvent types), runProjections (long-running durable consumer loop), and rebuildProjections (wipe + replay from seq 0). Tables: projects, scenes, assets, cost_ledger. Non-goal: does not own the source of truth — VIDGEN_EVENTS is; Postgres is a disposable, rebuildable read model.
+
+## Governance
+
+| Reference | Type | Governs | Precedence | Notes |
+| --- | --- | --- | --- | --- |
+| rule-no-any-data | rule | applyProjection receives typed VidgenEvent union via discriminated switch | high | No any on event types |
+
+## Contract
+
+| Surface | Direction | Contract | Boundary | Evidence |
+| --- | --- | --- | --- | --- |
+| applyProjection | OUT | Idempotent ON CONFLICT upserts for every event type | in-process | api/src/projections.ts |
+| rebuildProjections | OUT | Wipes all tables + durable consumer ack floor, replays all events | in-process | api/src/projections.ts |
+| PROJECTIONS_CONSUMER | OUT | Durable consumer name "projections" for VIDGEN_EVENTS | config | api/src/projections.ts |
+
+## Derived Materials
+
+| Material | Must derive from | Allowed variance | Evidence |
+| --- | --- | --- | --- |
+| Postgres schema (projects, scenes, assets, cost_ledger) | Contract | N.A - exact match | api/src/projections.ts |

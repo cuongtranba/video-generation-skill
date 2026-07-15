@@ -1,4 +1,0 @@
-fact: c3-105
-claim: "AI clip-generation seam (ClipGenerator) lives in internal/videogen"
-code:
-  - internal/videogen/**

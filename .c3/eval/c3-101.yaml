@@ -1,4 +1,0 @@
-fact: c3-101
-claim: "domain project model & manifest store live in internal/domain"
-code:
-  - internal/domain/**

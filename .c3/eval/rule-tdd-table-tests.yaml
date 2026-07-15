@@ -1,7 +1,7 @@
 fact: rule-tdd-table-tests
 claim: "tests are table-driven (tests := []struct{...})"
 code:
-  - internal/cost/ledger_test.go
+  - worker/internal/jobhandler/material_test.go
 pipeline:
-  - gather: { file: internal/cost/ledger_test.go }
+  - gather: { file: worker/internal/jobhandler/material_test.go }
   - eval:   { contains: "tests := []struct" }

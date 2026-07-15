@@ -1,7 +1,0 @@
-fact: c3-104
-claim: "cost estimator & enforced ledger live in internal/cost with CapUSD gate"
-code:
-  - internal/cost/**
-pipeline:
-  - gather: { file: internal/cost/ledger.go }
-  - eval:   { contains_all: ["CapUSD", "CheckProjected", "CheckActual"] }

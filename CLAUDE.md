@@ -6,7 +6,7 @@ Event-sourced webapp generating 9:16 Vietnamese-voiced short videos: idea → sc
 
 Frozen architecture facts live in `.c3/`. Facts are frozen — they change **only** through a C3 change-unit, never by hand-editing `.c3/`. For architecture questions/changes/audits/file→component lookup → use the **C3 skill** (`/c3`). `.c3/c3.db` is the CLI cache, committed on purpose — do not delete it.
 
-> **Note:** the C3 model still describes the now-deleted legacy Go CLI. The webapp topology (api/worker/frontend + NATS + Postgres) is being re-onboarded via change-unit `adr-20260709-webapp-topology`; until it merges, `c3` code bindings point at removed paths.
+The C3 model reflects the webapp topology (containers `c3-10` api, `c3-20` worker, `c3-30` frontend) as re-onboarded by change-unit `adr-20260715-webapp-topology`, which superseded the legacy CLI facts.
 
 ## Commands
 

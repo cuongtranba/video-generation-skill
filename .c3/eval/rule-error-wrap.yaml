@@ -1,7 +1,7 @@
 fact: rule-error-wrap
 claim: "errors are wrapped with op context via fmt.Errorf(...: %w)"
 code:
-  - internal/cli/root.go
+  - worker/internal/jobhandler/material.go
 pipeline:
-  - gather: { file: internal/cli/root.go }
+  - gather: { file: worker/internal/jobhandler/material.go }
   - eval:   { contains: "%w" }
