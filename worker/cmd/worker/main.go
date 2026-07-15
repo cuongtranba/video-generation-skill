@@ -63,7 +63,11 @@ func run() error {
 
 	probe := tts.FFProbeDuration(ffprobeBin)
 
-	ttsProvider, err := tts.NewFromConfig(providers.TTS, cfg.FPTTTSAPIKey)
+	ttsKey := cfg.FPTTTSAPIKey
+	if providers.TTS.Provider == "elevenlabs" {
+		ttsKey = cfg.ElevenLabsAPIKey
+	}
+	ttsProvider, err := tts.NewFromConfig(providers.TTS, ttsKey)
 	if err != nil {
 		return fmt.Errorf("build tts provider: %w", err)
 	}

@@ -13,8 +13,8 @@ func NewFromConfig(sel config.TTSSelect, apiKey string) (TTSProvider, error) {
 	case "fpt":
 		return NewFPTAIProvider(apiKey), nil
 	case "elevenlabs":
-		return nil, fmt.Errorf("tts provider %q not implemented yet (supported: fpt)", sel.Provider)
+		return NewElevenLabsProvider(apiKey), nil
 	default:
-		return nil, fmt.Errorf("unknown tts provider %q (supported: fpt)", sel.Provider)
+		return nil, fmt.Errorf("unknown tts provider %q (supported: fpt, elevenlabs)", sel.Provider)
 	}
 }
