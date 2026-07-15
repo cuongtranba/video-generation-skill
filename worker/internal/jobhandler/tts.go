@@ -38,7 +38,7 @@ func (h *TTSHandler) Handle(ctx context.Context, subject string, job TTSJob) err
 	}
 
 	ttsUsd := float64(out.CharsCharged) * fptAIPerChar
-	ev := eventstore.NewVoiceSynthesized(job.ProjectID, job.SceneIdx, out.AudioPath, ttsUsd)
+	ev := eventstore.NewVoiceSynthesized(job.ProjectID, job.SceneIdx, out.AudioPath, out.DurationSec, ttsUsd)
 	if _, err := h.store.PublishResult(ctx, ev); err != nil {
 		return fmt.Errorf("publish VoiceSynthesized for project %s scene %d: %w", job.ProjectID, job.SceneIdx, err)
 	}

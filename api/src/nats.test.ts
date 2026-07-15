@@ -4,7 +4,7 @@ import type { VidgenEvent } from './events.js'
 
 describe('eventId', () => {
   it('uses the scene idx when the event carries one', () => {
-    const event: VidgenEvent = { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at: 't', sceneIdx: 2, mp3Path: '/m.mp3', ttsUsd: 0.001 }
+    const event: VidgenEvent = { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at: 't', sceneIdx: 2, mp3Path: '/m.mp3', durationSec: 3.5, ttsUsd: 0.001 }
     expect(eventId(event)).toBe('VoiceSynthesized-p1-2')
   })
 

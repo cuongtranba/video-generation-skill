@@ -34,8 +34,8 @@ describe('foldProject', () => {
   it('accumulates ttsUsd across VoiceSynthesized events', () => {
     const events: VidgenEvent[] = [
       { v: 1, type: 'ProjectCreated', projectId: 'p1', at, idea: 'cats', durationSec: 30, sceneCount: 2, tone: 'fun' },
-      { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at, sceneIdx: 0, mp3Path: 'a.mp3', ttsUsd: 0.02 },
-      { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at, sceneIdx: 1, mp3Path: 'b.mp3', ttsUsd: 0.03 },
+      { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at, sceneIdx: 0, mp3Path: 'a.mp3', durationSec: 2.0, ttsUsd: 0.02 },
+      { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at, sceneIdx: 1, mp3Path: 'b.mp3', durationSec: 3.0, ttsUsd: 0.03 },
     ]
     expect(foldProject(events).spentUsd).toBeCloseTo(0.05)
   })

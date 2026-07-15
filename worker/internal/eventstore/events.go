@@ -66,19 +66,20 @@ func (e MaterialResolved) MsgID() string   { return sceneMsgID(e.Type, e.Project
 // VoiceSynthesized reports that scene SceneIdx's voiceover was synthesized
 // to MP3Path, at a metered cost of TTSUsd.
 type VoiceSynthesized struct {
-	V         int     `json:"v"`
-	Type      string  `json:"type"`
-	ProjectID string  `json:"projectId"`
-	At        string  `json:"at"`
-	SceneIdx  int     `json:"sceneIdx"`
-	MP3Path   string  `json:"mp3Path"`
-	TTSUsd    float64 `json:"ttsUsd"`
+	V           int     `json:"v"`
+	Type        string  `json:"type"`
+	ProjectID   string  `json:"projectId"`
+	At          string  `json:"at"`
+	SceneIdx    int     `json:"sceneIdx"`
+	MP3Path     string  `json:"mp3Path"`
+	DurationSec float64 `json:"durationSec"`
+	TTSUsd      float64 `json:"ttsUsd"`
 }
 
-func NewVoiceSynthesized(projectID string, sceneIdx int, mp3Path string, ttsUsd float64) VoiceSynthesized {
+func NewVoiceSynthesized(projectID string, sceneIdx int, mp3Path string, durationSec, ttsUsd float64) VoiceSynthesized {
 	return VoiceSynthesized{
 		V: 1, Type: "VoiceSynthesized", ProjectID: projectID, At: nowRFC3339(),
-		SceneIdx: sceneIdx, MP3Path: mp3Path, TTSUsd: ttsUsd,
+		SceneIdx: sceneIdx, MP3Path: mp3Path, DurationSec: durationSec, TTSUsd: ttsUsd,
 	}
 }
 

@@ -192,8 +192,17 @@ describe('requestApproval', () => {
 })
 
 describe('approveStoryboard', () => {
-  it('appends ApprovalGranted and dispatches a render job', async () => {
-    const events = [...materialEvents, { v: 1 as const, type: 'AwaitingApproval' as const, projectId: 'p1', at: 't4' }]
+  it('builds a render job from folded material paths, durations, and image detection', async () => {
+    // Scene 0: a local image upload; scene 1: a stock video. Voiceovers give
+    // each scene its playback duration.
+    const events = [
+      ...scriptedEvents,
+      { v: 1 as const, type: 'MaterialResolved' as const, projectId: 'p1', at: 't2', sceneIdx: 0, source: 'local', assetPath: '/media/p1/assets/photo.jpg' },
+      { v: 1 as const, type: 'MaterialResolved' as const, projectId: 'p1', at: 't3', sceneIdx: 1, source: 'pexels', assetPath: '/media/p1/material1.mp4' },
+      { v: 1 as const, type: 'VoiceSynthesized' as const, projectId: 'p1', at: 't3a', sceneIdx: 0, mp3Path: '/media/p1/tts0.mp3', durationSec: 4, ttsUsd: 0.001 },
+      { v: 1 as const, type: 'VoiceSynthesized' as const, projectId: 'p1', at: 't3b', sceneIdx: 1, mp3Path: '/media/p1/tts1.mp3', durationSec: 5, ttsUsd: 0.001 },
+      { v: 1 as const, type: 'AwaitingApproval' as const, projectId: 'p1', at: 't4' },
+    ]
     const store = createInMemoryEventStore(events)
     const js = fakePublisher()
     const ctx = createCommandContext(store, js, fixedScriptGen, 0.15, '/media')
@@ -208,11 +217,15 @@ describe('approveStoryboard', () => {
     expect(render.music).toBeUndefined() // no music in default style
     const scenes = render.scenes as Array<Record<string, unknown>>
     expect(scenes).toHaveLength(2)
-    expect(scenes[0]!.mediaPath).toBe('/media/p1/material0.mp4')
+    // Scene 0: the resolved local image path, flagged as an image, audio duration.
+    expect(scenes[0]!.mediaPath).toBe('/media/p1/assets/photo.jpg')
     expect(scenes[0]!.audioPath).toBe('/media/p1/tts0.mp3')
-    expect(scenes[0]!.isImage).toBe(false)
+    expect(scenes[0]!.isImage).toBe(true)
+    expect(scenes[0]!.durationSec).toBe(4)
+    // Scene 1: the resolved stock video path, not an image.
     expect(scenes[1]!.mediaPath).toBe('/media/p1/material1.mp4')
-    expect(scenes[1]!.audioPath).toBe('/media/p1/tts1.mp3')
+    expect(scenes[1]!.isImage).toBe(false)
+    expect(scenes[1]!.durationSec).toBe(5)
   })
 
   it('includes music in render job when style.music is set', async () => {

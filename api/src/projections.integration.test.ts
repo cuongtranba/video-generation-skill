@@ -88,7 +88,7 @@ describe.skipIf(!up)('applyProjection (integration)', () => {
   it('VoiceSynthesized records a voice asset, a ledger row, and recomputes spent_usd', async () => {
     await applyProjection(db, { v: 1, type: 'ProjectCreated', projectId: 'p1', at: '2026-07-09T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual' })
     await applyProjection(db, { v: 1, type: 'ScriptGenerated', projectId: 'p1', at: '2026-07-09T00:00:01Z', scenes: [{ idx: 0, narration: 'a', visual: 'b' }], scriptUsd: 0 })
-    await applyProjection(db, { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at: '2026-07-09T00:00:02Z', sceneIdx: 0, mp3Path: '/m/0.mp3', ttsUsd: 0.0007 })
+    await applyProjection(db, { v: 1, type: 'VoiceSynthesized', projectId: 'p1', at: '2026-07-09T00:00:02Z', sceneIdx: 0, mp3Path: '/m/0.mp3', durationSec: 3.5, ttsUsd: 0.0007 })
     const project = await db.query('SELECT spent_usd FROM projects WHERE project_id = $1', ['p1'])
     expect(Number(project.rows[0].spent_usd)).toBeCloseTo(0.0007)
     const ledger = await db.query('SELECT event_type, amount_usd FROM cost_ledger WHERE project_id = $1', ['p1'])

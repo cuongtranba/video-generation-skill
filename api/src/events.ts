@@ -1,4 +1,12 @@
-export type Scene = { idx: number; narration: string; visual: string }
+export type Scene = {
+  idx: number
+  narration: string
+  visual: string
+  // Runtime fields folded from worker result events (undefined until resolved).
+  materialPath?: string
+  materialSource?: string
+  audioDurationSec?: number
+}
 
 export type StyleSpec = {
   voice: string
@@ -18,7 +26,7 @@ export type VidgenEvent =
   | { v: 1; type: 'ProjectCreated'; projectId: string; at: string; idea: string; durationSec: number; sceneCount: number; tone: string }
   | { v: 1; type: 'ScriptGenerated'; projectId: string; at: string; scenes: Scene[]; scriptUsd: number }
   | { v: 1; type: 'MaterialResolved'; projectId: string; at: string; sceneIdx: number; source: string; assetPath: string }
-  | { v: 1; type: 'VoiceSynthesized'; projectId: string; at: string; sceneIdx: number; mp3Path: string; ttsUsd: number }
+  | { v: 1; type: 'VoiceSynthesized'; projectId: string; at: string; sceneIdx: number; mp3Path: string; durationSec: number; ttsUsd: number }
   | { v: 1; type: 'CaptionsBuilt'; projectId: string; at: string; sceneIdx: number; assPath: string }
   | { v: 1; type: 'CostProjected'; projectId: string; at: string; projectedUsd: number; capUsd: number }
   | { v: 1; type: 'AwaitingApproval'; projectId: string; at: string }
@@ -46,9 +54,19 @@ export function foldProject(events: VidgenEvent[]): ProjectState {
     s.projectId = e.projectId
     switch (e.type) {
       case 'ProjectCreated': s.status = 'draft'; break
-      case 'ScriptGenerated': s.scenes = e.scenes; s.spentUsd += e.scriptUsd; s.status = 'scripted'; break
-      case 'MaterialResolved': s.status = 'material'; break
-      case 'VoiceSynthesized': s.spentUsd += e.ttsUsd; break
+      case 'ScriptGenerated': s.scenes = e.scenes.map((sc) => ({ ...sc })); s.spentUsd += e.scriptUsd; s.status = 'scripted'; break
+      case 'MaterialResolved': {
+        const sc = s.scenes.find((x) => x.idx === e.sceneIdx)
+        if (sc) { sc.materialPath = e.assetPath; sc.materialSource = e.source }
+        s.status = 'material'
+        break
+      }
+      case 'VoiceSynthesized': {
+        s.spentUsd += e.ttsUsd
+        const sc = s.scenes.find((x) => x.idx === e.sceneIdx)
+        if (sc) { sc.audioDurationSec = e.durationSec }
+        break
+      }
       case 'CaptionsBuilt': break
       case 'AwaitingApproval': s.status = 'awaiting_approval'; break
       case 'ApprovalGranted': s.approved = true; s.status = 'approved'; break

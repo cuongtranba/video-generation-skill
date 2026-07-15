@@ -55,6 +55,14 @@ export function createCommandContext(
 /** Valid FPT.AI voice identifiers — mirrors worker/internal/domain project voices. */
 const VALID_VOICES = ['banmai', 'thuminh', 'lannhi', 'linhsan', 'leminh', 'giahuy', 'myan']
 
+const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'])
+
+/** True when the resolved media is a still image (renders via zoompan, not
+ * looped video). Keyed on file extension so it works for uploaded assets. */
+function isImagePath(mediaPath: string): boolean {
+  return IMAGE_EXTENSIONS.has(path.extname(mediaPath).toLowerCase())
+}
+
 export async function createProject(ctx: CommandContext, input: CreateProjectInput): Promise<{ projectId: string }> {
   const projectId = randomUUID()
   const events = await ctx.store.loadEvents(projectId)
@@ -148,13 +156,22 @@ export async function approveStoryboard(ctx: CommandContext, input: ApproveStory
   await publishEvent(ctx.js, event)
   const projectMediaDir = path.join(ctx.mediaDir, input.projectId)
   const renderJob: Record<string, unknown> = {
-    scenes: state.scenes.map((s) => ({
-      mediaPath: path.join(projectMediaDir, `material${s.idx}.mp4`),
-      audioPath: path.join(projectMediaDir, `tts${s.idx}.mp3`),
-      isImage: false,
-      durationSec: 0,
-      mediaDurationSec: 0,
-    })),
+    scenes: state.scenes.map((s) => {
+      // Prefer the material path resolved by the worker (a local upload lands
+      // under assets/, stock under material{idx}.mp4); fall back to the stock
+      // convention if MaterialResolved has not been folded.
+      const mediaPath = s.materialPath ?? path.join(projectMediaDir, `material${s.idx}.mp4`)
+      return {
+        mediaPath,
+        audioPath: path.join(projectMediaDir, `tts${s.idx}.mp3`),
+        isImage: isImagePath(mediaPath),
+        // Scene playback length = its narration audio duration, folded from
+        // VoiceSynthesized. mediaDurationSec stays 0: the renderer only uses it
+        // to loop a short clip, and treats 0 as "do not loop".
+        durationSec: s.audioDurationSec ?? 0,
+        mediaDurationSec: 0,
+      }
+    }),
     assPath: path.join(projectMediaDir, 'captions.ass'),
     outputPath: path.join(projectMediaDir, 'output.mp4'),
   }
