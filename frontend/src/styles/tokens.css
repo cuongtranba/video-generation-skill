@@ -1,0 +1,87 @@
+/* vidgen design tokens — "editing bay at golden hour"
+ * Warm-tinted dark charcoal + committed amber/gold accent. OKLCH throughout.
+ * Every neutral is tinted toward the warm hue (~80); no pure #000/#fff. */
+
+:root {
+  color-scheme: dark;
+
+  /* ---- surface tiers (warm charcoal) ---- */
+  --vg-color-surface-0: oklch(0.17 0.006 80); /* app canvas */
+  --vg-color-surface-1: oklch(0.205 0.007 80); /* cards, panels */
+  --vg-color-surface-2: oklch(0.245 0.008 80); /* inputs, raised */
+  --vg-color-surface-3: oklch(0.29 0.009 80); /* hover / active */
+
+  /* ---- text ---- */
+  --vg-color-text: oklch(0.95 0.006 85);
+  --vg-color-text-muted: oklch(0.74 0.008 85);
+  --vg-color-text-faint: oklch(0.58 0.008 85);
+  --vg-color-text-on-accent: oklch(0.2 0.03 85); /* dark text on amber */
+
+  /* ---- borders ---- */
+  --vg-color-border: oklch(0.32 0.01 80);
+  --vg-color-border-strong: oklch(0.42 0.012 80);
+
+  /* ---- accent (amber / gold) ---- */
+  --vg-color-accent: oklch(0.8 0.14 82);
+  --vg-color-accent-strong: oklch(0.85 0.145 84);
+  --vg-color-accent-weak: oklch(0.8 0.14 82 / 0.14);
+  --vg-color-focus: oklch(0.8 0.14 82 / 0.55);
+
+  /* ---- status tones ---- */
+  --vg-color-good: oklch(0.78 0.15 152);
+  --vg-color-good-weak: oklch(0.78 0.15 152 / 0.15);
+  --vg-color-bad: oklch(0.68 0.19 27);
+  --vg-color-bad-weak: oklch(0.68 0.19 27 / 0.15);
+  --vg-color-warn: oklch(0.82 0.15 75);
+  --vg-color-warn-weak: oklch(0.82 0.15 75 / 0.15);
+  --vg-color-neutral: oklch(0.72 0.02 85);
+  --vg-color-neutral-weak: oklch(0.72 0.02 85 / 0.13);
+
+  /* ---- typography ---- */
+  --vg-font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", "Helvetica Neue", sans-serif;
+  --vg-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --vg-text-xs: 0.75rem;
+  --vg-text-sm: 0.8125rem;
+  --vg-text-base: 0.9375rem;
+  --vg-text-md: 1.0625rem;
+  --vg-text-lg: 1.3125rem;
+  --vg-text-xl: 1.625rem;
+
+  --vg-weight-normal: 400;
+  --vg-weight-medium: 500;
+  --vg-weight-semibold: 600;
+  --vg-weight-bold: 700;
+
+  --vg-leading-tight: 1.15;
+  --vg-leading-snug: 1.35;
+  --vg-leading-normal: 1.55;
+
+  /* ---- spacing scale ---- */
+  --vg-space-3xs: 0.125rem;
+  --vg-space-2xs: 0.25rem;
+  --vg-space-xs: 0.5rem;
+  --vg-space-sm: 0.75rem;
+  --vg-space-md: 1rem;
+  --vg-space-lg: 1.5rem;
+  --vg-space-xl: 2rem;
+  --vg-space-2xl: 3rem;
+
+  /* ---- radii ---- */
+  --vg-radius-sm: 6px;
+  --vg-radius-md: 10px;
+  --vg-radius-lg: 14px;
+  --vg-radius-pill: 999px;
+
+  /* ---- elevation (soft, warm, dark) ---- */
+  --vg-shadow-sm: 0 1px 2px oklch(0.12 0.01 80 / 0.5);
+  --vg-shadow-md: 0 6px 20px -8px oklch(0.1 0.01 80 / 0.7);
+  --vg-shadow-lg: 0 18px 44px -16px oklch(0.08 0.01 80 / 0.8);
+  --vg-ring-focus: 0 0 0 3px var(--vg-color-focus);
+
+  /* ---- motion (ease-out quint) ---- */
+  --vg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --vg-dur-fast: 120ms;
+  --vg-dur: 180ms;
+}

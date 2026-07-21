@@ -1,4 +1,6 @@
 import { useVidgenStore } from '../store/store'
+import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
 import { CostBadge } from './CostBadge'
 import { SceneStrip } from './SceneStrip'
 import { StoryboardApproval } from './StoryboardApproval'
@@ -21,18 +23,19 @@ export function ProjectCard({ projectId }: ProjectCardProps) {
   }
 
   return (
-    <article className="vg-project-card" data-testid={`project-card-${projectId}`}>
-      <header>
-        <h2>{projectId}</h2>
-        <span>{status}</span>
-        <CostBadge projectId={projectId} />
-      </header>
-      <button type="button" onClick={() => select(projectId)}>
+    <Card
+      className="vg-project-card"
+      data-testid={`project-card-${projectId}`}
+      title={projectId}
+      meta={status}
+      actions={<CostBadge projectId={projectId} />}
+    >
+      <Button variant="ghost" size="sm" type="button" onClick={() => select(projectId)}>
         Select
-      </button>
+      </Button>
       <TunePanel projectId={projectId} disabled={!TUNABLE_STATUSES.includes(status)} />
       <SceneStrip projectId={projectId} />
       <StoryboardApproval projectId={projectId} />
-    </article>
+    </Card>
   )
 }

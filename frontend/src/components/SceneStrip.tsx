@@ -1,4 +1,5 @@
 import { useVidgenStore } from '../store/store'
+import { EmptyState } from '../ui/EmptyState'
 
 interface SceneStripProps {
   projectId: string
@@ -10,7 +11,7 @@ export function SceneStrip({ projectId }: SceneStripProps) {
   const scenes = useVidgenStore((state) => state.projects[projectId]?.scenes) ?? []
 
   if (scenes.length === 0) {
-    return <p className="vg-scene-strip vg-scene-strip--empty">No scenes yet</p>
+    return <EmptyState className="vg-scene-strip--empty">No scenes yet</EmptyState>
   }
 
   return (
