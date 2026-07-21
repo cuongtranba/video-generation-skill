@@ -10,11 +10,9 @@ import (
 // apiKey is the credential for the chosen provider (from .env / env).
 func NewFromConfig(sel config.TTSSelect, apiKey string) (TTSProvider, error) {
 	switch sel.Provider {
-	case "fpt":
-		return NewFPTAIProvider(apiKey), nil
 	case "elevenlabs":
 		return NewElevenLabsProvider(apiKey), nil
 	default:
-		return nil, fmt.Errorf("unknown tts provider %q (supported: fpt, elevenlabs)", sel.Provider)
+		return nil, fmt.Errorf("unknown tts provider %q (supported: elevenlabs)", sel.Provider)
 	}
 }

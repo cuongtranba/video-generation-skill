@@ -52,7 +52,8 @@ export function createCommandContext(
   return { store, js, scriptGen, now: () => new Date().toISOString(), costCapUsd, mediaDir }
 }
 
-/** Valid FPT.AI voice identifiers — mirrors worker/internal/domain project voices. */
+/** Legacy voice identifiers accepted by TuneProject — mirrors worker/internal/domain
+ * project voices. Retained in the event model; ElevenLabs synthesis ignores them. */
 const VALID_VOICES = ['banmai', 'thuminh', 'lannhi', 'linhsan', 'leminh', 'giahuy', 'myan']
 
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'])

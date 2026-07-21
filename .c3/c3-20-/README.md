@@ -1,6 +1,6 @@
 ---
 id: c3-20
-c3-seal: 13d20011c05b8b6dbe7ea9a910eaee5c9c5b5759a59a88e9e632df22d651b784
+c3-seal: aaf3515840597d16540bf247f2a4957499cbc9c0e571ad9cc0e2370ad3839f3e
 title: worker — Go idempotent job consumers
 type: container
 parent: c3-0
@@ -17,7 +17,7 @@ Be the Go process that consumes VIDGEN_JOBS from NATS JetStream and executes mat
 | --- | --- | --- | --- | --- |
 | c3-2001 | jobhandler — material, tts, caption, render handlers |  | active | Implement the four job handler types (MaterialJob, TTSJob, CaptionJob, RenderJob) with output-exists idempotency and publish result events. |
 | c3-2002 | eventstore — result event structs and publisher |  | active | Define the worker-side result event structs (MaterialResolved, VoiceSynthesized, CaptionsBuilt, RenderCompleted, RunFailed) mirroring api/src/events.ts, and publish them to VIDGEN_EVENTS. |
-| c3-2003 | tts — FPT.AI and ElevenLabs TTS providers with factory |  | active | Provide FPT.AI async-polling TTS and ElevenLabs TTS behind a TTSProvider interface; NewFromConfig selects the implementation from config.yaml. |
+| c3-2003 | tts — ElevenLabs TTS provider with factory |  | active | Provide FPT.AI async-polling TTS and ElevenLabs TTS behind a TTSProvider interface; NewFromConfig selects the implementation from config.yaml. |
 | c3-2004 | material — stock visual sourcing (Pexels/Pixabay) |  | active | Resolve and download scene visual stock from Pexels or Pixabay to the shared media volume. |
 | c3-2005 | music — Jamendo background music sourcing |  | active | Search and download background music from Jamendo by keyword for the render job. |
 | c3-2006 | render — FFmpeg filtergraph video renderer |  | active | Compose the final 9:16 MP4 using FFmpeg: per-scene zoompan/loop video, TTS audio, libass captions, and optional music mix. |

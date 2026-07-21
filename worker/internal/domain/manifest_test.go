@@ -45,10 +45,10 @@ func testProject() *Project {
 		CostLedger: CostLedger{
 			CapUSD: 0.10,
 			Projected: []CostLineItem{
-				{Label: "FPT.AI TTS", Unit: UnitChars, Quantity: 1200, USDCost: 0.012},
+				{Label: "ElevenLabs TTS", Unit: UnitChars, Quantity: 1200, USDCost: 0.012},
 			},
 			Actual: []CostLineItem{
-				{Label: "FPT.AI TTS", Unit: UnitChars, Quantity: 1180, USDCost: 0.0118},
+				{Label: "ElevenLabs TTS", Unit: UnitChars, Quantity: 1180, USDCost: 0.0118},
 			},
 		},
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 func TestLoadFromEnvVars(t *testing.T) {
-	t.Setenv("FPT_TTS_API_KEY", "fpt-key")
+	t.Setenv("ELEVENLABS_API_KEY", "eleven-key")
 	t.Setenv("PEXELS_API_KEY", "pexels-key")
 	t.Setenv("PIXABAY_API_KEY", "pixabay-key")
 
@@ -15,8 +15,8 @@ func TestLoadFromEnvVars(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if cfg.FPTTTSAPIKey != "fpt-key" {
-		t.Errorf("FPTTTSAPIKey = %q", cfg.FPTTTSAPIKey)
+	if cfg.ElevenLabsAPIKey != "eleven-key" {
+		t.Errorf("ElevenLabsAPIKey = %q", cfg.ElevenLabsAPIKey)
 	}
 	if cfg.PexelsAPIKey != "pexels-key" {
 		t.Errorf("PexelsAPIKey = %q", cfg.PexelsAPIKey)
@@ -27,14 +27,14 @@ func TestLoadFromEnvVars(t *testing.T) {
 }
 
 func TestLoadFromDotEnvFile(t *testing.T) {
-	t.Setenv("FPT_TTS_API_KEY", "")
+	t.Setenv("ELEVENLABS_API_KEY", "")
 	t.Setenv("PEXELS_API_KEY", "")
-	os.Unsetenv("FPT_TTS_API_KEY")
+	os.Unsetenv("ELEVENLABS_API_KEY")
 	os.Unsetenv("PEXELS_API_KEY")
 
 	dir := t.TempDir()
 	envPath := filepath.Join(dir, ".env")
-	content := "FPT_TTS_API_KEY=file-fpt\nPEXELS_API_KEY=file-pexels\n# comment\n\nEXTRA=x\n"
+	content := "ELEVENLABS_API_KEY=file-eleven\nPEXELS_API_KEY=file-pexels\n# comment\n\nEXTRA=x\n"
 	if err := os.WriteFile(envPath, []byte(content), 0o600); err != nil {
 		t.Fatalf("write .env: %v", err)
 	}
@@ -43,8 +43,8 @@ func TestLoadFromDotEnvFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if cfg.FPTTTSAPIKey != "file-fpt" {
-		t.Errorf("FPTTTSAPIKey = %q, want file-fpt", cfg.FPTTTSAPIKey)
+	if cfg.ElevenLabsAPIKey != "file-eleven" {
+		t.Errorf("ElevenLabsAPIKey = %q, want file-eleven", cfg.ElevenLabsAPIKey)
 	}
 	if cfg.PexelsAPIKey != "file-pexels" {
 		t.Errorf("PexelsAPIKey = %q, want file-pexels", cfg.PexelsAPIKey)
@@ -52,11 +52,11 @@ func TestLoadFromDotEnvFile(t *testing.T) {
 }
 
 func TestEnvVarOverridesDotEnv(t *testing.T) {
-	t.Setenv("FPT_TTS_API_KEY", "env-wins")
+	t.Setenv("ELEVENLABS_API_KEY", "env-wins")
 
 	dir := t.TempDir()
 	envPath := filepath.Join(dir, ".env")
-	if err := os.WriteFile(envPath, []byte("FPT_TTS_API_KEY=file-loses\n"), 0o600); err != nil {
+	if err := os.WriteFile(envPath, []byte("ELEVENLABS_API_KEY=file-loses\n"), 0o600); err != nil {
 		t.Fatalf("write .env: %v", err)
 	}
 
@@ -64,13 +64,13 @@ func TestEnvVarOverridesDotEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if cfg.FPTTTSAPIKey != "env-wins" {
-		t.Errorf("FPTTTSAPIKey = %q, want env-wins", cfg.FPTTTSAPIKey)
+	if cfg.ElevenLabsAPIKey != "env-wins" {
+		t.Errorf("ElevenLabsAPIKey = %q, want env-wins", cfg.ElevenLabsAPIKey)
 	}
 }
 
 func TestValidateForProvidersMusicNoneSkipsJamendo(t *testing.T) {
-	cfg := Config{FPTTTSAPIKey: "k", PexelsAPIKey: "p", PixabayAPIKey: "x"}
+	cfg := Config{ElevenLabsAPIKey: "k", PexelsAPIKey: "p", PixabayAPIKey: "x"}
 	providers := DefaultProvidersConfig()
 	providers.Music.Provider = "none"
 	if err := cfg.ValidateForProviders(providers); err != nil {
@@ -79,15 +79,15 @@ func TestValidateForProvidersMusicNoneSkipsJamendo(t *testing.T) {
 }
 
 func TestValidateForProvidersMissingSelectedKey(t *testing.T) {
-	cfg := Config{PexelsAPIKey: "p"} // no FPT key
+	cfg := Config{PexelsAPIKey: "p"} // no ElevenLabs key
 	providers := DefaultProvidersConfig()
 	if err := cfg.ValidateForProviders(providers); err == nil {
-		t.Fatal("want error for missing FPT_TTS_API_KEY when tts=fpt")
+		t.Fatal("want error for missing ELEVENLABS_API_KEY when tts=elevenlabs")
 	}
 }
 
 func TestValidateForProvidersOnlyListedMaterial(t *testing.T) {
-	cfg := Config{FPTTTSAPIKey: "k", PexelsAPIKey: "p"} // no pixabay key
+	cfg := Config{ElevenLabsAPIKey: "k", PexelsAPIKey: "p"} // no pixabay key
 	providers := DefaultProvidersConfig()
 	providers.Material.Providers = []string{"pexels"}
 	providers.Music.Provider = "none"

@@ -1,6 +1,6 @@
 ---
 id: ref-provider-seam
-c3-seal: 4012f71e131e1ecca5586c56d20ad38da25650fa5ffda4828cf3714745e14110
+c3-seal: 068eb514dd85c35cf2690dbe69dccd8a56b787cdc359e0e42f690bbec2753c14
 title: Pluggable provider adapters via config-driven factory seam
 type: ref
 goal: 'Every external vendor category — TTS, background music, stock material, AI clip-generation, publishing — must be swappable without editing the pipeline that calls it. The consistency need: one selection point per category, a stable in-code seam callers depend on instead of a concrete vendor.'
@@ -22,16 +22,15 @@ The pipeline integrates vendors with divergent, churning APIs (FPT.AI, Jamendo, 
 
 Golden pattern — the factory selects an implementation from the config-supplied name and returns the category interface (REQUIRED: switch on `sel.Provider`, return the interface, error on unknown/unimplemented). Source: `worker/internal/tts/factory.go`, mirrored in `worker/internal/{material,music}/factory.go`.
 
-```````go
+`````go
 func NewFromConfig(sel config.TTSSelect, apiKey string) (TTSProvider, error) {
 	switch sel.Provider {
-	case "fpt":
-		return NewFPTAIProvider(apiKey), nil    // REQUIRED: return the interface
 	case "elevenlabs":
-		return NewElevenLabsProvider(apiKey), nil
+		return NewElevenLabsProvider(apiKey), nil    // REQUIRED: return the interface
 	default:
-		return nil, fmt.Errorf("unknown tts provider %q (supported: fpt, elevenlabs)", sel.Provider)
+		return nil, fmt.Errorf("unknown tts provider %q (supported: elevenlabs)", sel.Provider)
 	}
 }
 ```
 ````
+`````

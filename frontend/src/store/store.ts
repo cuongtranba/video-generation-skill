@@ -4,6 +4,17 @@ import { createNatsEventBusClient, type EventBusClient } from './natsClient'
 
 export type ConnectionState = 'connecting' | 'live' | 'down'
 
+// Active TTS provider, mirrored from the api's GET /api/config (sourced from
+// config.yaml). Drives provider-aware UI gating: ElevenLabs ignores the voice
+// and speed tune fields, so TunePanel disables them when this is 'elevenlabs'.
+export type TtsProvider = 'elevenlabs'
+
+const TTS_PROVIDERS: readonly TtsProvider[] = ['elevenlabs']
+
+function isTtsProvider(value: unknown): value is TtsProvider {
+  return typeof value === 'string' && (TTS_PROVIDERS as readonly string[]).includes(value)
+}
+
 export interface CreateProjectInput {
   idea: string
   durationSec: number
@@ -40,6 +51,8 @@ export interface VidgenStore {
   eventLog: Record<string, VidgenEvent[]>
   connection: ConnectionState
   selectedId?: string
+  /** Active TTS provider from GET /api/config; undefined until fetchConfig resolves. */
+  ttsProvider?: TtsProvider
   applyEvent: (subject: string, event: VidgenEvent) => void
   select: (projectId: string) => void
   createProject: (input: CreateProjectInput) => Promise<void>
@@ -54,6 +67,7 @@ export interface VidgenStore {
   fetchAssets: (projectId: string) => Promise<UploadedAsset[]>
   connect: () => Promise<void>
   disconnect: () => Promise<void>
+  fetchConfig: () => Promise<void>
   /** @internal set by connect(); torn down by disconnect(). Not read by components. */
   _unsubscribe?: () => Promise<void>
 }
@@ -89,6 +103,7 @@ export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi
     eventLog: {},
     connection: 'down',
     selectedId: undefined,
+    ttsProvider: undefined,
 
     applyEvent: (subject, event) => {
       if (!subject.startsWith(`vidgen.evt.${event.projectId}.`)) {
@@ -152,6 +167,16 @@ export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi
       if (unsubscribe) {
         await unsubscribe()
       }
+    },
+
+    fetchConfig: async () => {
+      const res = await deps.fetchImpl('/api/config')
+      if (!res.ok) throw new Error(`GET /api/config failed: ${res.status} ${res.statusText}`)
+      const body: unknown = await res.json()
+      const provider = isTtsProvider((body as { ttsProvider?: unknown })?.ttsProvider)
+        ? (body as { ttsProvider: TtsProvider }).ttsProvider
+        : undefined
+      set({ ttsProvider: provider })
     },
   }))
 }

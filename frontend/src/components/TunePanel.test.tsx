@@ -4,8 +4,6 @@ import { useVidgenStore } from '../store/store'
 import { DEFAULT_STYLE } from '../store/events'
 import { TunePanel } from './TunePanel'
 
-const VOICES = ['banmai', 'thuminh', 'lannhi', 'linhsan', 'leminh', 'giahuy', 'myan']
-
 // The singleton store dispatches through the real global fetch; happy-dom
 // rejects relative URLs on about:blank, so any test that commits a tune must
 // stub fetch. Reset to a benign stub before each test.
@@ -17,7 +15,7 @@ beforeEach(() => {
     projects: {
       p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false, language: 'English' },
     },
-    eventLog: {}, connection: 'down', selectedId: undefined, _unsubscribe: undefined,
+    eventLog: {}, connection: 'down', selectedId: undefined, _unsubscribe: undefined, ttsProvider: 'elevenlabs',
   })
 })
 
@@ -26,21 +24,13 @@ afterEach(() => {
 })
 
 describe('TunePanel', () => {
-  it('renders voice select with all 7 options', () => {
+  it('shows the fixed ElevenLabs voice label (no picker)', () => {
     render(<TunePanel projectId="p1" disabled={false} />)
-    const select = screen.getByRole('combobox', { name: /voice/i }) as HTMLSelectElement
-    expect(select).toBeInTheDocument()
-    for (const v of VOICES) {
-      expect(screen.getByRole('option', { name: new RegExp(v, 'i') })).toBeInTheDocument()
-    }
-  })
-
-  it('renders a speed slider bounded to the api range', () => {
-    render(<TunePanel projectId="p1" disabled={false} />)
-    const slider = screen.getByRole('slider', { name: /speed/i }) as HTMLInputElement
-    expect(slider).toBeInTheDocument()
-    expect(slider.min).toBe('-3')
-    expect(slider.max).toBe('3')
+    expect(screen.getByTestId('tune-voice-fixed')).toBeInTheDocument()
+    expect(screen.getByTestId('tune-voice-fixed').textContent).toMatch(/elevenlabs/i)
+    // The FPT voice dropdown and speed slider are gone entirely.
+    expect(screen.queryByRole('combobox', { name: /voice/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('slider', { name: /speed/i })).not.toBeInTheDocument()
   })
 
   it('renders an editable caption font input (typing is not swallowed)', () => {
@@ -61,10 +51,9 @@ describe('TunePanel', () => {
 
   it('is read-only when disabled=true', () => {
     render(<TunePanel projectId="p1" disabled={true} />)
-    // The panel wraps its controls in a disabled <fieldset>, so the voice
-    // select is disabled by ancestry (toBeDisabled walks up; select.disabled
-    // stays false because the attribute is on the fieldset, not the select).
-    expect(screen.getByRole('combobox', { name: /voice/i })).toBeDisabled()
+    // Controls are wrapped in a disabled <fieldset>, so the caption font input
+    // is disabled by ancestry (toBeDisabled walks up to the fieldset).
+    expect(screen.getByRole('textbox', { name: /caption font name/i })).toBeDisabled()
     expect(screen.getByTestId('tune-panel-lock')).toBeInTheDocument()
   })
 

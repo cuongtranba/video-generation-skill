@@ -29,12 +29,12 @@ docker compose up --build
 
 ## Architecture (1 minute)
 
-- **api** appends to `VIDGEN_EVENTS` and dispatches jobs to `VIDGEN_JOBS`; command handlers in `api/src/commands.ts`, event fold in `api/src/events.ts` (`foldProject` → `ProjectState`), read-model projections in `api/src/projections.ts` → Postgres, HTTP in `api/src/http.ts` (`POST /api/commands/*`, `GET /api/state`, asset upload `POST /api/projects/:id/assets`)
+- **api** appends to `VIDGEN_EVENTS` and dispatches jobs to `VIDGEN_JOBS`; command handlers in `api/src/commands.ts`, event fold in `api/src/events.ts` (`foldProject` → `ProjectState`), read-model projections in `api/src/projections.ts` → Postgres, HTTP in `api/src/http.ts` (`POST /api/commands/*`, `GET /api/state`, `GET /api/config` → `{ ttsProvider }`, asset upload `POST /api/projects/:id/assets`)
 - **worker** consumes jobs as idempotent handlers (`worker/internal/jobhandler`): material, tts, caption, render; emits result events (`MaterialResolved`, `VoiceSynthesized`, `CaptionsBuilt`, `RenderCompleted`, `RunFailed`)
 - **Frozen event catalogue** = `api/src/events.ts` mirrored verbatim in `frontend/src/store/events.ts`. Worker event structs in `worker/internal/eventstore/events.go` and job structs in `worker/internal/jobhandler/types.go` must match the api's dispatched payload keys (`dispatchJob` does no key remapping — payload keys == worker json tags)
 - **Cost wall**: `api/src/cost.ts` enforces `Σ VoiceSynthesized.ttsUsd ≤ COST_CAP_USD` (default $0.15, compose env) — projected at `GenerateVoiceovers`. Never remove or weaken
 - **Script generation** is api-side via the Claude Agent SDK (`api/src/script.ts`); the SDK bundles its own runtime, auth via `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` (no separate claude binary)
-- **Providers** selected in `config.yaml` (mounted into worker); `tts`/`material`/`music` have `NewFromConfig` factories; keys in `.env`, validated per-selected-provider by `config.ValidateForProviders`
+- **Providers** selected in `config.yaml` (mounted into worker **and** api — `CONFIG_PATH`); `tts`/`material`/`music` have `NewFromConfig` factories; keys in `.env`, validated per-selected-provider by `config.ValidateForProviders`. The api reads `tts.provider` (`api/src/config.ts`, `Bun.YAML.parse`) and serves it at `GET /api/config`; the SPA renders a read-only "ElevenLabs (fixed)" label in TunePanel instead of a voice/speed picker
 
 ## Conventions
 
@@ -54,14 +54,13 @@ docker compose up --build
 - **ffmpeg needs libass**: worker image installs a libass-capable ffmpeg; the `ass=` filter fails with "Could not create a libass track" if `captions.ass` is missing/unreadable
 - **Render is gated on inputs**: `ApproveStoryboard` returns 400 until every scene has voiceover + material and `captionsReady` (folded from `CaptionsBuilt`). Whisper transcription takes ~2-3 min after voiceovers — approving earlier is refused
 - **VoiceSynthesized carries `durationSec`** (audio length); `approveStoryboard` folds it + `MaterialResolved.assetPath` per scene to build the RenderJob (real paths, durations, `isImage` by extension). Do not revert to hardcoded `material{idx}.mp4`/`durationSec:0`
-- **FPT.AI TTS** is async (poll mp3 5s–2min) and the **free tier is 429 rate-limited** — use ElevenLabs (`tts.provider: elevenlabs`) for reliable synthesis
-- **ElevenLabs** uses a fixed multilingual voice ID (not the FPT voice names); `eleven_multilingual_v2` for Vietnamese
+- **ElevenLabs is the only TTS provider** (FPT.AI removed). Synthesis is synchronous and uses a **fixed voice ID** (override per-deploy with `ELEVENLABS_VOICE_ID`); the `voice`/`speed` tune fields exist in the event model but are not applied — the SPA shows a read-only "ElevenLabs (fixed)" label instead of a picker. `eleven_turbo_v2_5` for Vietnamese (override `ELEVENLABS_MODEL_ID`)
 - **zoompan** for image scenes uses `durationSec` via `d=`; short stock clips loop via `-stream_loop` only when `mediaDurationSec > 0`
 - **api integration tests** (`*.integration.test.ts`) need live NATS+Postgres; excluded from the unit gate
 
 ## Keys (.env, gitignored)
 
-`FPT_TTS_API_KEY`, `ELEVENLABS_API_KEY`, `PEXELS_API_KEY`, `PIXABAY_API_KEY` (optional), `JAMENDO_CLIENT_ID`. Agent SDK auth: `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` (passed to the api container in compose).
+`ELEVENLABS_API_KEY`, `PEXELS_API_KEY`, `PIXABAY_API_KEY` (optional), `JAMENDO_CLIENT_ID`. Agent SDK auth: `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` (passed to the api container in compose).
 
 ## Workflow
 

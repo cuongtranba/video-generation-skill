@@ -1,7 +1,5 @@
 tts:
-  provider: elevenlabs
-  voice: banmai
-  speed: 0
+  provider: elevenlabs   # only supported TTS provider
 music:
   provider: jamendo
 material:

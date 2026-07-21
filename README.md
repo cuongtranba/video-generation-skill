@@ -27,7 +27,7 @@ flowchart TB
     end
     subgraph worker[worker — Go]
       MAT[material: Pexels + local asset]
-      TTS[tts: FPT.AI or ElevenLabs]
+      TTS[tts: ElevenLabs]
       CAP[caption: whisper -> ASS]
       REN[render: FFmpeg 9:16]
     end
@@ -53,8 +53,7 @@ flowchart TB
 ```bash
 # secrets (gitignored) — only the keys for your selected providers are required
 cat > .env <<'EOF'
-FPT_TTS_API_KEY=...      # console.fpt.ai — Vietnamese TTS (free tier is rate-limited)
-ELEVENLABS_API_KEY=...   # elevenlabs.io — multilingual TTS (set tts.provider: elevenlabs)
+ELEVENLABS_API_KEY=...   # elevenlabs.io — multilingual Vietnamese TTS (required)
 PEXELS_API_KEY=...       # pexels.com/api — stock video
 JAMENDO_CLIENT_ID=...    # devportal.jamendo.com — music search
 EOF
@@ -94,8 +93,8 @@ curl -s -X POST $API/api/commands/ApproveStoryboard -d "{\"projectId\":\"$PID\",
 
 | Field | Meaning |
 |---|---|
-| `voice` | FPT voice: `banmai`/`thuminh`/`lannhi`/`linhsan`/`leminh`/`giahuy`/`myan` (ElevenLabs uses a fixed multilingual voice) |
-| `speed` | speech rate, integer −3..3 |
+| `voice` | *(not adjustable)* — ElevenLabs uses a fixed multilingual voice ID; the SPA shows a read-only label instead of a picker |
+| `speed` | *(not adjustable)* — ElevenLabs has no speed control |
 | `captionStyle` | `{ fontName, fontSize }` |
 | `music` | `{ search, volume }` (Jamendo mood search) or `null` |
 
@@ -103,11 +102,11 @@ Local uploads (`POST /api/projects/:id/assets`, `.mp4/.mov/.jpg/.jpeg/.png`) are
 
 ## Providers
 
-Selected per-category in `config.yaml` (mounted into the worker). Keys stay in `.env`; only selected providers' keys are required.
+Selected per-category in `config.yaml` (mounted into the worker **and** the api). Keys stay in `.env`; only selected providers' keys are required. The api reads `tts.provider` from `config.yaml` and exposes it at `GET /api/config` → `{ ttsProvider }`, which the SPA uses to gate the voice/speed tune controls.
 
 ```yaml
 tts:
-  provider: elevenlabs   # fpt | elevenlabs
+  provider: elevenlabs   # only supported TTS provider
 material:
   providers: [pexels]    # pexels | pixabay
 music:
@@ -118,7 +117,7 @@ publish:  { provider: none }
 
 | Category | Providers |
 |---|---|
-| `tts` | FPT.AI (async poll), ElevenLabs (multilingual_v2) |
+| `tts` | ElevenLabs (multilingual_v2, fixed voice ID) |
 | `material` | Pexels, Pixabay, local uploads |
 | `music` | Jamendo |
 

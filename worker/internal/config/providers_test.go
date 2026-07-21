@@ -8,7 +8,7 @@ import (
 
 func TestDefaultProvidersConfig(t *testing.T) {
 	got := DefaultProvidersConfig()
-	if got.TTS.Provider != "fpt" || got.TTS.Voice != "banmai" {
+	if got.TTS.Provider != "elevenlabs" || got.TTS.Voice != "banmai" {
 		t.Errorf("tts default = %+v", got.TTS)
 	}
 	if got.Music.Provider != "jamendo" {
@@ -27,7 +27,7 @@ func TestLoadProvidersAbsentFileReturnsDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadProviders: %v", err)
 	}
-	if got.TTS.Provider != "fpt" {
+	if got.TTS.Provider != "elevenlabs" {
 		t.Errorf("want defaults, got %+v", got)
 	}
 }
@@ -44,7 +44,7 @@ func TestLoadProvidersPartialFillsFromDefaults(t *testing.T) {
 	if got.Publish.Provider != "tiktok" {
 		t.Errorf("publish = %q, want tiktok", got.Publish.Provider)
 	}
-	if got.TTS.Provider != "fpt" {
+	if got.TTS.Provider != "elevenlabs" {
 		t.Errorf("tts should fill from default, got %q", got.TTS.Provider)
 	}
 	if len(got.Material.Providers) != 2 {
@@ -61,7 +61,7 @@ func TestLoadProvidersNullSectionFillsFromDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadProviders: %v", err)
 	}
-	if got.TTS.Provider != "fpt" || got.TTS.Voice != "banmai" {
+	if got.TTS.Provider != "elevenlabs" || got.TTS.Voice != "banmai" {
 		t.Errorf("null tts section should fill from defaults, got %+v", got.TTS)
 	}
 	if got.Music.Provider != "jamendo" {

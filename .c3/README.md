@@ -1,13 +1,13 @@
 ---
 id: c3-0
-c3-seal: ce67791e995b664e2961e83952026d896a8cac7f333e009a01c7c556b3bb7366
+c3-seal: 0da0a93e889afdef3557cd3a127dccf8b1e8cf79bad03857b9e7a087f37ab6bd
 title: video-generation-skill
-goal: Turn a single video idea into a finished, publish-ready 9:16 Vietnamese-voiced short — idea → script → stock material → FPT.AI TTS → whisper captions → FFmpeg render → platform upload — as one cost-capped, event-sourced webapp pipeline.
+goal: Turn a single video idea into a finished, publish-ready 9:16 Vietnamese-voiced short — idea → script → stock material → ElevenLabs TTS → whisper captions → FFmpeg render → platform upload — as one cost-capped, event-sourced webapp pipeline.
 ---
 
 ## Goal
 
-Turn a single video idea into a finished, publish-ready 9:16 Vietnamese-voiced short — idea → script → stock material → FPT.AI TTS → whisper captions → FFmpeg render → platform upload — as one cost-capped, event-sourced webapp pipeline.
+Turn a single video idea into a finished, publish-ready 9:16 Vietnamese-voiced short — idea → script → stock material → ElevenLabs TTS → whisper captions → FFmpeg render → platform upload — as one cost-capped, event-sourced webapp pipeline.
 
 ## Containers
 

@@ -71,7 +71,7 @@ describe.skipIf(!httpServerUp)('createHttpServer (integration)', () => {
     const fixedScriptGen: ScriptGenerator = { async generateScenes(): Promise<{ scenes: Scene[] }> { return { scenes: [] } } }
     const js = { async publish(): Promise<undefined> { return undefined } }
     const ctxCmd = createCommandContext(store, js, fixedScriptGen, 0.15)
-    const server = createHttpServer({ db: httpServerDb, ctx: ctxCmd, spaDir, mediaDir })
+    const server = createHttpServer({ db: httpServerDb, ctx: ctxCmd, spaDir, mediaDir, ttsProvider: 'elevenlabs' })
     await new Promise<void>((resolve) => server.listen(0, resolve))
     const address = server.address()
     if (address === null || typeof address === 'string') throw new Error('expected a bound TCP address')
@@ -94,6 +94,10 @@ describe.skipIf(!httpServerUp)('createHttpServer (integration)', () => {
     const replayed = (await replayRes.json()) as { projectId: string }
     expect(replayed.projectId).toBe(created.projectId)
     expect(store.events.filter((e) => e.type === 'ProjectCreated')).toHaveLength(1)
+
+    const configRes = await fetch(`${base}/api/config`)
+    expect(configRes.status).toBe(200)
+    expect(await configRes.json()).toEqual({ ttsProvider: 'elevenlabs' })
 
     const spaRes = await fetch(`${base}/`)
     expect(spaRes.status).toBe(200)

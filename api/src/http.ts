@@ -5,6 +5,7 @@ import path from 'node:path'
 import type { Database } from './db.js'
 import type { CommandContext, CreateProjectInput, PublishInput } from './commands.js'
 import type { StyleSpec } from './events.js'
+import type { TtsProvider } from './config.js'
 
 export class HttpError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -152,6 +153,7 @@ export interface HttpConfig {
   ctx: CommandContext
   spaDir: string
   mediaDir: string
+  ttsProvider: TtsProvider
 }
 
 type CommandHandler = (ctx: CommandContext, body: Record<string, unknown>) => Promise<unknown>
@@ -354,6 +356,10 @@ async function routeRequest(config: HttpConfig, req: IncomingMessage, res: Serve
     }
     if (req.method === 'GET' && url.pathname === '/api/state') {
       sendJson(res, 200, { projects: await listProjects(config.db) })
+      return
+    }
+    if (req.method === 'GET' && url.pathname === '/api/config') {
+      sendJson(res, 200, { ttsProvider: config.ttsProvider })
       return
     }
     if (req.method === 'POST' && url.pathname.match(/^\/api\/projects\/[^/]+\/assets$/)) {

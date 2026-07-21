@@ -14,7 +14,6 @@ func TestNewFromConfig(t *testing.T) {
 		wantType   string
 		wantErrSub string
 	}{
-		{"fpt", "fpt", "fpt", ""},
 		{"elevenlabs", "elevenlabs", "elevenlabs", ""},
 		{"unknown", "bogus", "", "unknown tts provider"},
 		{"empty", "", "", "unknown tts provider"},
@@ -35,10 +34,6 @@ func TestNewFromConfig(t *testing.T) {
 				t.Fatalf("NewFromConfig: %v", err)
 			}
 			switch tt.wantType {
-			case "fpt":
-				if _, ok := p.(*FPTAIProvider); !ok {
-					t.Errorf("want *FPTAIProvider, got %T", p)
-				}
 			case "elevenlabs":
 				if _, ok := p.(*ElevenLabsProvider); !ok {
 					t.Errorf("want *ElevenLabsProvider, got %T", p)

@@ -43,7 +43,7 @@ type PublishSelect struct {
 
 func DefaultProvidersConfig() ProvidersConfig {
 	return ProvidersConfig{
-		TTS:      TTSSelect{Provider: "fpt", Voice: "banmai", Speed: 0},
+		TTS:      TTSSelect{Provider: "elevenlabs", Voice: "banmai", Speed: 0},
 		Music:    MusicSelect{Provider: "jamendo"},
 		Material: MaterialSelect{Providers: []string{"pexels", "pixabay"}},
 		VideoGen: VideoGenSelect{Provider: "none"},

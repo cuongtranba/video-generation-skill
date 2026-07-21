@@ -116,7 +116,7 @@ func TestRunFailed(t *testing.T) {
 	}
 
 	// two different stages failing for the same project must NOT collide
-	otherStageFail := NewRunFailed("proj1", "tts", -1, errors.New("FPT timeout"))
+	otherStageFail := NewRunFailed("proj1", "tts", -1, errors.New("tts timeout"))
 	if projectFail.MsgID() == otherStageFail.MsgID() {
 		t.Fatalf("distinct stages produced the same MsgID %q — would dedup-collide", projectFail.MsgID())
 	}

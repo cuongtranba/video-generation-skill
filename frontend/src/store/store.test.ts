@@ -197,3 +197,26 @@ describe('fetchAssets', () => {
     await expect(store.getState().fetchAssets('p1')).rejects.toThrow(/404/)
   })
 })
+
+describe('fetchConfig', () => {
+  it('stores a valid ttsProvider from GET /api/config', async () => {
+    const fetchImpl = mock(async () => new Response(JSON.stringify({ ttsProvider: 'elevenlabs' }), { status: 200 }))
+    const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
+    await store.getState().fetchConfig()
+    expect(fetchImpl).toHaveBeenCalledWith('/api/config')
+    expect(store.getState().ttsProvider).toBe('elevenlabs')
+  })
+
+  it('ignores an unrecognized provider (leaves ttsProvider undefined)', async () => {
+    const fetchImpl = mock(async () => new Response(JSON.stringify({ ttsProvider: 'azure' }), { status: 200 }))
+    const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
+    await store.getState().fetchConfig()
+    expect(store.getState().ttsProvider).toBeUndefined()
+  })
+
+  it('throws on a non-200 response', async () => {
+    const fetchImpl = mock(async () => new Response(null, { status: 500 }))
+    const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
+    await expect(store.getState().fetchConfig()).rejects.toThrow(/GET \/api\/config failed/)
+  })
+})
