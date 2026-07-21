@@ -1,0 +1,387 @@
+/* Vidgen control-room UI — real CSS for the vg-* class hooks the SPA ships.
+   Authored from the Vidgen Design System (components/core/vgStyles.js + README
+   "Control room" foundations). Paper + ink + one signal color (chroma-key green).
+   Square corners, 1px ink rules, zero shadows, 90ms linear mechanical motion. */
+
+/* ── base ─────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font: var(--weight-regular) var(--text-sm) / var(--leading-normal) var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--chroma-700);
+}
+a:hover {
+  color: var(--ink-1);
+}
+
+/* ── app shell ────────────────────────────────────────────────────────── */
+.vg-app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.vg-app__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.vg-app__header h1 {
+  margin: 0;
+  flex: 1;
+  font: var(--weight-bold) var(--text-2xl) / var(--leading-tight) var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* ── button ───────────────────────────────────────────────────────────── */
+.vg-button {
+  white-space: nowrap;
+  font: var(--weight-medium) var(--text-sm) var(--font-display);
+  border-radius: 0;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) linear,
+    color var(--dur-fast) linear,
+    border-color var(--dur-fast) linear;
+  border: 1px solid var(--ink-1);
+}
+.vg-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.vg-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.vg-button--primary {
+  background: var(--ink-1);
+  color: var(--text-on-ink);
+}
+.vg-button--primary:hover:not(:disabled) {
+  background: var(--chroma-500);
+  color: var(--text-on-accent);
+  border-color: var(--chroma-500);
+}
+.vg-button--primary:active:not(:disabled) {
+  background: var(--chroma-700);
+  color: var(--text-on-ink);
+  border-color: var(--chroma-700);
+}
+.vg-button--secondary {
+  background: transparent;
+  color: var(--ink-1);
+}
+.vg-button--secondary:hover:not(:disabled) {
+  background: var(--ink-1);
+  color: var(--text-on-ink);
+}
+.vg-button--secondary:active:not(:disabled) {
+  background: var(--chroma-700);
+  color: var(--text-on-ink);
+  border-color: var(--chroma-700);
+}
+
+/* ── badge (connection status, cost) ──────────────────────────────────── */
+.vg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: var(--weight-medium) var(--text-xs) var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border: 1px solid var(--ink-1);
+  border-radius: 0;
+  background: var(--paper-1);
+  color: var(--ink-1);
+}
+.vg-badge::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--badge-marker, var(--ink-3));
+  flex: none;
+}
+.vg-badge--neutral {
+  --badge-marker: var(--ink-3);
+}
+.vg-badge--good {
+  --badge-marker: var(--chroma-500);
+}
+.vg-badge--bad {
+  --badge-marker: var(--bad);
+}
+
+/* ── shared form fields (create + tune) ───────────────────────────────── */
+.vg-create__field,
+.vg-tune-panel__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.vg-create__field > label,
+.vg-tune-panel__field > label,
+.vg-tune-panel__label {
+  font: var(--weight-medium) 10px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+}
+.vg-create__field input[type='text'],
+.vg-create__field input[type='number'],
+.vg-create__field textarea,
+.vg-tune-panel__field input[type='text'],
+.vg-tune-panel__field input[type='number'],
+.vg-tune-panel__field textarea,
+.vg-tune-panel__field input[type='file'] {
+  background: var(--paper-2);
+  color: var(--ink-1);
+  border: 1px solid var(--ink-1);
+  border-radius: 0;
+  font: var(--weight-regular) var(--text-sm) var(--font-body);
+  padding: 8px 10px;
+  transition: box-shadow var(--dur-fast) linear;
+}
+.vg-create__field input:focus-visible,
+.vg-create__field textarea:focus-visible,
+.vg-tune-panel__field input:focus-visible,
+.vg-tune-panel__field textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.vg-create__field input::placeholder,
+.vg-create__field textarea::placeholder,
+.vg-tune-panel__field input::placeholder {
+  color: var(--ink-3);
+}
+input[type='range'] {
+  accent-color: var(--chroma-500);
+}
+
+/* ── create project form ──────────────────────────────────────────────── */
+.vg-create {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-card);
+  border: 1px solid var(--ink-1);
+}
+.vg-create__field--wide {
+  grid-column: 1 / -1;
+}
+.vg-create__field textarea {
+  resize: vertical;
+  min-height: 3lh;
+}
+.vg-create__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── board ────────────────────────────────────────────────────────────── */
+.vg-board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.vg-board--empty {
+  margin: 0;
+  padding: var(--space-4);
+  font: var(--weight-regular) var(--text-sm) var(--font-body);
+  color: var(--text-muted);
+}
+
+/* ── project card (max one card level; inner blocks are inset wells) ──── */
+.vg-project-card {
+  background: var(--surface-card);
+  border: 1px solid var(--ink-1);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.vg-project-card > header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.vg-project-card > header h2 {
+  margin: 0;
+  flex: 1;
+  font: var(--weight-medium) var(--text-sm) var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+/* status tally — 8px filled square marker + uppercase mono token, like a
+   video switcher tally light. Never a pill. */
+.vg-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: var(--weight-medium) var(--text-xs) var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-1);
+}
+.vg-status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  flex: none;
+  background: var(--status-marker, var(--ink-3));
+}
+.vg-status--draft {
+  --status-marker: var(--status-draft);
+}
+.vg-status--scripted {
+  --status-marker: var(--status-scripted);
+}
+.vg-status--material {
+  --status-marker: var(--status-material);
+}
+.vg-status--awaiting_approval {
+  --status-marker: var(--status-awaiting);
+}
+.vg-status--approved {
+  --status-marker: var(--status-approved);
+}
+.vg-status--rendered {
+  --status-marker: var(--status-rendered);
+}
+.vg-status--published {
+  --status-marker: var(--status-published);
+}
+.vg-status--failed {
+  --status-marker: var(--status-failed);
+}
+
+/* ── tune panel (inset well, not a nested card) ───────────────────────── */
+.vg-tune-panel {
+  border: none;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-4);
+  background: var(--surface-inset);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.vg-tune-panel:disabled {
+  opacity: 0.6;
+}
+.vg-tune-panel__legend {
+  padding: 0;
+  font: var(--weight-medium) 10px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+}
+.vg-tune-panel__lock {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font: var(--weight-regular) var(--text-sm) / var(--leading-normal) var(--font-body);
+  color: var(--warn);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn);
+}
+.vg-tune-panel__fixed {
+  margin: 0;
+  font: var(--weight-regular) var(--text-sm) var(--font-body);
+  color: var(--ink-2);
+}
+.vg-tune-panel__volume {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font: var(--weight-medium) var(--text-xs) var(--font-mono);
+  color: var(--ink-2);
+}
+.vg-tune-panel__status {
+  font: var(--weight-medium) var(--text-xs) var(--font-mono);
+  color: var(--ink-2);
+}
+.vg-tune-panel__error {
+  font: var(--weight-regular) 12px var(--font-body);
+  color: var(--bad);
+}
+.vg-tune-panel__assets {
+  margin: 0;
+  padding-left: var(--space-4);
+  font: var(--weight-regular) var(--text-xs) var(--font-mono);
+  color: var(--ink-2);
+}
+
+/* ── scene strip (per-scene inset wells) ──────────────────────────────── */
+.vg-scene-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.vg-scene-strip--empty {
+  font: var(--weight-regular) var(--text-sm) var(--font-body);
+  color: var(--text-muted);
+}
+.vg-scene-strip__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--surface-inset);
+}
+.vg-scene-strip__item strong {
+  font: var(--weight-medium) 10px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+}
+.vg-scene-strip__item p {
+  margin: 0;
+  font: var(--weight-regular) var(--text-sm) / var(--leading-normal) var(--font-body);
+  color: var(--ink-1);
+}
+.vg-scene-strip__item em {
+  font: var(--weight-regular) 12px var(--font-body);
+  font-style: italic;
+  color: var(--ink-3);
+}
+
+/* ── storyboard approval — the gate gets a 2px chroma frame ────────────── */
+.vg-approval {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 2px solid var(--chroma-500);
+  background: var(--surface-raised);
+}
+.vg-approval h3 {
+  margin: 0;
+  font: var(--weight-medium) var(--text-lg) var(--font-display);
+  letter-spacing: -0.01em;
+}

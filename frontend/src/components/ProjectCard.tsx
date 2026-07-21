@@ -1,4 +1,5 @@
 import { useVidgenStore } from '../store/store'
+import { Button } from '../ui/Button'
 import { CostBadge } from './CostBadge'
 import { SceneStrip } from './SceneStrip'
 import { StoryboardApproval } from './StoryboardApproval'
@@ -24,12 +25,12 @@ export function ProjectCard({ projectId }: ProjectCardProps) {
     <article className="vg-project-card" data-testid={`project-card-${projectId}`}>
       <header>
         <h2>{projectId}</h2>
-        <span>{status}</span>
+        <span className={`vg-status vg-status--${status}`}>{status}</span>
         <CostBadge projectId={projectId} />
       </header>
-      <button type="button" onClick={() => select(projectId)}>
+      <Button type="button" variant="secondary" onClick={() => select(projectId)}>
         Select
-      </button>
+      </Button>
       <TunePanel projectId={projectId} disabled={!TUNABLE_STATUSES.includes(status)} />
       <SceneStrip projectId={projectId} />
       <StoryboardApproval projectId={projectId} />

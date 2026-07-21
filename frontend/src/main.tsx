@@ -2,6 +2,8 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import { useVidgenStore } from './store/store'
+import './styles/tokens.css'
+import './styles/app.css'
 
 // Connect once at bootstrap — never inside a component. This is the one place
 // the app opens the nats.ws event stream: all side effects live in the store
