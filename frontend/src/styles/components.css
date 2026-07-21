@@ -230,6 +230,17 @@
   gap: var(--vg-space-lg);
 }
 
+/* ============================================================ Surface (theme root) */
+.vg-surface {
+  min-block-size: 100%;
+  padding: var(--vg-space-lg);
+  background: var(--vg-color-surface-0);
+  color: var(--vg-color-text);
+  font-family: var(--vg-font-sans);
+  font-size: var(--vg-text-base);
+  line-height: var(--vg-leading-normal);
+}
+
 /* ============================================================ App shell */
 .vg-app {
   max-width: 72rem;

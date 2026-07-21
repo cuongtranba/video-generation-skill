@@ -1,0 +1,12 @@
+/* vidgen brand font — Hanken Grotesk variable (latin). Shipped with the design
+ * system so every design renders in the intended typeface, not a system
+ * fallback. Kept out of index.css so the esbuild-bundled cssEntry stays
+ * asset-free; the app imports this directly and design-sync ships it via
+ * cfg.extraFonts. */
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./fonts/hanken-grotesk-latin.woff2") format("woff2");
+}

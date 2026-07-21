@@ -1,0 +1,34 @@
+{
+  "pkg": "frontend",
+  "globalName": "VidgenUI",
+  "projectId": "0892da2c-15de-44f6-bb99-18488c984015",
+  "shape": "package",
+  "srcDir": "src/ui",
+  "cssEntry": "dist/ds-styles.css",
+  "buildCmd": "./.ds-sync/node_modules/.bin/esbuild frontend/src/styles/index.css --bundle --outfile=frontend/dist/ds-styles.css",
+  "componentSrcMap": {
+    "Badge": "src/ui/Badge.tsx",
+    "Button": "src/ui/Button.tsx",
+    "Callout": "src/ui/Callout.tsx",
+    "Card": "src/ui/Card.tsx",
+    "EmptyState": "src/ui/EmptyState.tsx",
+    "Field": "src/ui/Field.tsx",
+    "Panel": "src/ui/Panel.tsx",
+    "Stack": "src/ui/Stack.tsx",
+    "Surface": "src/ui/Surface.tsx"
+  },
+  "provider": { "component": "Surface" },
+  "extraFonts": ["src/styles/fonts.css"],
+  "readmeHeader": ".design-sync/conventions.md",
+  "dtsPropsFor": {
+    "Button": "variant?: 'primary' | 'ghost' | 'danger';\n  size?: 'sm' | 'md';\n  type?: 'button' | 'submit' | 'reset';\n  disabled?: boolean;\n  onClick?: React.MouseEventHandler<HTMLButtonElement>;\n  className?: string;\n  children: React.ReactNode;",
+    "Badge": "tone?: 'neutral' | 'good' | 'bad';\n  className?: string;\n  children: React.ReactNode;",
+    "Card": "/** Heading rendered in the card header. */\n  title?: React.ReactNode;\n  /** Secondary text beside the title (status, timestamp). */\n  meta?: React.ReactNode;\n  /** Trailing header slot for badges or actions. */\n  actions?: React.ReactNode;\n  className?: string;\n  children?: React.ReactNode;",
+    "Field": "/** Field label text; associate it with a control via htmlFor. */\n  label: React.ReactNode;\n  htmlFor?: string;\n  /** Span the full width of a multi-column form. */\n  wide?: boolean;\n  className?: string;\n  children?: React.ReactNode;",
+    "Panel": "/** Panel title rendered in the legend. */\n  legend: React.ReactNode;\n  /** Natively disables every descendant control. */\n  disabled?: boolean;\n  className?: string;\n  children?: React.ReactNode;",
+    "EmptyState": "/** Optional lead-in glyph or emoji. */\n  icon?: React.ReactNode;\n  className?: string;\n  children: React.ReactNode;",
+    "Callout": "tone?: 'info' | 'good' | 'warn' | 'error';\n  className?: string;\n  children: React.ReactNode;",
+    "Stack": "/** Vertical gap between children. */\n  gap?: 'xs' | 'sm' | 'md' | 'lg';\n  className?: string;\n  children?: React.ReactNode;",
+    "Surface": "className?: string;\n  children: React.ReactNode;"
+  }
+}
