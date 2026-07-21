@@ -2,16 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useVidgenStore, type TuneInput, type UploadedAsset } from '../store/store'
 import { DEFAULT_STYLE } from '../store/events'
 
-const VOICES: Array<{ id: string; label: string }> = [
-  { id: 'banmai', label: 'banmai — northern female' },
-  { id: 'thuminh', label: 'thuminh — northern female' },
-  { id: 'lannhi', label: 'lannhi — southern female' },
-  { id: 'linhsan', label: 'linhsan — southern female' },
-  { id: 'leminh', label: 'leminh — northern male' },
-  { id: 'giahuy', label: 'giahuy — central male' },
-  { id: 'myan', label: 'myan — central female' },
-]
-
 interface TunePanelProps {
   projectId: string
   disabled: boolean
@@ -25,12 +15,6 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
   const fetchAssets = useVidgenStore((s) => s.fetchAssets)
 
   const cur = style ?? DEFAULT_STYLE
-
-  // ElevenLabs synthesis uses a fixed voice ID and applies no speed (the worker
-  // ignores req.Voice/req.Speed), so these controls are dead under that
-  // provider — disable them and say why rather than let the user pick fields
-  // that never reach the audio.
-  const voiceLocked = ttsProvider === 'elevenlabs'
 
   // Text fields are draft-then-commit: fully-controlled inputs with an
   // onChange that ignored keystrokes would be impossible to type into, so the
@@ -92,38 +76,12 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
       )}
 
       <div className="vg-tune-panel__field">
-        <label htmlFor={`voice-${projectId}`}>Voice</label>
-        <select
-          id={`voice-${projectId}`}
-          value={cur.voice}
-          onChange={(e) => commit({ voice: e.target.value })}
-          disabled={voiceLocked}
-          aria-label="voice"
-        >
-          {VOICES.map((v) => (
-            <option key={v.id} value={v.id}>{v.label}</option>
-          ))}
-        </select>
-        {voiceLocked && (
-          <p className="vg-tune-panel__note" data-testid="tune-voice-locked">
-            Voice fixed by ElevenLabs config — the voice and speed here do not affect the audio.
-          </p>
-        )}
-      </div>
-
-      <div className="vg-tune-panel__field">
-        <label htmlFor={`speed-${projectId}`}>Speed ({cur.speed > 0 ? `+${cur.speed}` : cur.speed})</label>
-        <input
-          id={`speed-${projectId}`}
-          type="range"
-          min={-3}
-          max={3}
-          step={1}
-          value={cur.speed}
-          onChange={(e) => commit({ speed: Number(e.target.value) })}
-          disabled={voiceLocked}
-          aria-label="speed"
-        />
+        <span className="vg-tune-panel__label">Voice</span>
+        <p className="vg-tune-panel__fixed" data-testid="tune-voice-fixed">
+          {ttsProvider === 'elevenlabs'
+            ? 'ElevenLabs multilingual — fixed voice (voice & speed are not adjustable)'
+            : 'Fixed by the configured TTS provider'}
+        </p>
       </div>
 
       <div className="vg-tune-panel__field">

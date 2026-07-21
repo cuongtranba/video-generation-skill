@@ -53,7 +53,7 @@ func TestTTSHandler_SynthesizesAndPublishesVoiceSynthesized(t *testing.T) {
 }
 
 func TestTTSHandler_ProviderErrorPublishesRunFailed(t *testing.T) {
-	provider := &stubTTSProvider{err: errors.New("FPT.AI rejected request")}
+	provider := &stubTTSProvider{err: errors.New("TTS rejected request")}
 	store := newTestStore(t)
 	h := NewTTSHandler(provider, store)
 

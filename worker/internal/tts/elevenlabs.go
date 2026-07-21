@@ -16,8 +16,8 @@ const (
 	elevenLabsBaseURL = "https://api.elevenlabs.io"
 	// Default voice ID. A Vietnamese-capable voice so multilingual_v2 speaks
 	// Vietnamese narration natively; override per deployment with
-	// ELEVENLABS_VOICE_ID. ElevenLabs selects the voice by ID, not by the
-	// FPT-style names the tune feature uses.
+	// ELEVENLABS_VOICE_ID. ElevenLabs selects the voice by ID — the voice/speed
+	// tune fields are not applied.
 	elevenLabsDefaultVoice = "Na15FlRRkMEDtEW4nVVP"
 	// eleven_turbo_v2_5 (unlike the older multilingual_v2) supports Vietnamese
 	// with correct tones/pronunciation. Override with ELEVENLABS_MODEL_ID
@@ -87,7 +87,7 @@ type elevenLabsRequest struct {
 }
 
 // Synthesize calls the ElevenLabs text-to-speech endpoint, which returns the
-// mp3 audio bytes synchronously (unlike FPT's async poll). req.Voice/req.Speed
+// mp3 audio bytes synchronously. req.Voice/req.Speed
 // are accepted for interface parity but not applied: voice is fixed to the
 // configured ElevenLabs voice ID and this model has no speed control.
 func (p *ElevenLabsProvider) Synthesize(ctx context.Context, req SynthesizeRequest, destPath string) (SynthesizeResult, error) {

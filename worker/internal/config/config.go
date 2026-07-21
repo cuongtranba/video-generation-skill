@@ -10,7 +10,6 @@ import (
 )
 
 type Config struct {
-	FPTTTSAPIKey      string
 	ElevenLabsAPIKey  string
 	PexelsAPIKey      string
 	PixabayAPIKey     string
@@ -34,7 +33,6 @@ func Load(envPath string) (Config, error) {
 	}
 
 	return Config{
-		FPTTTSAPIKey:      get("FPT_TTS_API_KEY"),
 		ElevenLabsAPIKey:  get("ELEVENLABS_API_KEY"),
 		PexelsAPIKey:      get("PEXELS_API_KEY"),
 		PixabayAPIKey:     get("PIXABAY_API_KEY"),
@@ -49,10 +47,6 @@ func (c Config) ValidateForProviders(p ProvidersConfig) error {
 	var missing []string
 
 	switch p.TTS.Provider {
-	case "fpt":
-		if c.FPTTTSAPIKey == "" {
-			missing = append(missing, "FPT_TTS_API_KEY")
-		}
 	case "elevenlabs":
 		if c.ElevenLabsAPIKey == "" {
 			missing = append(missing, "ELEVENLABS_API_KEY")

@@ -1,11 +1,11 @@
 import type { Scene, ProjectState } from './events.js'
 import type { Database } from './db.js'
 
-/** Real FPT.AI TTS price per character, in USD. Mirrors
- * internal/cost/estimator.go's FPTAIPerChar — keep both in sync if the FPT
- * rate card changes. This is the ONLY enforced per-scene cost input; Agent
- * SDK notional cost never enters this calculation (index.md §6, BINDING). */
-export const FPT_TTS_USD_PER_CHAR = 0.00001
+/** Approximate TTS price per character, in USD. Mirrors the worker's
+ * jobhandler ttsUsdPerChar — keep both in sync if the provider rate card
+ * changes. This is the ONLY enforced per-scene cost input; Agent SDK notional
+ * cost never enters this calculation (index.md §6, BINDING). */
+export const TTS_USD_PER_CHAR = 0.00001
 
 export const DEFAULT_COST_CAP_USD = 0.15
 
@@ -18,7 +18,7 @@ export function costCapFromEnv(env: NodeJS.ProcessEnv = process.env): number {
 
 export function projectedTtsUsd(scenes: Scene[]): number {
   const chars = scenes.reduce((sum, s) => sum + [...s.narration].length, 0)
-  return chars * FPT_TTS_USD_PER_CHAR
+  return chars * TTS_USD_PER_CHAR
 }
 
 export interface AdmitResult {

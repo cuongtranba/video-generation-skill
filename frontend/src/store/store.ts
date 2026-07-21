@@ -7,9 +7,9 @@ export type ConnectionState = 'connecting' | 'live' | 'down'
 // Active TTS provider, mirrored from the api's GET /api/config (sourced from
 // config.yaml). Drives provider-aware UI gating: ElevenLabs ignores the voice
 // and speed tune fields, so TunePanel disables them when this is 'elevenlabs'.
-export type TtsProvider = 'fpt' | 'elevenlabs'
+export type TtsProvider = 'elevenlabs'
 
-const TTS_PROVIDERS: readonly TtsProvider[] = ['fpt', 'elevenlabs']
+const TTS_PROVIDERS: readonly TtsProvider[] = ['elevenlabs']
 
 function isTtsProvider(value: unknown): value is TtsProvider {
   return typeof value === 'string' && (TTS_PROVIDERS as readonly string[]).includes(value)

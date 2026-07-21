@@ -29,7 +29,7 @@ cp .env.example .env
 Edit `.env` and fill in your API keys:
 
 ```env
-FPT_TTS_API_KEY=...      # console.fpt.ai        — Vietnamese TTS (required)
+ELEVENLABS_API_KEY=...   # elevenlabs.io         — Vietnamese TTS (required)
 PEXELS_API_KEY=...       # pexels.com/api        — stock video (free, required)
 PIXABAY_API_KEY=...      # optional              — image fallback
 JAMENDO_CLIENT_ID=...    # devportal.jamendo.com — background music (free, required)
@@ -74,21 +74,9 @@ The app fetches Pexels/Pixabay stock clips for each scene. Clips shorter than th
 
 ### Step 4 — Voiceovers
 
-FPT.AI TTS is dispatched per scene (async — polls until the mp3 URL is ready, 5s–2min per scene). The projected cost is checked against `COST_CAP_USD` before dispatching. If the projection would breach the cap, the pipeline halts.
+ElevenLabs TTS is dispatched per scene (synchronous — returns the mp3 bytes directly). The projected cost is checked against `COST_CAP_USD` before dispatching. If the projection would breach the cap, the pipeline halts.
 
-**FPT.AI voices available:**
-
-| Voice | Gender | Accent |
-|---|---|---|
-| `banmai` | female | northern |
-| `thuminh` | female | northern |
-| `lannhi` | female | southern |
-| `linhsan` | female | southern |
-| `leminh` | male | northern |
-| `giahuy` | male | central |
-| `myan` | female | central |
-
-> Voice, speed, caption style, and music are fixed defaults in v1. The tune step is planned for a future release.
+ElevenLabs uses a **fixed multilingual voice ID** (override per-deploy with `ELEVENLABS_VOICE_ID`); voice and speed are not selectable.
 
 ### Step 5 — Approve
 
@@ -111,7 +99,7 @@ Download the final MP4 directly, or push to TikTok (requires `TIKTOK_ACCESS_TOKE
 | Item | Per 30s video |
 |---|---|
 | Script (Agent SDK) | $0 (scriptUsd=0) |
-| FPT.AI TTS (~400 chars) | ~$0.004 |
+| ElevenLabs TTS (~400 chars) | ~$0.004 |
 | Pexels / Jamendo | $0 (free tiers) |
 | Whisper + FFmpeg (worker container) | $0 |
 | **Total** | **< $0.01** |
@@ -127,7 +115,7 @@ The `COST_CAP_USD` cap (default `$0.15`) is checked at voiceover dispatch (proje
 | Container fails to start | Check `docker compose logs <service>` — most commonly a missing `.env` key |
 | `ass=` / subtitle filter error in worker logs | Worker container build missing libass — rebuild with `docker compose build worker` |
 | `missing required config for selected providers` | Add the missing key to `.env` (only selected providers are checked) |
-| TTS scene seems stuck | FPT.AI is async; it polls the returned mp3 URL until ready (5s–2min) — normal |
+| TTS scene fails | Check `ELEVENLABS_API_KEY` is set and the account has quota; worker logs show the ElevenLabs status code |
 | Black tail at end of a scene | Stock clip shorter than narration; worker loops it — if it persists, re-run material step |
 | Approval gate shows cost over cap | Reduce number of scenes or duration; or increase `COST_CAP_USD` in `.env` |
 

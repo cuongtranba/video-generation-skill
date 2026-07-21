@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test'
 import type { Scene, ProjectState } from './events.js'
 import { DEFAULT_STYLE } from './events.js'
-import { FPT_TTS_USD_PER_CHAR, DEFAULT_COST_CAP_USD, costCapFromEnv, projectedTtsUsd, admit } from './cost.js'
+import { TTS_USD_PER_CHAR, DEFAULT_COST_CAP_USD, costCapFromEnv, projectedTtsUsd, admit } from './cost.js'
 
 const emptyState: ProjectState = { projectId: 'p1', status: 'material', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false, language: 'English' }
 
@@ -20,9 +20,9 @@ describe('costCapFromEnv', () => {
 })
 
 describe('projectedTtsUsd', () => {
-  it('is chars × FPT_TTS_USD_PER_CHAR, counting Vietnamese diacritics as one char each', () => {
+  it('is chars × TTS_USD_PER_CHAR, counting Vietnamese diacritics as one char each', () => {
     const scenes: Scene[] = [{ idx: 0, narration: 'nước ấm', visual: 'v' }] // 7 chars
-    expect(projectedTtsUsd(scenes)).toBeCloseTo(7 * FPT_TTS_USD_PER_CHAR)
+    expect(projectedTtsUsd(scenes)).toBeCloseTo(7 * TTS_USD_PER_CHAR)
   })
 
   it('is 0 for no scenes', () => {

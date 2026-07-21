@@ -6,23 +6,19 @@ describe('parseTtsProvider', () => {
     expect(parseTtsProvider('tts:\n  provider: elevenlabs\n')).toBe('elevenlabs')
   })
 
-  it('reads fpt from tts.provider', () => {
-    expect(parseTtsProvider('tts:\n  provider: fpt\n  voice: banmai\n')).toBe('fpt')
+  it('falls back to elevenlabs when tts section is missing', () => {
+    expect(parseTtsProvider('music:\n  provider: jamendo\n')).toBe('elevenlabs')
   })
 
-  it('falls back to fpt when tts section is missing', () => {
-    expect(parseTtsProvider('music:\n  provider: jamendo\n')).toBe('fpt')
+  it('falls back to elevenlabs for an unrecognized provider', () => {
+    expect(parseTtsProvider('tts:\n  provider: azure\n')).toBe('elevenlabs')
   })
 
-  it('falls back to fpt for an unrecognized provider', () => {
-    expect(parseTtsProvider('tts:\n  provider: azure\n')).toBe('fpt')
+  it('falls back to elevenlabs for non-yaml garbage', () => {
+    expect(parseTtsProvider(':::not: valid: yaml:::\n  - [')).toBe('elevenlabs')
   })
 
-  it('falls back to fpt for non-yaml garbage', () => {
-    expect(parseTtsProvider(':::not: valid: yaml:::\n  - [')).toBe('fpt')
-  })
-
-  it('falls back to fpt for an empty document', () => {
-    expect(parseTtsProvider('')).toBe('fpt')
+  it('falls back to elevenlabs for an empty document', () => {
+    expect(parseTtsProvider('')).toBe('elevenlabs')
   })
 })

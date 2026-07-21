@@ -58,7 +58,7 @@ func (v Voice) Valid() bool {
 	return false
 }
 
-// Speed is the FPT.AI speech rate, -3 (slowest) to +3 (fastest).
+// Speed is the speech rate, -3 (slowest) to +3 (fastest).
 type Speed int
 
 func (s Speed) Valid() bool {

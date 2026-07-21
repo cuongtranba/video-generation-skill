@@ -1,6 +1,6 @@
 ---
 id: rule-tdd-table-tests
-c3-seal: 511ac06c8e0a770159c3ee6410a8b39bfbc643cb47f9fdb3aef3c8823bcd7382
+c3-seal: 146f4373e0487733eff4ed882a42d2226c1cf5df63e93d181f6fe0e0f2ae9b6f
 title: Table-driven tests with faked externals
 type: rule
 goal: Behavior across every package must be verified by table-driven tests, with external HTTP APIs and subprocess tools faked, so the suite is deterministic, offline, and cheap to extend with new cases.
@@ -38,4 +38,4 @@ for _, tt := range tests {          // REQUIRED: range over cases (t.Run subtest
 | Anti-Pattern | Correct | Why Wrong Here |
 | --- | --- | --- |
 | A separate TestX_caseA/TestX_caseB per case | one table ranged over subtests | Duplicated setup drifts; the table keeps cases uniform |
-| Hitting the real FPT.AI / Pexels endpoint in a test | httptest.NewServer stub | Non-deterministic, costs money, breaks offline CI |
+| Hitting the real ElevenLabs / Pexels endpoint in a test | httptest.NewServer stub | Non-deterministic, costs money, breaks offline CI |

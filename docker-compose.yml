@@ -62,7 +62,7 @@ services:
       VIDGEN_ENV_PATH: /app/.env
       VIDGEN_CONFIG_PATH: /app/config.yaml
     env_file:
-      - ./.env   # FPT_TTS_API_KEY, PEXELS_API_KEY, PIXABAY_API_KEY, JAMENDO_CLIENT_ID (gitignored, root CLAUDE.md "Keys")
+      - ./.env   # ELEVENLABS_API_KEY, PEXELS_API_KEY, PIXABAY_API_KEY, JAMENDO_CLIENT_ID (gitignored, root CLAUDE.md "Keys")
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       # Same named volume + mount path as api (above) so worker-produced media
