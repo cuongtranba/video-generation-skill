@@ -14,6 +14,16 @@ useVidgenStore
     console.error('failed to connect to the event stream', err)
   })
 
+// Fetch the active TTS provider so provider-aware controls (TunePanel voice /
+// speed) render correctly. Independent of the event stream — a failure here
+// only leaves the voice controls enabled, never blocks the board.
+useVidgenStore
+  .getState()
+  .fetchConfig()
+  .catch((err: unknown) => {
+    console.error('failed to fetch api config', err)
+  })
+
 const rootEl = document.getElementById('root')
 if (!rootEl) {
   throw new Error('#root element not found')

@@ -19,11 +19,18 @@ interface TunePanelProps {
 
 export function TunePanel({ projectId, disabled }: TunePanelProps) {
   const style = useVidgenStore((s) => s.projects[projectId]?.style)
+  const ttsProvider = useVidgenStore((s) => s.ttsProvider)
   const tuneProject = useVidgenStore((s) => s.tuneProject)
   const uploadAssets = useVidgenStore((s) => s.uploadAssets)
   const fetchAssets = useVidgenStore((s) => s.fetchAssets)
 
   const cur = style ?? DEFAULT_STYLE
+
+  // ElevenLabs synthesis uses a fixed voice ID and applies no speed (the worker
+  // ignores req.Voice/req.Speed), so these controls are dead under that
+  // provider — disable them and say why rather than let the user pick fields
+  // that never reach the audio.
+  const voiceLocked = ttsProvider === 'elevenlabs'
 
   // Text fields are draft-then-commit: fully-controlled inputs with an
   // onChange that ignored keystrokes would be impossible to type into, so the
@@ -90,12 +97,18 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
           id={`voice-${projectId}`}
           value={cur.voice}
           onChange={(e) => commit({ voice: e.target.value })}
+          disabled={voiceLocked}
           aria-label="voice"
         >
           {VOICES.map((v) => (
             <option key={v.id} value={v.id}>{v.label}</option>
           ))}
         </select>
+        {voiceLocked && (
+          <p className="vg-tune-panel__note" data-testid="tune-voice-locked">
+            Voice fixed by ElevenLabs config — the voice and speed here do not affect the audio.
+          </p>
+        )}
       </div>
 
       <div className="vg-tune-panel__field">
@@ -108,6 +121,7 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
           step={1}
           value={cur.speed}
           onChange={(e) => commit({ speed: Number(e.target.value) })}
+          disabled={voiceLocked}
           aria-label="speed"
         />
       </div>

@@ -35,6 +35,10 @@ services:
       PORT: "8080"
       SPA_DIR: /app/public
       MEDIA_DIR: /app/media
+      # config.yaml (same file the worker mounts) is the single source of truth
+      # for provider selection; the api reads tts.provider from it to serve
+      # GET /api/config { ttsProvider } so the SPA can gate voice/speed controls.
+      CONFIG_PATH: /app/config.yaml
       # Agent SDK auth for GenerateScript. The SDK bundles its own runtime, so
       # no claude binary is needed — only credentials. A Claude subscription
       # OAuth token (from `claude setup-token`) or ANTHROPIC_API_KEY works;
@@ -45,6 +49,7 @@ services:
       - "8080:8080"
     volumes:
       - media-data:/app/media
+      - ./config.yaml:/app/config.yaml:ro
 
   worker:
     build:

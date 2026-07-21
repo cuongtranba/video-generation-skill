@@ -1,6 +1,6 @@
 ---
 id: ref-idempotent-worker
-c3-seal: 054c9a730d4579db03bd266219d76c7698b7441c7a6cae98dcbc1ed0d749f879
+c3-seal: bb5c6adb21554ba3c90c19e7fa6c0f9b65884a77af822f02edc34d6fed485520
 title: Output-exists idempotency for re-runnable workers
 type: ref
 goal: Re-running generation after a crash, partial failure, or JetStream redelivery must never repeat expensive or paid work. The pattern standardizes how every worker decides whether its job is already done.
@@ -30,7 +30,7 @@ if _, err := os.Stat(job.DestPath); err == nil {
 }
 ```
 
-```````go
+`````go
 // cheap short-circuit: msgID dedup at publish time is the correctness
 // boundary, this just avoids redundant downloads on redelivery.
 if _, err := os.Stat(job.DestPath); err == nil {
@@ -38,3 +38,4 @@ if _, err := os.Stat(job.DestPath); err == nil {
 }
 ```
 ````
+`````

@@ -29,12 +29,12 @@ docker compose up --build
 
 ## Architecture (1 minute)
 
-- **api** appends to `VIDGEN_EVENTS` and dispatches jobs to `VIDGEN_JOBS`; command handlers in `api/src/commands.ts`, event fold in `api/src/events.ts` (`foldProject` → `ProjectState`), read-model projections in `api/src/projections.ts` → Postgres, HTTP in `api/src/http.ts` (`POST /api/commands/*`, `GET /api/state`, asset upload `POST /api/projects/:id/assets`)
+- **api** appends to `VIDGEN_EVENTS` and dispatches jobs to `VIDGEN_JOBS`; command handlers in `api/src/commands.ts`, event fold in `api/src/events.ts` (`foldProject` → `ProjectState`), read-model projections in `api/src/projections.ts` → Postgres, HTTP in `api/src/http.ts` (`POST /api/commands/*`, `GET /api/state`, `GET /api/config` → `{ ttsProvider }`, asset upload `POST /api/projects/:id/assets`)
 - **worker** consumes jobs as idempotent handlers (`worker/internal/jobhandler`): material, tts, caption, render; emits result events (`MaterialResolved`, `VoiceSynthesized`, `CaptionsBuilt`, `RenderCompleted`, `RunFailed`)
 - **Frozen event catalogue** = `api/src/events.ts` mirrored verbatim in `frontend/src/store/events.ts`. Worker event structs in `worker/internal/eventstore/events.go` and job structs in `worker/internal/jobhandler/types.go` must match the api's dispatched payload keys (`dispatchJob` does no key remapping — payload keys == worker json tags)
 - **Cost wall**: `api/src/cost.ts` enforces `Σ VoiceSynthesized.ttsUsd ≤ COST_CAP_USD` (default $0.15, compose env) — projected at `GenerateVoiceovers`. Never remove or weaken
 - **Script generation** is api-side via the Claude Agent SDK (`api/src/script.ts`); the SDK bundles its own runtime, auth via `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` (no separate claude binary)
-- **Providers** selected in `config.yaml` (mounted into worker); `tts`/`material`/`music` have `NewFromConfig` factories; keys in `.env`, validated per-selected-provider by `config.ValidateForProviders`
+- **Providers** selected in `config.yaml` (mounted into worker **and** api — `CONFIG_PATH`); `tts`/`material`/`music` have `NewFromConfig` factories; keys in `.env`, validated per-selected-provider by `config.ValidateForProviders`. The api reads `tts.provider` (`api/src/config.ts`, `Bun.YAML.parse`) and serves it at `GET /api/config`; the SPA disables the TunePanel voice/speed controls when it is `elevenlabs` (that provider ignores both)
 
 ## Conventions
 

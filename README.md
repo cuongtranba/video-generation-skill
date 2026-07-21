@@ -94,8 +94,8 @@ curl -s -X POST $API/api/commands/ApproveStoryboard -d "{\"projectId\":\"$PID\",
 
 | Field | Meaning |
 |---|---|
-| `voice` | FPT voice: `banmai`/`thuminh`/`lannhi`/`linhsan`/`leminh`/`giahuy`/`myan` (ElevenLabs uses a fixed multilingual voice) |
-| `speed` | speech rate, integer −3..3 |
+| `voice` | FPT voice: `banmai`/`thuminh`/`lannhi`/`linhsan`/`leminh`/`giahuy`/`myan` (ElevenLabs uses a fixed voice ID — under `tts.provider: elevenlabs` the SPA disables this control, since the worker ignores it) |
+| `speed` | speech rate, integer −3..3 (also ignored, and disabled in the SPA, under ElevenLabs) |
 | `captionStyle` | `{ fontName, fontSize }` |
 | `music` | `{ search, volume }` (Jamendo mood search) or `null` |
 
@@ -103,7 +103,7 @@ Local uploads (`POST /api/projects/:id/assets`, `.mp4/.mov/.jpg/.jpeg/.png`) are
 
 ## Providers
 
-Selected per-category in `config.yaml` (mounted into the worker). Keys stay in `.env`; only selected providers' keys are required.
+Selected per-category in `config.yaml` (mounted into the worker **and** the api). Keys stay in `.env`; only selected providers' keys are required. The api reads `tts.provider` from `config.yaml` and exposes it at `GET /api/config` → `{ ttsProvider }`, which the SPA uses to gate the voice/speed tune controls.
 
 ```yaml
 tts:

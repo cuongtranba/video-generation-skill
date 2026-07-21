@@ -17,7 +17,7 @@ beforeEach(() => {
     projects: {
       p1: { projectId: 'p1', status: 'draft', scenes: [], spentUsd: 0, approved: false, style: DEFAULT_STYLE, captionsReady: false, language: 'English' },
     },
-    eventLog: {}, connection: 'down', selectedId: undefined, _unsubscribe: undefined,
+    eventLog: {}, connection: 'down', selectedId: undefined, _unsubscribe: undefined, ttsProvider: undefined,
   })
 })
 
@@ -66,6 +66,22 @@ describe('TunePanel', () => {
     // stays false because the attribute is on the fieldset, not the select).
     expect(screen.getByRole('combobox', { name: /voice/i })).toBeDisabled()
     expect(screen.getByTestId('tune-panel-lock')).toBeInTheDocument()
+  })
+
+  it('disables voice + speed and shows a lock note when ttsProvider is elevenlabs', () => {
+    useVidgenStore.setState({ ttsProvider: 'elevenlabs' })
+    render(<TunePanel projectId="p1" disabled={false} />)
+    expect(screen.getByRole('combobox', { name: /voice/i })).toBeDisabled()
+    expect(screen.getByRole('slider', { name: /speed/i })).toBeDisabled()
+    expect(screen.getByTestId('tune-voice-locked')).toBeInTheDocument()
+  })
+
+  it('leaves voice + speed enabled and shows no note under fpt', () => {
+    useVidgenStore.setState({ ttsProvider: 'fpt' })
+    render(<TunePanel projectId="p1" disabled={false} />)
+    expect(screen.getByRole('combobox', { name: /voice/i })).not.toBeDisabled()
+    expect(screen.getByRole('slider', { name: /speed/i })).not.toBeDisabled()
+    expect(screen.queryByTestId('tune-voice-locked')).not.toBeInTheDocument()
   })
 
   it('renders a file upload control', () => {
