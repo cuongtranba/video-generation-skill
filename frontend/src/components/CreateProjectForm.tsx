@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useVidgenStore } from '../store/store'
 import { Button } from '../ui/Button'
+import { Field } from '../ui/Field'
 
 const DEFAULTS = { idea: '', durationSec: 16, sceneCount: 2, tone: 'playful', language: 'English' }
 
@@ -29,8 +30,7 @@ export function CreateProjectForm() {
 
   return (
     <form className="vg-create" onSubmit={handleSubmit} aria-label="Create project">
-      <div className="vg-create__field vg-create__field--wide">
-        <label htmlFor="create-idea">Idea</label>
+      <Field className="vg-create__field" label="Idea" htmlFor="create-idea" wide>
         <textarea
           id="create-idea"
           value={idea}
@@ -39,10 +39,9 @@ export function CreateProjectForm() {
           rows={2}
           required
         />
-      </div>
+      </Field>
 
-      <div className="vg-create__field">
-        <label htmlFor="create-language">Language</label>
+      <Field className="vg-create__field" label="Language" htmlFor="create-language">
         {/* Freeform: the script, voice, and captions all follow this language. */}
         <input
           id="create-language"
@@ -60,15 +59,13 @@ export function CreateProjectForm() {
           <option value="French" />
           <option value="Japanese" />
         </datalist>
-      </div>
+      </Field>
 
-      <div className="vg-create__field">
-        <label htmlFor="create-tone">Tone</label>
+      <Field className="vg-create__field" label="Tone" htmlFor="create-tone">
         <input id="create-tone" type="text" value={tone} onChange={(e) => setTone(e.target.value)} aria-label="tone" />
-      </div>
+      </Field>
 
-      <div className="vg-create__field">
-        <label htmlFor="create-duration">Duration (s)</label>
+      <Field className="vg-create__field" label="Duration (s)" htmlFor="create-duration">
         <input
           id="create-duration"
           type="number"
@@ -78,10 +75,9 @@ export function CreateProjectForm() {
           onChange={(e) => setDurationSec(Number(e.target.value))}
           aria-label="duration seconds"
         />
-      </div>
+      </Field>
 
-      <div className="vg-create__field">
-        <label htmlFor="create-scenes">Scenes</label>
+      <Field className="vg-create__field" label="Scenes" htmlFor="create-scenes">
         <input
           id="create-scenes"
           type="number"
@@ -91,7 +87,7 @@ export function CreateProjectForm() {
           onChange={(e) => setSceneCount(Number(e.target.value))}
           aria-label="scene count"
         />
-      </div>
+      </Field>
 
       <div className="vg-create__actions">
         <Button type="submit" disabled={!canSubmit}>

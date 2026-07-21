@@ -1,0 +1,388 @@
+/* vidgen components — every vg-* class, token-driven.
+ * Primitives (src/ui) first, then app-layout classes (src/components + App). */
+
+/* ============================================================ Button */
+.vg-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vg-space-xs);
+  font-weight: var(--vg-weight-semibold);
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-radius: var(--vg-radius-sm);
+  transition: background var(--vg-dur) var(--vg-ease),
+    border-color var(--vg-dur) var(--vg-ease),
+    color var(--vg-dur) var(--vg-ease), transform var(--vg-dur-fast) var(--vg-ease);
+}
+.vg-button:active {
+  transform: translateY(1px);
+}
+.vg-button:focus-visible {
+  outline: none;
+  box-shadow: var(--vg-ring-focus);
+}
+.vg-button:disabled {
+  opacity: 0.5;
+  transform: none;
+}
+
+.vg-button--md {
+  padding: var(--vg-space-xs) var(--vg-space-md);
+  font-size: var(--vg-text-base);
+}
+.vg-button--sm {
+  padding: var(--vg-space-2xs) var(--vg-space-sm);
+  font-size: var(--vg-text-sm);
+}
+
+.vg-button--primary {
+  background: var(--vg-color-accent);
+  color: var(--vg-color-text-on-accent);
+}
+.vg-button--primary:hover:not(:disabled) {
+  background: var(--vg-color-accent-strong);
+}
+.vg-button--ghost {
+  background: transparent;
+  border-color: var(--vg-color-border-strong);
+  color: var(--vg-color-text);
+}
+.vg-button--ghost:hover:not(:disabled) {
+  background: var(--vg-color-surface-3);
+  border-color: var(--vg-color-text-faint);
+}
+.vg-button--danger {
+  background: var(--vg-color-bad);
+  color: oklch(0.98 0.01 27);
+}
+.vg-button--danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+/* ============================================================ Badge */
+.vg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vg-space-2xs);
+  padding: 0.15rem var(--vg-space-xs);
+  font-size: var(--vg-text-xs);
+  font-weight: var(--vg-weight-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  border-radius: var(--vg-radius-pill);
+  border: 1px solid transparent;
+}
+.vg-badge--neutral {
+  background: var(--vg-color-neutral-weak);
+  border-color: var(--vg-color-border);
+  color: var(--vg-color-text-muted);
+}
+.vg-badge--good {
+  background: var(--vg-color-good-weak);
+  border-color: color-mix(in oklch, var(--vg-color-good) 40%, transparent);
+  color: var(--vg-color-good);
+}
+.vg-badge--bad {
+  background: var(--vg-color-bad-weak);
+  border-color: color-mix(in oklch, var(--vg-color-bad) 40%, transparent);
+  color: var(--vg-color-bad);
+}
+
+/* ============================================================ Card */
+.vg-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vg-space-md);
+  padding: var(--vg-space-lg);
+  background: var(--vg-color-surface-1);
+  border: 1px solid var(--vg-color-border);
+  border-radius: var(--vg-radius-lg);
+  box-shadow: var(--vg-shadow-md);
+}
+.vg-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--vg-space-sm);
+}
+.vg-card__title {
+  font-size: var(--vg-text-md);
+  overflow-wrap: anywhere;
+}
+.vg-card__meta {
+  font-size: var(--vg-text-sm);
+  color: var(--vg-color-text-muted);
+  text-transform: capitalize;
+}
+.vg-card__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--vg-space-xs);
+}
+
+/* ============================================================ Field */
+.vg-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vg-space-2xs);
+}
+
+/* ============================================================ Panel (fieldset) */
+.vg-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vg-space-sm);
+  min-inline-size: 0; /* fieldset default is min-content; let it shrink in grids */
+  padding: var(--vg-space-md);
+  margin: 0;
+  background: var(--vg-color-surface-2);
+  border: 1px solid var(--vg-color-border);
+  border-radius: var(--vg-radius-md);
+  transition: opacity var(--vg-dur) var(--vg-ease);
+}
+.vg-panel:disabled {
+  opacity: 0.62;
+}
+.vg-panel__legend {
+  padding: 0 var(--vg-space-2xs);
+  font-size: var(--vg-text-xs);
+  font-weight: var(--vg-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vg-color-text-faint);
+}
+
+/* ============================================================ EmptyState */
+.vg-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vg-space-xs);
+  padding: var(--vg-space-xl) var(--vg-space-md);
+  text-align: center;
+  color: var(--vg-color-text-faint);
+  font-size: var(--vg-text-sm);
+  border: 1px dashed var(--vg-color-border);
+  border-radius: var(--vg-radius-md);
+}
+.vg-empty__icon {
+  font-size: var(--vg-text-lg);
+  opacity: 0.7;
+}
+
+/* ============================================================ Callout */
+.vg-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--vg-space-xs);
+  padding: var(--vg-space-xs) var(--vg-space-sm);
+  font-size: var(--vg-text-sm);
+  border: 1px solid var(--vg-color-border);
+  border-radius: var(--vg-radius-sm);
+}
+.vg-callout::before {
+  content: "";
+  flex: none;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  margin-block-start: 0.35em;
+  border-radius: var(--vg-radius-pill);
+  background: currentColor;
+}
+.vg-callout--info {
+  background: var(--vg-color-neutral-weak);
+  color: var(--vg-color-text-muted);
+}
+.vg-callout--good {
+  background: var(--vg-color-good-weak);
+  border-color: color-mix(in oklch, var(--vg-color-good) 35%, transparent);
+  color: var(--vg-color-good);
+}
+.vg-callout--warn {
+  background: var(--vg-color-warn-weak);
+  border-color: color-mix(in oklch, var(--vg-color-warn) 35%, transparent);
+  color: var(--vg-color-warn);
+}
+.vg-callout--error {
+  background: var(--vg-color-bad-weak);
+  border-color: color-mix(in oklch, var(--vg-color-bad) 40%, transparent);
+  color: var(--vg-color-bad);
+}
+
+/* ============================================================ Stack */
+.vg-stack {
+  display: flex;
+  flex-direction: column;
+}
+.vg-stack--xs {
+  gap: var(--vg-space-xs);
+}
+.vg-stack--sm {
+  gap: var(--vg-space-sm);
+}
+.vg-stack--md {
+  gap: var(--vg-space-md);
+}
+.vg-stack--lg {
+  gap: var(--vg-space-lg);
+}
+
+/* ============================================================ App shell */
+.vg-app {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding: var(--vg-space-xl) var(--vg-space-lg) var(--vg-space-2xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vg-space-xl);
+}
+.vg-app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vg-space-md);
+  padding-bottom: var(--vg-space-md);
+  border-bottom: 1px solid var(--vg-color-border);
+}
+.vg-app__header h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--vg-space-xs);
+  font-size: var(--vg-text-lg);
+  letter-spacing: -0.02em;
+}
+.vg-app__header h1::before {
+  content: "";
+  inline-size: 0.6rem;
+  block-size: 0.6rem;
+  border-radius: var(--vg-radius-pill);
+  background: var(--vg-color-accent);
+  box-shadow: 0 0 0 4px var(--vg-color-accent-weak);
+}
+
+/* ============================================================ Create form */
+.vg-create {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--vg-space-md);
+  padding: var(--vg-space-lg);
+  background: var(--vg-color-surface-1);
+  border: 1px solid var(--vg-color-border);
+  border-radius: var(--vg-radius-lg);
+  box-shadow: var(--vg-shadow-sm);
+}
+.vg-create__field--wide {
+  grid-column: 1 / -1;
+}
+.vg-create__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ============================================================ Board */
+.vg-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--vg-space-lg);
+  align-items: start;
+}
+.vg-board--empty {
+  padding-block: var(--vg-space-2xl);
+}
+
+/* ============================================================ Project card */
+.vg-project-card .vg-card__meta {
+  padding: 0.1rem var(--vg-space-xs);
+  border-radius: var(--vg-radius-pill);
+  background: var(--vg-color-surface-3);
+}
+
+/* ============================================================ Scene strip */
+.vg-scene-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vg-space-xs);
+  counter-reset: scene;
+}
+.vg-scene-strip__item {
+  padding: var(--vg-space-sm);
+  background: var(--vg-color-surface-2);
+  border: 1px solid var(--vg-color-border);
+  border-radius: var(--vg-radius-sm);
+}
+.vg-scene-strip__item strong {
+  display: block;
+  margin-block-end: var(--vg-space-2xs);
+  font-size: var(--vg-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vg-color-accent);
+}
+.vg-scene-strip__item p {
+  font-size: var(--vg-text-sm);
+}
+.vg-scene-strip__item em {
+  display: block;
+  margin-block-start: var(--vg-space-2xs);
+  font-size: var(--vg-text-sm);
+}
+.vg-scene-strip--empty {
+  padding-block: var(--vg-space-lg);
+}
+
+/* ============================================================ Tune panel */
+.vg-tune-panel__font {
+  display: flex;
+  gap: var(--vg-space-xs);
+}
+.vg-tune-panel__font input[type="number"] {
+  inline-size: 5.5rem;
+  flex: none;
+}
+.vg-tune-panel__volume {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vg-space-2xs);
+  margin-block-start: var(--vg-space-xs);
+  font-size: var(--vg-text-sm);
+  color: var(--vg-color-text-muted);
+}
+.vg-tune-panel__assets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vg-space-2xs);
+  margin-block-start: var(--vg-space-2xs);
+}
+.vg-tune-panel__assets li {
+  padding: var(--vg-space-2xs) var(--vg-space-xs);
+  font-size: var(--vg-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--vg-color-text-muted);
+  background: var(--vg-color-surface-1);
+  border-radius: var(--vg-radius-sm);
+}
+
+/* ============================================================ Storyboard approval */
+.vg-approval {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vg-space-sm);
+  padding: var(--vg-space-md);
+  background: var(--vg-color-accent-weak);
+  border: 1px solid color-mix(in oklch, var(--vg-color-accent) 35%, transparent);
+  border-radius: var(--vg-radius-md);
+}
+.vg-approval h3 {
+  color: var(--vg-color-accent-strong);
+}
+
+/* ============================================================ Responsive */
+@media (max-width: 40rem) {
+  .vg-create {
+    grid-template-columns: 1fr;
+  }
+}

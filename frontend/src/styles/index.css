@@ -1,0 +1,5 @@
+/* vidgen stylesheet entry — the @import closure a rendered design receives.
+ * Order matters: tokens define the variables the rest consume. */
+@import "./tokens.css";
+@import "./base.css";
+@import "./components.css";

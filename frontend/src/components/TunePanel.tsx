@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useVidgenStore, type TuneInput, type UploadedAsset } from '../store/store'
 import { DEFAULT_STYLE } from '../store/events'
+import { Callout } from '../ui/Callout'
+import { Field } from '../ui/Field'
+import { Panel } from '../ui/Panel'
 
 const VOICES: Array<{ id: string; label: string }> = [
   { id: 'banmai', label: 'banmai — northern female' },
@@ -76,16 +79,14 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
   }
 
   return (
-    <fieldset className="vg-tune-panel" disabled={disabled} aria-label="Tune settings">
-      <legend className="vg-tune-panel__legend">Tune</legend>
+    <Panel className="vg-tune-panel" legend="Tune" disabled={disabled} aria-label="Tune settings">
       {disabled && (
-        <p className="vg-tune-panel__lock" data-testid="tune-panel-lock">
+        <Callout tone="warn" data-testid="tune-panel-lock">
           Locked. Voice, captions, and music are frozen once the storyboard is approved.
-        </p>
+        </Callout>
       )}
 
-      <div className="vg-tune-panel__field">
-        <label htmlFor={`voice-${projectId}`}>Voice</label>
+      <Field label="Voice" htmlFor={`voice-${projectId}`}>
         <select
           id={`voice-${projectId}`}
           value={cur.voice}
@@ -96,10 +97,12 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
             <option key={v.id} value={v.id}>{v.label}</option>
           ))}
         </select>
-      </div>
+      </Field>
 
-      <div className="vg-tune-panel__field">
-        <label htmlFor={`speed-${projectId}`}>Speed ({cur.speed > 0 ? `+${cur.speed}` : cur.speed})</label>
+      <Field
+        label={`Speed (${cur.speed > 0 ? `+${cur.speed}` : cur.speed})`}
+        htmlFor={`speed-${projectId}`}
+      >
         <input
           id={`speed-${projectId}`}
           type="range"
@@ -110,49 +113,49 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
           onChange={(e) => commit({ speed: Number(e.target.value) })}
           aria-label="speed"
         />
-      </div>
+      </Field>
 
-      <div className="vg-tune-panel__field">
-        <label htmlFor={`font-${projectId}`}>Caption font</label>
-        <input
-          id={`font-${projectId}`}
-          ref={fontNameRef}
-          type="text"
-          value={fontName}
-          onChange={(e) => setFontName(e.target.value)}
-          onBlur={() => {
-            const name = fontName.trim()
-            if (name && name !== cur.captionStyle.fontName) {
-              commit({ captionStyle: { ...cur.captionStyle, fontName: name } })
-            }
-          }}
-          aria-label="caption font name"
-        />
-        <input
-          id={`font-size-${projectId}`}
-          ref={fontSizeRef}
-          type="number"
-          min={8}
-          max={200}
-          value={fontSize}
-          onChange={(e) => setFontSize(e.target.value)}
-          onBlur={() => {
-            const raw = Number(fontSize)
-            if (!Number.isFinite(raw)) { setFontSize(String(cur.captionStyle.fontSize)); return }
-            // min/max only bind the spinner UI; clamp the committed value so an
-            // out-of-range keystroke can't reach the event store.
-            const size = Math.min(200, Math.max(8, Math.round(raw)))
-            setFontSize(String(size))
-            if (size !== cur.captionStyle.fontSize) {
-              commit({ captionStyle: { ...cur.captionStyle, fontSize: size } })
-            }
-          }}
-          aria-label="caption font size"
-        />
-      </div>
+      <Field label="Caption font" htmlFor={`font-${projectId}`}>
+        <div className="vg-tune-panel__font">
+          <input
+            id={`font-${projectId}`}
+            ref={fontNameRef}
+            type="text"
+            value={fontName}
+            onChange={(e) => setFontName(e.target.value)}
+            onBlur={() => {
+              const name = fontName.trim()
+              if (name && name !== cur.captionStyle.fontName) {
+                commit({ captionStyle: { ...cur.captionStyle, fontName: name } })
+              }
+            }}
+            aria-label="caption font name"
+          />
+          <input
+            id={`font-size-${projectId}`}
+            ref={fontSizeRef}
+            type="number"
+            min={8}
+            max={200}
+            value={fontSize}
+            onChange={(e) => setFontSize(e.target.value)}
+            onBlur={() => {
+              const raw = Number(fontSize)
+              if (!Number.isFinite(raw)) { setFontSize(String(cur.captionStyle.fontSize)); return }
+              // min/max only bind the spinner UI; clamp the committed value so an
+              // out-of-range keystroke can't reach the event store.
+              const size = Math.min(200, Math.max(8, Math.round(raw)))
+              setFontSize(String(size))
+              if (size !== cur.captionStyle.fontSize) {
+                commit({ captionStyle: { ...cur.captionStyle, fontSize: size } })
+              }
+            }}
+            aria-label="caption font size"
+          />
+        </div>
+      </Field>
 
-      <div className="vg-tune-panel__field">
-        <label htmlFor={`music-${projectId}`}>Music search</label>
+      <Field label="Music search" htmlFor={`music-${projectId}`}>
         <input
           id={`music-${projectId}`}
           ref={musicSearchRef}
@@ -181,10 +184,13 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
             />
           </label>
         )}
-      </div>
+      </Field>
 
-      <div className="vg-tune-panel__field" data-testid="asset-dropzone">
-        <label htmlFor={`assets-${projectId}`}>Local assets (used per scene, in upload order)</label>
+      <Field
+        label="Local assets (used per scene, in upload order)"
+        htmlFor={`assets-${projectId}`}
+        data-testid="asset-dropzone"
+      >
         <input
           id={`assets-${projectId}`}
           ref={fileRef}
@@ -195,8 +201,8 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
           onChange={(e) => void handleFiles(e.target.files)}
           aria-label="upload local assets"
         />
-        {uploading && <span className="vg-tune-panel__status">Uploading…</span>}
-        {uploadError && <span className="vg-tune-panel__error" role="alert">{uploadError}</span>}
+        {uploading && <Callout tone="info">Uploading…</Callout>}
+        {uploadError && <Callout tone="error" role="alert">{uploadError}</Callout>}
         {assets.length > 0 && (
           <ul className="vg-tune-panel__assets">
             {assets.map((a) => (
@@ -204,7 +210,7 @@ export function TunePanel({ projectId, disabled }: TunePanelProps) {
             ))}
           </ul>
         )}
-      </div>
-    </fieldset>
+      </Field>
+    </Panel>
   )
 }

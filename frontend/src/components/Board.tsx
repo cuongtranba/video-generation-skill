@@ -1,4 +1,5 @@
 import { useVidgenStore } from '../store/store'
+import { EmptyState } from '../ui/EmptyState'
 import { ProjectCard } from './ProjectCard'
 
 export function Board() {
@@ -8,7 +9,7 @@ export function Board() {
   const projectIds = Object.keys(projects)
 
   if (projectIds.length === 0) {
-    return <p className="vg-board vg-board--empty">No projects yet</p>
+    return <EmptyState className="vg-board--empty">No projects yet</EmptyState>
   }
 
   return (

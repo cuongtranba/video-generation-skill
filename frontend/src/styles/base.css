@@ -1,0 +1,151 @@
+/* vidgen base — reset + element styling so unclassed elements inherit the system.
+ * Covers h1/h2/h3, label, form controls, and inline text primitives that the
+ * components leave unclassed (they lean on tag/descendant selectors). */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  tab-size: 4;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--vg-color-surface-0);
+  color: var(--vg-color-text);
+  font-family: var(--vg-font-sans);
+  font-size: var(--vg-text-base);
+  line-height: var(--vg-leading-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: var(--vg-leading-tight);
+  font-weight: var(--vg-weight-semibold);
+  letter-spacing: -0.01em;
+  color: var(--vg-color-text);
+}
+
+h1 {
+  font-size: var(--vg-text-xl);
+}
+h2 {
+  font-size: var(--vg-text-md);
+}
+h3 {
+  font-size: var(--vg-text-base);
+}
+
+p {
+  line-height: var(--vg-leading-normal);
+}
+
+strong {
+  font-weight: var(--vg-weight-semibold);
+}
+
+em {
+  font-style: normal;
+  color: var(--vg-color-text-muted);
+}
+
+a {
+  color: var(--vg-color-accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--vg-color-accent-strong);
+}
+
+label {
+  display: block;
+  font-size: var(--vg-text-sm);
+  font-weight: var(--vg-weight-medium);
+  color: var(--vg-color-text-muted);
+}
+
+/* Form controls: consistent surface, border, focus ring. */
+input,
+select,
+textarea {
+  width: 100%;
+  font: inherit;
+  color: var(--vg-color-text);
+  background: var(--vg-color-surface-2);
+  border: 1px solid var(--vg-color-border);
+  border-radius: var(--vg-radius-sm);
+  padding: var(--vg-space-xs) var(--vg-space-sm);
+  transition: border-color var(--vg-dur) var(--vg-ease),
+    box-shadow var(--vg-dur) var(--vg-ease);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 2.5rem;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--vg-color-text-faint);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--vg-color-accent);
+  box-shadow: var(--vg-ring-focus);
+}
+
+input[type="range"] {
+  padding: 0;
+  background: transparent;
+  border: none;
+  accent-color: var(--vg-color-accent);
+  cursor: pointer;
+}
+
+input[type="file"] {
+  padding: var(--vg-space-xs);
+  cursor: pointer;
+}
+
+input[type="number"] {
+  font-variant-numeric: tabular-nums;
+}
+
+:disabled {
+  cursor: not-allowed;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+ul,
+ol {
+  list-style: none;
+  padding: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
