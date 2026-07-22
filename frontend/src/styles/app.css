@@ -169,6 +169,7 @@ a:hover {
 .vg-create__field input[type='text'],
 .vg-create__field input[type='number'],
 .vg-create__field input[type='password'],
+.vg-create__field select,
 .vg-create__field textarea {
   background: var(--paper-2);
   color: var(--ink-1);
@@ -179,6 +180,7 @@ a:hover {
   transition: box-shadow var(--dur-fast) linear;
 }
 .vg-create__field input:focus-visible,
+.vg-create__field select:focus-visible,
 .vg-create__field textarea:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
