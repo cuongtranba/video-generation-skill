@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0](https://github.com/cuongtranba/video-generation-skill/compare/v1.1.0...v1.2.0) (2026-07-22)
+
+
+### Features
+
+* **frontend:** Pipeline Home board — unclip RENDER, AA contrast, keyboard control ([#25](https://github.com/cuongtranba/video-generation-skill/issues/25)) ([3e0da56](https://github.com/cuongtranba/video-generation-skill/commit/3e0da56ba63989096110470be61f35bce869462d))
+* Vietnamese-default i18n + single-user session auth ([#26](https://github.com/cuongtranba/video-generation-skill/issues/26)) ([68ce487](https://github.com/cuongtranba/video-generation-skill/commit/68ce487eb970a414b8ec2f54d27466744f6776a5))
+
+
+### Bug Fixes
+
+* **deploy:** unique service names (vidgen-postgres/vidgen-nats) to avoid dokploy-network DNS collision ([#23](https://github.com/cuongtranba/video-generation-skill/issues/23)) ([b8cb93e](https://github.com/cuongtranba/video-generation-skill/commit/b8cb93e9f803b6f59c381914054814bd419886c3))
+
 ## [1.1.0](https://github.com/cuongtranba/video-generation-skill/compare/v1.0.0...v1.1.0) (2026-07-22)
 
 
