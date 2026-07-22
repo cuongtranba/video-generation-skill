@@ -1,0 +1,13 @@
+# Applies to the root-context build (deploy/api-full.Dockerfile). Dev image
+# builds use ./api and ./frontend contexts and are unaffected.
+.git
+.worktrees
+**/node_modules
+**/dist
+**/.turbo
+*.log
+.env
+.env.*
+.dokploy.json
+docs
+.c3
