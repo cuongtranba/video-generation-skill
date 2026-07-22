@@ -12,7 +12,9 @@
   --paper-3: #e3e6df; /* inset wells */
   --ink-1: #191c17; /* near-black, green cast */
   --ink-2: #565b52;
-  --ink-3: #8b9184;
+  --ink-3: #606659; /* muted tier — darkened from #8b9184 to clear WCAG AA 4.5:1
+                       on the lightest inset wells (#e3e6df ⇒ 4.7:1). Guarded by
+                       styles/text-contrast.test.ts. */
   --chroma-500: #00b140; /* chroma-key green — the signal color */
   --chroma-600: #009436;
   --chroma-700: #007a2d;
