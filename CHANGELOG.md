@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/cuongtranba/video-generation-skill/compare/v1.2.0...v1.3.0) (2026-07-22)
+
+
+### Features
+
+* **frontend:** create-form defaults 60s/6 scenes, language select vi/en ([#27](https://github.com/cuongtranba/video-generation-skill/issues/27)) ([8fb2085](https://github.com/cuongtranba/video-generation-skill/commit/8fb2085c1b1e1e20a8e1a0a6ed4a333163291938))
+* **worker:** replace Whisper caption transcription with ElevenLabs synthesis timestamps ([#29](https://github.com/cuongtranba/video-generation-skill/issues/29)) ([f9be56f](https://github.com/cuongtranba/video-generation-skill/commit/f9be56fc171d5f4967d0e7d9e5714b07de4b8c15))
+
+
+### Bug Fixes
+
+* **api:** dispatch caption job after all voiceovers (race fix) ([#30](https://github.com/cuongtranba/video-generation-skill/issues/30)) ([51fdf7f](https://github.com/cuongtranba/video-generation-skill/commit/51fdf7fccf69e2d103404fb7784dce0909f1c250))
+
 ## [1.2.0](https://github.com/cuongtranba/video-generation-skill/compare/v1.1.0...v1.2.0) (2026-07-22)
 
 
