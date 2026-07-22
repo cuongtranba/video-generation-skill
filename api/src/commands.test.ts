@@ -132,18 +132,20 @@ describe('resolveMaterialWithAssets', () => {
 })
 
 describe('generateVoiceovers', () => {
-  it('appends CostProjected then dispatches tts and caption jobs when under the cap', async () => {
+  it('appends CostProjected then dispatches tts jobs only when under the cap', async () => {
     const store = createInMemoryEventStore(materialEvents)
     const js = fakePublisher()
     const ctx = createCommandContext(store, js, fixedScriptGen, 0.15, '/media')
     const state = await generateVoiceovers(ctx, { projectId: 'p1' })
     expect(state.status).toBe('material') // CostProjected does not change status
     expect(store.events.at(-1)).toMatchObject({ type: 'CostProjected', capUsd: 0.15 })
+    // The caption job is NOT dispatched here — reactions.ts dispatches it once
+    // all VoiceSynthesized events land, so the tts sidecars are guaranteed
+    // present (see reactions.test.ts). GenerateVoiceovers dispatches only tts.
     expect(js.published.map((m) => m.subject)).toEqual([
       'vidgen.evt.p1.CostProjected',
       'vidgen.job.tts.p1.0',
       'vidgen.job.tts.p1.1',
-      'vidgen.job.caption.p1.-',
     ])
     // tts payload matches TTSJob worker contract
     const tts0 = JSON.parse(js.published[1]!.data) as Record<string, unknown>
@@ -154,23 +156,6 @@ describe('generateVoiceovers', () => {
     const tts1 = JSON.parse(js.published[2]!.data) as Record<string, unknown>
     expect(tts1.text).toBe('scene one narration')
     expect(tts1.destPath).toBe('/media/p1/tts1.mp3')
-    // caption payload matches CaptionJob worker contract (single job, sceneIdx null)
-    const caption = JSON.parse(js.published[3]!.data) as Record<string, unknown>
-    expect(caption.sceneIdx).toBeNull()
-    expect(caption.destPath).toBe('/media/p1/captions.ass')
-    const sceneAudio = caption.sceneAudio as Array<Record<string, unknown>>
-    expect(sceneAudio).toHaveLength(2)
-    expect(sceneAudio[0]!.audioPath).toBe('/media/p1/tts0.mp3')
-    expect(sceneAudio[1]!.audioPath).toBe('/media/p1/tts1.mp3')
-    // caption text comes from the authoritative narration, not the transcript
-    expect(sceneAudio[0]!.narration).toBe('scene zero narration')
-    expect(sceneAudio[1]!.narration).toBe('scene one narration')
-    const style = caption.style as Record<string, unknown>
-    expect(style.font_name).toBe('Arial')
-    expect(style.font_size).toBe(64)
-    expect(style.primary).toBe('#FFFFFF')
-    expect(style.outline).toBe('#000000')
-    expect(style.bold).toBe(true)
   })
 
   it('vetoes when projected cost exceeds the cap — no event, no jobs', async () => {
