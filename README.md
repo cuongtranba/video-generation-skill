@@ -37,7 +37,7 @@ flowchart TB
     subgraph worker[worker — Go]
       MAT[material: Pexels/Pixabay + local asset]
       TTS[tts: ElevenLabs]
-      CAP[caption: whisper -> ASS]
+      CAP[caption: sidecar timings -> ASS]
       REN[render: FFmpeg 9:16]
     end
     NATS[(NATS JetStream<br/>VIDGEN_EVENTS + VIDGEN_JOBS)]
@@ -85,9 +85,9 @@ Three containers, 27 components (ids from the C3 model in `.c3/`).
 | `material` | Stock visual sourcing (Pexels / Pixabay) + download |
 | `music` | Jamendo background-music search + download |
 | `render` | FFmpeg filtergraph 9:16 MP4 composer |
-| `caption` | Whisper transcription → ASS karaoke captions |
+| `caption` | ElevenLabs word-timestamp sidecars (`tts{idx}.words.json`) → ASS karaoke captions |
 | `config` | Provider selection + secret loading from `config.yaml`/`.env` |
-| `prereq` | External binary resolver (ffmpeg, ffprobe, whisper) |
+| `prereq` | External binary resolver (ffmpeg, ffprobe) |
 | `domain` | Shared domain value types (Voice, Speed, CaptionStyle) |
 
 **`frontend` — Vite/React/Zustand live event board**
@@ -134,13 +134,13 @@ curl -s -X POST $API/api/commands/TuneProject        -d "{\"projectId\":\"$PID\"
 curl -s -X POST $API/api/projects/$PID/assets        -F file=@./my-clip.jpg      # optional local upload (used as scene media, in order)
 curl -s -X POST $API/api/commands/ResolveMaterial    -d "{\"projectId\":\"$PID\",\"idempotencyKey\":\"4\"}" -H 'content-type: application/json'
 curl -s -X POST $API/api/commands/GenerateVoiceovers -d "{\"projectId\":\"$PID\",\"idempotencyKey\":\"5\"}" -H 'content-type: application/json'
-# wait for voiceovers + whisper captions to finish (GET /api/state shows scene mp3/ass), then:
+# wait for voiceovers + captions to finish (GET /api/state shows scene mp3/ass), then:
 curl -s -X POST $API/api/commands/RequestApproval    -d "{\"projectId\":\"$PID\",\"idempotencyKey\":\"6\"}" -H 'content-type: application/json'
 curl -s -X POST $API/api/commands/ApproveStoryboard  -d "{\"projectId\":\"$PID\",\"idempotencyKey\":\"7\"}" -H 'content-type: application/json'
 # render output.mp4 lands on the shared media volume; status -> rendered
 ```
 
-> **Approval is gated:** `ApproveStoryboard` returns `400` until every scene has its voiceover + resolved material and captions are built. Approve only once processing finishes (whisper transcription takes a couple of minutes).
+> **Approval is gated:** `ApproveStoryboard` returns `400` until every scene has its voiceover + resolved material and captions are built. Captions come from the ElevenLabs synthesis word timings (no transcription step), so they're ready seconds after the last voiceover.
 
 ## Command API
 
@@ -179,7 +179,7 @@ The `VidgenEvent` union is frozen in `api/src/events.ts`, mirrored verbatim in `
 | `StyleSet` | `TuneProject` | Caption style / music (last-write-wins) |
 | `MaterialResolved` | worker material | Scene `assetPath` (stock or upload), `isImage` |
 | `VoiceSynthesized` | worker tts | Scene mp3 + `durationSec` + `ttsUsd` |
-| `CaptionsBuilt` | worker caption | Whisper ASS captions ready (`captionsReady`) |
+| `CaptionsBuilt` | worker caption | ASS captions ready from ElevenLabs word timings (`captionsReady`) |
 | `CostProjected` | `GenerateVoiceovers` | Projected TTS spend vs. `COST_CAP_USD` |
 | `AwaitingApproval` | `RequestApproval` | Storyboard is pending human approval |
 | `ApprovalGranted` | `ApproveStoryboard` | Inputs complete; render dispatched |
@@ -258,7 +258,7 @@ bun run test:sg             # rule self-tests
 bun run lint:sg             # scan: useState ban (frontend), interface{}/any ban (worker)
 ```
 
-CI (`.github/workflows/test.yml`) runs four jobs on push/PR to `main`: **ast-grep** (rule tests + scan), **api** (typecheck + `bun test`, integration suites self-skip without NATS/Postgres), **worker** (`go build`/`vet`/`test ./...`), **frontend** (oxlint, typecheck, `bun test`, vite build). External binaries in the worker image: ffmpeg (with libass), whisper.
+CI (`.github/workflows/test.yml`) runs four jobs on push/PR to `main`: **ast-grep** (rule tests + scan), **api** (typecheck + `bun test`, integration suites self-skip without NATS/Postgres), **worker** (`go build`/`vet`/`test ./...`), **frontend** (oxlint, typecheck, `bun test`, vite build). External binaries in the worker image: ffmpeg (with libass).
 
 ## Release process
 
