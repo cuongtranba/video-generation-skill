@@ -1,4 +1,5 @@
 import { Fragment, type KeyboardEvent, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useVidgenStore } from '../store/store'
 import { CostBadge } from './CostBadge'
 import { EventLog } from './EventLog'
@@ -22,6 +23,7 @@ function edgeClass(steps: StepInfo[], i: number): string {
 }
 
 export function PipelineCard({ projectId }: PipelineCardProps) {
+  const { t } = useTranslation()
   const project = useVidgenStore((state) => state.projects[projectId])
   const events = useVidgenStore((state) => state.eventLog[projectId]) ?? []
   const inFlight = useVidgenStore((state) => state.inFlight[projectId]) ?? {}
@@ -89,7 +91,7 @@ export function PipelineCard({ projectId }: PipelineCardProps) {
         <span className="vg-pipeline-card__id">{projectId}</span>
         <span className={`vg-status vg-status--${project.status}`}>{project.status}</span>
         <span className="vg-pipeline-card__idea">{idea}</span>
-        <span className="vg-pipeline-card__cap">cap ${capUsd(events)}</span>
+        <span className="vg-pipeline-card__cap">{t('pipeline.cap')} ${capUsd(events)}</span>
         <CostBadge projectId={projectId} />
       </div>
 

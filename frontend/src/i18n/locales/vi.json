@@ -1,0 +1,140 @@
+{
+  "app": {
+    "title": "vidgen"
+  },
+  "nav": {
+    "language": "Ngôn ngữ"
+  },
+  "lang": {
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "connection": {
+    "connecting": "Đang kết nối…",
+    "live": "Trực tiếp",
+    "down": "Mất kết nối"
+  },
+  "board": {
+    "empty": "Chưa có dự án nào"
+  },
+  "legend": {
+    "aria": "Chú thích trạng thái quy trình",
+    "done": "hoàn tất",
+    "running": "đang chạy",
+    "awaiting": "chờ duyệt",
+    "failed": "thất bại",
+    "pending": "chờ xử lý",
+    "flowing": "đang truyền"
+  },
+  "create": {
+    "aria": "Tạo dự án",
+    "idea": "Ý tưởng",
+    "ideaPlaceholder": "vd: một chú mèo tam thể tập lướt sóng lúc bình minh",
+    "language": "Ngôn ngữ lời thoại",
+    "languagePlaceholder": "Tiếng Việt, English, Français…",
+    "languageAria": "ngôn ngữ lời thoại",
+    "tone": "Tông giọng",
+    "toneAria": "tông giọng",
+    "duration": "Thời lượng (giây)",
+    "durationAria": "thời lượng tính bằng giây",
+    "scenes": "Số cảnh",
+    "scenesAria": "số cảnh",
+    "submit": "Tạo dự án",
+    "submitting": "Đang tạo…"
+  },
+  "pipeline": {
+    "cap": "giới hạn"
+  },
+  "step": {
+    "label": {
+      "script": "kịch bản",
+      "material": "tư liệu",
+      "voice": "lồng tiếng",
+      "captions": "phụ đề",
+      "gate": "phê duyệt",
+      "render": "kết xuất"
+    },
+    "title": {
+      "gate": "cổng phê duyệt"
+    },
+    "sub": {
+      "working": "{{engine}} · đang xử lý…",
+      "done": "{{engine}} · hoàn tất",
+      "doneCost": "{{engine}} · ${{cost}}",
+      "awaiting": "đang chặn · chờ người quyết định",
+      "failed": "{{engine}} · thất bại",
+      "queued": "{{engine}} · trong hàng đợi"
+    },
+    "visualPrefix": "hình ảnh:",
+    "searching": "đang tìm…",
+    "voiceLine": "giọng đọc: banmai",
+    "voice": {
+      "synthesizing": "đang tổng hợp…",
+      "queued": "trong hàng đợi",
+      "total": "{{total}}s tổng cộng"
+    },
+    "captionsNote": "karaoke · Arial 64 · dấu thời gian theo từ từ whisper",
+    "gate": {
+      "approve": "Phê duyệt storyboard",
+      "reject": "Từ chối & viết lại",
+      "frozenNote": "Giọng đọc, phụ đề và nhạc sẽ bị khóa sau khi phê duyệt.",
+      "approvedNote": "đã phê duyệt · thông số đã khóa",
+      "waitsNote": "chờ phụ đề"
+    },
+    "render": {
+      "outputName": "output.mp4",
+      "spec": "1080×1920 · h264",
+      "totalCost": "tổng chi phí",
+      "running": "ghép + phụ đề + giảm nhạc nền",
+      "queued": "trong hàng đợi · 1080×1920 h264"
+    },
+    "error": {
+      "fallback": "{{label}} thất bại",
+      "retry": "Thử lại bước",
+      "retryNote": "Chỉ thử lại bước này. Các sản phẩm phía trước được giữ nguyên."
+    },
+    "run": {
+      "script": "Tạo kịch bản",
+      "material": "Tìm tư liệu",
+      "voice": "Tạo lồng tiếng",
+      "note": "Bước tiếp theo trong quy trình."
+    }
+  },
+  "node": {
+    "material": {
+      "failed": "bước thất bại"
+    },
+    "captions": {
+      "placeholder": "thời gian từ karaoke"
+    },
+    "gate": {
+      "review": "cần xem xét",
+      "approved": "đã phê duyệt",
+      "waits": "chờ phụ đề",
+      "reviewSub": "{{count}} cảnh · nhấn để mở",
+      "approvedSub": "thông số đã khóa",
+      "humanSub": "cổng con người"
+    },
+    "render": {
+      "done": "100% · output.mp4",
+      "running": "đang mã hóa…",
+      "waits": "chờ phê duyệt"
+    }
+  },
+  "eventLog": {
+    "title": "sự kiện worker · nats"
+  },
+  "login": {
+    "title": "Đăng nhập",
+    "subtitle": "Nhập thông tin đăng nhập để tiếp tục",
+    "username": "Tên đăng nhập",
+    "password": "Mật khẩu",
+    "submit": "Đăng nhập",
+    "submitting": "Đang đăng nhập…",
+    "error": "Sai tên đăng nhập hoặc mật khẩu",
+    "aria": "Đăng nhập"
+  },
+  "auth": {
+    "logout": "Đăng xuất"
+  }
+}

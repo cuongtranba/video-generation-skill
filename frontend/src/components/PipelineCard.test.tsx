@@ -30,7 +30,7 @@ describe('PipelineCard', () => {
       expect(screen.getByTestId(`pipeline-node-${key}`)).toBeInTheDocument()
     }
     expect(screen.getByText('lợi ích của việc uống nước ấm buổi sáng')).toBeInTheDocument()
-    expect(screen.getByText('cap $0.15')).toBeInTheDocument()
+    expect(screen.getByText('giới hạn $0.15')).toBeInTheDocument()
   })
 
   it('marks the script node done and material as the active step after scripting', () => {
@@ -61,7 +61,7 @@ describe('PipelineCard', () => {
     seed(events)
     render(<PipelineCard projectId="p1" />)
     expect(screen.getByTestId('pipeline-node-gate')).toHaveAttribute('data-state', 'awaiting')
-    expect(screen.getByRole('button', { name: 'Approve storyboard' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Phê duyệt storyboard' })).toBeInTheDocument()
   })
 
   it('shows the failure error and a retry button when a step failed', () => {
@@ -74,7 +74,7 @@ describe('PipelineCard', () => {
     expect(screen.getByTestId('pipeline-node-material')).toHaveAttribute('data-state', 'failed')
     const detail = screen.getByTestId('step-detail')
     expect(within(detail).getByText('pexels: 429 rate limited')).toBeInTheDocument()
-    expect(within(detail).getByRole('button', { name: 'Retry step' })).toBeInTheDocument()
+    expect(within(detail).getByRole('button', { name: 'Thử lại bước' })).toBeInTheDocument()
   })
 
   it('renders worker event rows in the log', () => {

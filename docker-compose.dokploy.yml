@@ -66,6 +66,12 @@ services:
       SPA_DIR: /app/public
       MEDIA_DIR: /app/media
       CONFIG_PATH: /app/config.yaml
+      # Single-user login — set AUTH_PASSWORD and a stable SESSION_SECRET as
+      # Dokploy environment variables (never commit them). Unset AUTH_PASSWORD
+      # ⇒ random per-boot password (login disabled until configured).
+      AUTH_USERNAME: ${AUTH_USERNAME:-admin}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:

@@ -11,17 +11,17 @@ describe('ConnectionStatus', () => {
   it('renders Live when the store connection is live', () => {
     useVidgenStore.setState({ connection: 'live' })
     render(<ConnectionStatus />)
-    expect(screen.getByText('Live')).toBeInTheDocument()
+    expect(screen.getByText('Trực tiếp')).toBeInTheDocument()
   })
 
   it('renders Disconnected when down', () => {
     render(<ConnectionStatus />)
-    expect(screen.getByText('Disconnected')).toBeInTheDocument()
+    expect(screen.getByText('Mất kết nối')).toBeInTheDocument()
   })
 
   it('renders Connecting… while connecting', () => {
     useVidgenStore.setState({ connection: 'connecting' })
     render(<ConnectionStatus />)
-    expect(screen.getByText('Connecting…')).toBeInTheDocument()
+    expect(screen.getByText('Đang kết nối…')).toBeInTheDocument()
   })
 })

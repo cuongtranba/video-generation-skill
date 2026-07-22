@@ -120,9 +120,10 @@ describe('PipelineCard keyboard control', () => {
   it('does not fire hotkeys while typing in the create-project form', async () => {
     const user = userEvent.setup()
     const approveStoryboard = mock(() => Promise.resolve())
-    seed(AWAITING, { approveStoryboard })
+    // App gates the board behind auth; authenticate so the create form renders.
+    seed(AWAITING, { approveStoryboard, auth: 'authenticated' })
     render(<App />)
-    await user.type(screen.getByLabelText(/idea/i), 'approve')
+    await user.type(screen.getByLabelText(/ý tưởng/i), 'approve')
     expect(approveStoryboard).not.toHaveBeenCalled()
   })
 })

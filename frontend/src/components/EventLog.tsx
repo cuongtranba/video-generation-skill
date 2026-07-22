@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useVidgenStore } from '../store/store'
 import { formatEvent } from '../pipeline/eventFormat'
 
@@ -7,6 +8,7 @@ interface EventLogProps {
 }
 
 export function EventLog({ projectId }: EventLogProps) {
+  const { t } = useTranslation()
   const events = useVidgenStore((state) => state.eventLog[projectId]) ?? []
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -18,7 +20,7 @@ export function EventLog({ projectId }: EventLogProps) {
 
   return (
     <div className="vg-event-log" data-testid="event-log">
-      <span className="vg-event-log__title">worker events · nats</span>
+      <span className="vg-event-log__title">{t('eventLog.title')}</span>
       <div ref={scrollRef} className="vg-event-log__scroll">
         {events.map((event, i) => {
           const row = formatEvent(event)

@@ -11,7 +11,7 @@ beforeEach(() => {
 describe('Board', () => {
   it('renders the empty state with no projects', () => {
     render(<Board />)
-    expect(screen.getByText('No projects yet')).toBeInTheDocument()
+    expect(screen.getByText('Chưa có dự án nào')).toBeInTheDocument()
   })
 
   it('renders a card per project', () => {
@@ -36,7 +36,7 @@ describe('Board', () => {
     render(<Board />)
     const legends = screen.getAllByTestId('board-legend')
     expect(legends).toHaveLength(1) // board-level, not per card
-    for (const label of ['done', 'running', 'awaiting', 'failed', 'pending']) {
+    for (const label of ['hoàn tất', 'đang chạy', 'chờ duyệt', 'thất bại', 'chờ xử lý']) {
       expect(legends[0]).toHaveTextContent(label)
     }
   })

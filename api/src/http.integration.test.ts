@@ -71,14 +71,31 @@ describe.skipIf(!httpServerUp)('createHttpServer (integration)', () => {
     const fixedScriptGen: ScriptGenerator = { async generateScenes(): Promise<{ scenes: Scene[] }> { return { scenes: [] } } }
     const js = { async publish(): Promise<undefined> { return undefined } }
     const ctxCmd = createCommandContext(store, js, fixedScriptGen, 0.15)
-    const server = createHttpServer({ db: httpServerDb, ctx: ctxCmd, spaDir, mediaDir, ttsProvider: 'elevenlabs' })
+    const auth = { username: 'admin', password: 'itest-fixture-pw', secret: 'itest-secret', ttlSec: 3600 }
+    const server = createHttpServer({ db: httpServerDb, ctx: ctxCmd, spaDir, mediaDir, ttsProvider: 'elevenlabs', auth })
     await new Promise<void>((resolve) => server.listen(0, resolve))
     const address = server.address()
     if (address === null || typeof address === 'string') throw new Error('expected a bound TCP address')
     const base = `http://127.0.0.1:${address.port}`
 
+    // Gated command surface: an anonymous command is refused with 401.
+    const anonRes = await fetch(`${base}/api/commands/CreateProject`, { method: 'POST', body: '{}' })
+    expect(anonRes.status).toBe(401)
+
+    // Authenticate and carry the session cookie on subsequent requests.
+    const loginRes = await fetch(`${base}/api/login`, {
+      method: 'POST',
+      body: JSON.stringify({ username: 'admin', password: 'itest-fixture-pw' }),
+    })
+    expect(loginRes.status).toBe(200)
+    const setCookie = loginRes.headers.get('set-cookie')
+    if (setCookie === null) throw new Error('expected a session cookie')
+    const cookie = setCookie.split(';')[0]!
+    const authed = { cookie }
+
     const createRes = await fetch(`${base}/api/commands/CreateProject`, {
       method: 'POST',
+      headers: authed,
       body: JSON.stringify({ idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', idempotencyKey: 'k1' }),
     })
     expect(createRes.status).toBe(200)
@@ -89,13 +106,14 @@ describe.skipIf(!httpServerUp)('createHttpServer (integration)', () => {
     // without re-running the handler (which would append a second event).
     const replayRes = await fetch(`${base}/api/commands/CreateProject`, {
       method: 'POST',
+      headers: authed,
       body: JSON.stringify({ idea: 'x', durationSec: 30, sceneCount: 1, tone: 'casual', idempotencyKey: 'k1' }),
     })
     const replayed = (await replayRes.json()) as { projectId: string }
     expect(replayed.projectId).toBe(created.projectId)
     expect(store.events.filter((e) => e.type === 'ProjectCreated')).toHaveLength(1)
 
-    const configRes = await fetch(`${base}/api/config`)
+    const configRes = await fetch(`${base}/api/config`, { headers: authed })
     expect(configRes.status).toBe(200)
     expect(await configRes.json()).toEqual({ ttsProvider: 'elevenlabs' })
 
@@ -107,7 +125,7 @@ describe.skipIf(!httpServerUp)('createHttpServer (integration)', () => {
     expect(mediaRes.status).toBe(200)
     expect(await mediaRes.text()).toBe('fake-mp4-bytes')
 
-    const unknownCommandRes = await fetch(`${base}/api/commands/NotACommand`, { method: 'POST', body: '{}' })
+    const unknownCommandRes = await fetch(`${base}/api/commands/NotACommand`, { method: 'POST', headers: authed, body: '{}' })
     expect(unknownCommandRes.status).toBe(404)
 
     // A missing media file must 404 cleanly (not crash the process on an

@@ -5,6 +5,10 @@ import { createNatsEventBusClient, type EventBusClient } from './natsClient'
 
 export type ConnectionState = 'connecting' | 'live' | 'down'
 
+/** Session status mirrored from GET /api/session. 'unknown' until the first
+ * probe resolves; the SPA gates the board behind 'authenticated'. */
+export type AuthStatus = 'unknown' | 'authenticated' | 'anonymous'
+
 // Active TTS provider, mirrored from the api's GET /api/config (sourced from
 // config.yaml). Drives provider-aware UI gating: ElevenLabs ignores the voice
 // and speed tune fields, so TunePanel disables them when this is 'elevenlabs'.
@@ -58,6 +62,8 @@ export interface VidgenStore {
   inFlight: Record<string, InFlight>
   /** Active TTS provider from GET /api/config; undefined until fetchConfig resolves. */
   ttsProvider?: TtsProvider
+  /** Session status; the SPA renders the login gate unless 'authenticated'. */
+  auth: AuthStatus
   applyEvent: (subject: string, event: VidgenEvent) => void
   select: (projectId: string) => void
   selectStep: (projectId: string, step: StepKey) => void
@@ -74,6 +80,12 @@ export interface VidgenStore {
   connect: () => Promise<void>
   disconnect: () => Promise<void>
   fetchConfig: () => Promise<void>
+  /** Probe GET /api/session and set `auth` accordingly (never throws). */
+  checkSession: () => Promise<void>
+  /** POST credentials to /api/login; resolves true on success. */
+  login: (username: string, password: string) => Promise<boolean>
+  /** POST /api/logout and drop to 'anonymous'. */
+  logout: () => Promise<void>
   /** @internal set by connect(); torn down by disconnect(). Not read by components. */
   _unsubscribe?: () => Promise<void>
 }
@@ -132,6 +144,7 @@ export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi
     selectedSteps: {},
     inFlight: {},
     ttsProvider: undefined,
+    auth: 'unknown',
 
     applyEvent: (subject, event) => {
       if (!subject.startsWith(`vidgen.evt.${event.projectId}.`)) {
@@ -214,6 +227,46 @@ export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi
         ? (body as { ttsProvider: TtsProvider }).ttsProvider
         : undefined
       set({ ttsProvider: provider })
+    },
+
+    checkSession: async () => {
+      try {
+        const res = await deps.fetchImpl('/api/session')
+        if (!res.ok) {
+          set({ auth: 'anonymous' })
+          return
+        }
+        const body: unknown = await res.json()
+        const authed = (body as { authenticated?: unknown })?.authenticated === true
+        set({ auth: authed ? 'authenticated' : 'anonymous' })
+        if (authed) void get().fetchConfig().catch(() => undefined)
+      } catch {
+        set({ auth: 'anonymous' })
+      }
+    },
+
+    login: async (username, password) => {
+      const res = await deps.fetchImpl('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      })
+      if (!res.ok) {
+        set({ auth: 'anonymous' })
+        return false
+      }
+      set({ auth: 'authenticated' })
+      void get().fetchConfig().catch(() => undefined)
+      return true
+    },
+
+    logout: async () => {
+      try {
+        await deps.fetchImpl('/api/logout', { method: 'POST' })
+      } catch {
+        // Best-effort: even if the request fails, drop the local session.
+      }
+      set({ auth: 'anonymous' })
     },
   }
   })
