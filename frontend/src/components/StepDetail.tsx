@@ -130,9 +130,14 @@ function GateDetail({ projectId, scenes }: { projectId: string; scenes: Scene[] 
         ))}
       </div>
       <div className="vg-step-detail__actions">
-        <Button onClick={() => void approveStoryboard({ projectId })}>Approve storyboard</Button>
-        <Button variant="secondary" onClick={() => void generateScript({ projectId })}>
-          Reject &amp; rescript
+        {/* Key hints mirror pipeline/hotkeys.ts (A approve, R reject). The <kbd> is
+            aria-hidden so the accessible name stays "Approve storyboard"; the
+            shortcut is exposed to AT via aria-keyshortcuts. */}
+        <Button aria-keyshortcuts="A" onClick={() => void approveStoryboard({ projectId })}>
+          Approve storyboard <kbd className="vg-kbd" aria-hidden="true">A</kbd>
+        </Button>
+        <Button variant="secondary" aria-keyshortcuts="R" onClick={() => void generateScript({ projectId })}>
+          Reject &amp; rescript <kbd className="vg-kbd" aria-hidden="true">R</kbd>
         </Button>
         <span className="vg-step-detail__note">Voice, captions, and music are frozen once approved.</span>
       </div>
@@ -218,7 +223,9 @@ export function StepDetail({ projectId, step, project }: StepDetailProps) {
       <>
         <div className="vg-step-detail__error">{fail?.error ?? `${step.label} failed`}</div>
         <div className="vg-step-detail__actions">
-          <Button onClick={retry}>Retry step</Button>
+          <Button aria-keyshortcuts="R" onClick={retry}>
+            Retry step <kbd className="vg-kbd" aria-hidden="true">R</kbd>
+          </Button>
           <span className="vg-step-detail__note">Retries only this step. Upstream artifacts are kept.</span>
         </div>
       </>
