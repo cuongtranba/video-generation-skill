@@ -1,0 +1,102 @@
+# Production compose for Dokploy (single-origin, Traefik-routed).
+#
+# Differences from the dev docker-compose.yml (which is left untouched):
+#   - api image bundles the built SPA (deploy/api-full.Dockerfile, root context)
+#     so one origin serves SPA + /api + /media.
+#   - postgres & nats have healthchecks; api/worker wait for them to be *ready*
+#     (depends_on: condition: service_healthy) — fixes the boot race where the
+#     api's migrate() hit Postgres before it accepted connections and crashed.
+#   - api & nats join Dokploy's external `dokploy-network` so Traefik can route
+#     the domains. No host port bindings (routing is via Traefik).
+#
+# Dokploy injects the compose Environment into ./.env (repo root), satisfying the
+# worker's `env_file` and the api's ${VAR:-} interpolation.
+services:
+  nats:
+    image: nats:2.10-alpine
+    command: ["-c", "/etc/nats/nats.conf"]
+    volumes:
+      - ./deploy/nats/nats.conf:/etc/nats/nats.conf:ro
+      - nats-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - default
+      - dokploy-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vidgen
+      POSTGRES_PASSWORD: vidgen
+      POSTGRES_DB: vidgen
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vidgen -d vidgen"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/api-full.Dockerfile
+      args:
+        VITE_NATS_WS_URL: wss://vidgen.lowbit.link/nats
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    environment:
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgres://vidgen:vidgen@postgres:5432/vidgen
+      COST_CAP_USD: "0.15"
+      PORT: "8080"
+      SPA_DIR: /app/public
+      MEDIA_DIR: /app/media
+      CONFIG_PATH: /app/config.yaml
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - media-data:/app/media
+      - ./config.yaml:/app/config.yaml:ro
+    networks:
+      - default
+      - dokploy-network
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    depends_on:
+      nats:
+        condition: service_healthy
+    environment:
+      NATS_URL: nats://nats:4222
+      VIDGEN_ENV_PATH: /app/.env
+      VIDGEN_CONFIG_PATH: /app/config.yaml
+    env_file:
+      - ./.env
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - media-data:/app/media
+    networks:
+      - default
+    restart: unless-stopped
+
+networks:
+  dokploy-network:
+    external: true
+
+volumes:
+  nats-data:
+  postgres-data:
+  media-data:
