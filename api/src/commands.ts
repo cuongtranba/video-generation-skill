@@ -276,20 +276,11 @@ export async function generateVoiceovers(ctx: CommandContext, input: GenerateVoi
       destPath: path.join(projectMediaDir, `tts${scene.idx}.mp3`),
     })
   }
-  await dispatchJob(ctx.js, 'caption', input.projectId, null, {
-    sceneAudio: state.scenes.map((s) => ({
-      audioPath: path.join(projectMediaDir, `tts${s.idx}.mp3`),
-      startOffsetSec: 0,
-      narration: s.narration,
-    })),
-    style: {
-      font_name: state.style.captionStyle.fontName,
-      font_size: state.style.captionStyle.fontSize,
-      primary: '#FFFFFF',
-      outline: '#000000',
-      bold: true,
-    },
-    destPath: path.join(projectMediaDir, 'captions.ass'),
-  })
+  // The caption job is NOT dispatched here. Each tts job writes a
+  // `tts{idx}.words.json` sidecar the caption handler reads; dispatching
+  // caption alongside the tts jobs raced those writes and failed the run.
+  // Instead reactions.ts dispatches the single caption job once every scene's
+  // VoiceSynthesized has landed (each emitted only after its sidecar is on
+  // disk), so the sidecars are guaranteed present. See api/src/reactions.ts.
   return foldProject([...events, event])
 }

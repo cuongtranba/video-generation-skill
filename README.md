@@ -53,7 +53,7 @@ flowchart TB
     NATS --> PROJ --> PG
 ```
 
-**Event-sourced flow.** Commands append to `VIDGEN_EVENTS` and dispatch jobs to `VIDGEN_JOBS`. Workers consume jobs and emit result events (`MaterialResolved`, `VoiceSynthesized`, `CaptionsBuilt`, `RenderCompleted`, `RunFailed`). The api folds events into `ProjectState` and projects them into Postgres for the read model (`GET /api/state`). `dispatchJob` does no key remapping — api payload keys equal the worker's JSON tags.
+**Event-sourced flow.** Commands append to `VIDGEN_EVENTS` and dispatch jobs to `VIDGEN_JOBS`. Workers consume jobs and emit result events (`MaterialResolved`, `VoiceSynthesized`, `CaptionsBuilt`, `RenderCompleted`, `RunFailed`). The api folds events into `ProjectState` and projects them into Postgres for the read model (`GET /api/state`). `dispatchJob` does no key remapping — api payload keys equal the worker's JSON tags. Most jobs are dispatched by a command; the exception is the caption job, dispatched by a live event reaction (`api/src/reactions.ts`) once every scene's `VoiceSynthesized` has landed, so the per-scene word-timestamp sidecars are guaranteed on disk before the caption handler reads them.
 
 **Cost wall.** `Σ VoiceSynthesized.ttsUsd ≤ COST_CAP_USD` (default `$0.15`, set in compose). Projected at `GenerateVoiceovers` (`CostProjected`) and enforced before spend.
 

@@ -2,6 +2,7 @@ import { createPool, migrate } from './db.js'
 import { connectBus, ensureStreams, createEventStore } from './nats.js'
 import { createCommandContext } from './commands.js'
 import { runProjections } from './projections.js'
+import { reactToEvent } from './reactions.js'
 import { createHttpServer } from './http.js'
 import { sdkScriptGenerator } from './script.js'
 import { costCapFromEnv } from './cost.js'
@@ -26,7 +27,7 @@ async function main(): Promise<void> {
   const store = createEventStore(bus.js)
   const ctx = createCommandContext(store, bus.js, sdkScriptGenerator, costCapFromEnv(), mediaDir)
 
-  runProjections(bus.js, bus.jsm, db).catch((err: unknown) => {
+  runProjections(bus.js, bus.jsm, db, (event) => reactToEvent(bus.js, db, mediaDir, event)).catch((err: unknown) => {
     console.error('projections consumer stopped:', err)
     process.exit(1)
   })

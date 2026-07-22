@@ -126,14 +126,26 @@ async function recomputeSpentUsd(db: Database, projectId: string): Promise<void>
 import type { JetStreamClient, JetStreamManager } from '@nats-io/jetstream'
 import { EVENTS_STREAM, ensureDurableConsumer, deleteDurableConsumer, consumeEvents } from './nats.js'
 
+/** A post-fold side effect run on the live consume path (never during
+ * rebuildProjections). Used to dispatch follow-up jobs once the read model
+ * reflects the latest event — e.g. the caption job after all voiceovers. */
+export type EventReaction = (event: VidgenEvent) => Promise<void>
+
 /** Long-running: wires the durable "projections" consumer to fold every new
  * VIDGEN_EVENTS message into Postgres. Backlog is delivered first (durable
  * consumers with DeliverPolicy.All start at the beginning on first
  * creation), then live events as they arrive. Never resolves in normal
- * operation — callers run it as a background task. */
-export async function runProjections(js: JetStreamClient, jsm: JetStreamManager, db: Database): Promise<void> {
+ * operation — callers run it as a background task.
+ *
+ * `react` (optional) runs after each event is folded, on this live path only —
+ * it is intentionally NOT invoked by rebuildProjections, so a read-model
+ * rebuild never re-fires job dispatch. */
+export async function runProjections(js: JetStreamClient, jsm: JetStreamManager, db: Database, react?: EventReaction): Promise<void> {
   await ensureDurableConsumer(jsm, PROJECTIONS_CONSUMER)
-  await consumeEvents(js, PROJECTIONS_CONSUMER, (event) => applyProjection(db, event))
+  await consumeEvents(js, PROJECTIONS_CONSUMER, async (event) => {
+    await applyProjection(db, event)
+    if (react) await react(event)
+  })
 }
 
 /** Postgres is disposable (spec §2.5): wipe the read-model tables, drop the
