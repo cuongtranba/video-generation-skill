@@ -220,3 +220,65 @@ describe('fetchConfig', () => {
     await expect(store.getState().fetchConfig()).rejects.toThrow(/GET \/api\/config failed/)
   })
 })
+
+describe('selectStep', () => {
+  it('records the selected step per project', () => {
+    const store = createVidgenStore(fakeDeps())
+    store.getState().selectStep('p1', 'voice')
+    store.getState().selectStep('p2', 'gate')
+    expect(store.getState().selectedSteps.p1).toBe('voice')
+    expect(store.getState().selectedSteps.p2).toBe('gate')
+  })
+})
+
+describe('inFlight tracking', () => {
+  function created(projectId: string): VidgenEventType {
+    return { v: 1, type: 'ProjectCreated', projectId, at: '2026-01-01T00:00:00Z', idea: 'x', durationSec: 30, sceneCount: 1, tone: 'fun', language: 'English' }
+  }
+
+  it.each([
+    ['generateScript', 'script'],
+    ['resolveMaterial', 'material'],
+    ['approveStoryboard', 'render'],
+  ] as const)('%s marks the %s step in flight', async (action, step) => {
+    const store = createVidgenStore(fakeDeps())
+    await store.getState()[action]({ projectId: 'p1' })
+    expect(store.getState().inFlight.p1?.[step]).toBe(true)
+  })
+
+  it('generateVoiceovers marks voice and captions in flight', async () => {
+    const store = createVidgenStore(fakeDeps())
+    await store.getState().generateVoiceovers({ projectId: 'p1' })
+    expect(store.getState().inFlight.p1?.voice).toBe(true)
+    expect(store.getState().inFlight.p1?.captions).toBe(true)
+  })
+
+  it('a failed POST clears the in-flight flag', async () => {
+    const fetchImpl = mock(async () => new Response(null, { status: 400 }))
+    const store = createVidgenStore(fakeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }))
+    await expect(store.getState().generateScript({ projectId: 'p1' })).rejects.toThrow()
+    expect(store.getState().inFlight.p1?.script).toBeFalsy()
+  })
+
+  it('the matching result event clears the flag', async () => {
+    const store = createVidgenStore(fakeDeps())
+    await store.getState().generateScript({ projectId: 'p1' })
+    store.getState().applyEvent('vidgen.evt.p1.ProjectCreated', created('p1'))
+    store.getState().applyEvent('vidgen.evt.p1.ScriptGenerated', {
+      v: 1, type: 'ScriptGenerated', projectId: 'p1', at: '2026-01-01T00:00:01Z',
+      scenes: [{ idx: 0, narration: 'n', visual: 'v' }], scriptUsd: 0.001,
+    })
+    expect(store.getState().inFlight.p1?.script).toBeFalsy()
+  })
+
+  it('RunFailed clears the flag for its stage', async () => {
+    const store = createVidgenStore(fakeDeps())
+    await store.getState().generateVoiceovers({ projectId: 'p1' })
+    store.getState().applyEvent('vidgen.evt.p1.RunFailed', {
+      v: 1, type: 'RunFailed', projectId: 'p1', at: '2026-01-01T00:00:01Z', stage: 'tts', error: 'boom',
+    })
+    expect(store.getState().inFlight.p1?.voice).toBeFalsy()
+    // captions stays in flight — only the failed stage clears
+    expect(store.getState().inFlight.p1?.captions).toBe(true)
+  })
+})

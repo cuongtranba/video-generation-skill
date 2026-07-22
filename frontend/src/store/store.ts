@@ -1,4 +1,5 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand'
+import { stepClearedBy, type InFlight, type StepKey } from '../pipeline/derive'
 import { foldProject, type ProjectState, type VidgenEvent } from './events'
 import { createNatsEventBusClient, type EventBusClient } from './natsClient'
 
@@ -51,10 +52,15 @@ export interface VidgenStore {
   eventLog: Record<string, VidgenEvent[]>
   connection: ConnectionState
   selectedId?: string
+  /** Pipeline board node selection, per project (default = derive.activeStep). */
+  selectedSteps: Record<string, StepKey>
+  /** Commands dispatched whose result event has not landed yet, per project. */
+  inFlight: Record<string, InFlight>
   /** Active TTS provider from GET /api/config; undefined until fetchConfig resolves. */
   ttsProvider?: TtsProvider
   applyEvent: (subject: string, event: VidgenEvent) => void
   select: (projectId: string) => void
+  selectStep: (projectId: string, step: StepKey) => void
   createProject: (input: CreateProjectInput) => Promise<void>
   generateScript: (input: ProjectIdInput) => Promise<void>
   resolveMaterial: (input: ProjectIdInput) => Promise<void>
@@ -98,11 +104,33 @@ async function postCommand<TBody extends object>(
 }
 
 export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi<VidgenStore>> {
-  return create<VidgenStore>()((set, get) => ({
+  return create<VidgenStore>()((set, get) => {
+  const setFlags = (projectId: string, steps: StepKey[], value: boolean) =>
+    set((state) => {
+      const flags: InFlight = { ...state.inFlight[projectId] }
+      for (const step of steps) flags[step] = value
+      return { inFlight: { ...state.inFlight, [projectId]: flags } }
+    })
+
+  // Marks the steps a command drives as in-flight until the matching result
+  // event (or RunFailed) lands via applyEvent; a rejected POST rolls back.
+  const trackedCommand = async (name: string, input: ProjectIdInput, steps: StepKey[]): Promise<void> => {
+    setFlags(input.projectId, steps, true)
+    try {
+      await postCommand(deps.fetchImpl, name, input)
+    } catch (err) {
+      setFlags(input.projectId, steps, false)
+      throw err
+    }
+  }
+
+  return {
     projects: {},
     eventLog: {},
     connection: 'down',
     selectedId: undefined,
+    selectedSteps: {},
+    inFlight: {},
     ttsProvider: undefined,
 
     applyEvent: (subject, event) => {
@@ -111,21 +139,30 @@ export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi
       }
       set((state) => {
         const log = [...(state.eventLog[event.projectId] ?? []), event]
+        const cleared = stepClearedBy(event)
+        const flags = state.inFlight[event.projectId]
+        const inFlight = cleared && flags?.[cleared]
+          ? { ...state.inFlight, [event.projectId]: { ...flags, [cleared]: false } }
+          : state.inFlight
         return {
           eventLog: { ...state.eventLog, [event.projectId]: log },
           projects: { ...state.projects, [event.projectId]: foldProject(log) },
+          inFlight,
         }
       })
     },
 
     select: (projectId) => set({ selectedId: projectId }),
 
+    selectStep: (projectId, step) =>
+      set((state) => ({ selectedSteps: { ...state.selectedSteps, [projectId]: step } })),
+
     createProject: (input) => postCommand(deps.fetchImpl, 'CreateProject', input),
-    generateScript: (input) => postCommand(deps.fetchImpl, 'GenerateScript', input),
-    resolveMaterial: (input) => postCommand(deps.fetchImpl, 'ResolveMaterial', input),
-    generateVoiceovers: (input) => postCommand(deps.fetchImpl, 'GenerateVoiceovers', input),
+    generateScript: (input) => trackedCommand('GenerateScript', input, ['script']),
+    resolveMaterial: (input) => trackedCommand('ResolveMaterial', input, ['material']),
+    generateVoiceovers: (input) => trackedCommand('GenerateVoiceovers', input, ['voice', 'captions']),
     requestApproval: (input) => postCommand(deps.fetchImpl, 'RequestApproval', input),
-    approveStoryboard: (input) => postCommand(deps.fetchImpl, 'ApproveStoryboard', input),
+    approveStoryboard: (input) => trackedCommand('ApproveStoryboard', input, ['render']),
     publish: (input) => postCommand(deps.fetchImpl, 'Publish', input),
     tuneProject: (input) => postCommand(deps.fetchImpl, 'TuneProject', input),
 
@@ -178,7 +215,8 @@ export function createVidgenStore(deps: VidgenStoreDeps): UseBoundStore<StoreApi
         : undefined
       set({ ttsProvider: provider })
     },
-  }))
+  }
+  })
 }
 
 const defaultDeps: VidgenStoreDeps = {
