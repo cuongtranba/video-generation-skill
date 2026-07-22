@@ -1,0 +1,13 @@
+id: no-react-usestate
+valid:
+  - |
+    const value = useProjectStore((s) => s.value)
+  - |
+    const [state, dispatch] = useReducerLike()
+invalid:
+  - |
+    const [open, setOpen] = useState(false)
+  - |
+    const [items, setItems] = useState<string[]>([])
+  - |
+    const [n, setN] = React.useState(0)

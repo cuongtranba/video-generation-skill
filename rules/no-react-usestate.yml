@@ -1,0 +1,21 @@
+id: no-react-usestate
+language: tsx
+severity: error
+message: useState is banned for cross-component state — move state and actions into the Zustand store.
+note: |
+  Shared/app state lives in frontend/src/store (zustand create()).
+  Purely form-local ephemeral state may be exempted by adding the file to
+  the ignores list below — do so consciously, in the same PR.
+files:
+  - frontend/src/components/**
+ignores:
+  - frontend/src/components/**/*.test.ts
+  - frontend/src/components/**/*.test.tsx
+  - frontend/src/components/TunePanel.tsx
+  - frontend/src/components/CreateProjectForm.tsx
+rule:
+  any:
+    - pattern: useState($$$ARGS)
+    - pattern: useState<$$$T>($$$ARGS)
+    - pattern: React.useState($$$ARGS)
+    - pattern: React.useState<$$$T>($$$ARGS)

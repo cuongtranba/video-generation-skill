@@ -1,0 +1,23 @@
+id: no-react-usestate
+snapshots:
+  ? |
+    const [items, setItems] = useState<string[]>([])
+  : labels:
+    - source: useState<string[]>([])
+      style: primary
+      start: 26
+      end: 48
+  ? |
+    const [n, setN] = React.useState(0)
+  : labels:
+    - source: React.useState(0)
+      style: primary
+      start: 18
+      end: 35
+  ? |
+    const [open, setOpen] = useState(false)
+  : labels:
+    - source: useState(false)
+      style: primary
+      start: 24
+      end: 39

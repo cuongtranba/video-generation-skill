@@ -1,0 +1,25 @@
+id: go-no-empty-interface
+valid:
+  - |
+    package p
+
+    func Consume[T any](v T) {}
+  - |
+    package p
+
+    type Handler interface {
+    	Handle(s string) error
+    }
+invalid:
+  - |
+    package p
+
+    func f(v interface{}) {}
+  - |
+    package p
+
+    var x any
+  - |
+    package p
+
+    func g() map[string]any { return nil }
