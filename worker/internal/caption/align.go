@@ -2,6 +2,15 @@ package caption
 
 import "strings"
 
+// WordTimestamp is one caption token with its start/end time in seconds,
+// relative to the audio it was derived from. The json tags match the sidecar
+// file format written by the tts package.
+type WordTimestamp struct {
+	Word  string  `json:"word"`
+	Start float64 `json:"start"`
+	End   float64 `json:"end"`
+}
+
 // AlignNarration replaces the transcript text with the authoritative narration
 // while keeping whisper's timing, so captions never inherit TTS pronunciation
 // errors. When the narration word count matches the whisper word count each

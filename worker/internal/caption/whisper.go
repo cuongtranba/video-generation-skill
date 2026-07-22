@@ -10,12 +10,6 @@ import (
 	"strings"
 )
 
-type WordTimestamp struct {
-	Word  string  `json:"word"`
-	Start float64 `json:"start"`
-	End   float64 `json:"end"`
-}
-
 // WhisperRunner drives the openai-whisper CLI to get word-level timestamps.
 type WhisperRunner struct {
 	bin string
