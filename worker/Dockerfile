@@ -16,8 +16,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN ffmpeg -filters 2>/dev/null | grep -q " ass " || \
     (echo "FATAL: ffmpeg build is missing the ass subtitle filter (libass)" && exit 1)
 
-RUN pip install --no-cache-dir openai-whisper
-
 WORKDIR /app
 COPY --from=build /out/vidgen-worker /app/vidgen-worker
 
@@ -26,6 +24,5 @@ ENV VIDGEN_ENV_PATH=/app/.env
 ENV VIDGEN_CONFIG_PATH=/app/config.yaml
 ENV FFMPEG_BIN=ffmpeg
 ENV FFPROBE_BIN=ffprobe
-ENV WHISPER_BIN=whisper
 
 ENTRYPOINT ["/app/vidgen-worker"]
