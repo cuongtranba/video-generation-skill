@@ -53,7 +53,7 @@ func TestCaptionHandler_WritesASSAndPublishesCaptionsBuilt(t *testing.T) {
 }
 
 func TestCaptionHandler_TranscribeErrorPublishesRunFailed(t *testing.T) {
-	transcriber := &stubTranscriber{err: errors.New("whisper crashed")}
+	transcriber := &stubTranscriber{err: errors.New("transcriber crashed")}
 	store := newTestStore(t)
 	h := NewCaptionHandler(transcriber, caption.NewASSWriter(), store)
 

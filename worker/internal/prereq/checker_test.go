@@ -25,11 +25,9 @@ func TestCheckAllPresent(t *testing.T) {
 	dir := t.TempDir()
 	ffmpeg := writeFakeBin(t, dir, "ffmpeg", "ffmpeg version 6.1.1 Copyright")
 	ffprobe := writeFakeBin(t, dir, "ffprobe", "ffprobe version 6.1.1 Copyright")
-	whisper := writeFakeBin(t, dir, "whisper", "usage: whisper")
 
 	t.Setenv("FFMPEG_BIN", ffmpeg)
 	t.Setenv("FFPROBE_BIN", ffprobe)
-	t.Setenv("WHISPER_BIN", whisper)
 
 	c := NewChecker()
 	if err := c.Check(); err != nil {
@@ -49,13 +47,12 @@ func TestCheckMissingBinary(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("FFMPEG_BIN", filepath.Join(dir, "no-such-ffmpeg"))
 	t.Setenv("FFPROBE_BIN", filepath.Join(dir, "no-such-ffprobe"))
-	t.Setenv("WHISPER_BIN", filepath.Join(dir, "no-such-whisper"))
 
 	err := NewChecker().Check()
 	if err == nil {
 		t.Fatal("Check: want error for missing binaries, got nil")
 	}
-	for _, name := range []string{"ffmpeg", "ffprobe", "whisper"} {
+	for _, name := range []string{"ffmpeg", "ffprobe"} {
 		if !strings.Contains(err.Error(), name) {
 			t.Errorf("error should mention %q: %v", name, err)
 		}
@@ -66,11 +63,9 @@ func TestCheckOutdatedVersion(t *testing.T) {
 	dir := t.TempDir()
 	ffmpeg := writeFakeBin(t, dir, "ffmpeg", "ffmpeg version 4.4.1 Copyright")
 	ffprobe := writeFakeBin(t, dir, "ffprobe", "ffprobe version 6.1.1 Copyright")
-	whisper := writeFakeBin(t, dir, "whisper", "usage: whisper")
 
 	t.Setenv("FFMPEG_BIN", ffmpeg)
 	t.Setenv("FFPROBE_BIN", ffprobe)
-	t.Setenv("WHISPER_BIN", whisper)
 
 	err := NewChecker().Check()
 	if err == nil {
