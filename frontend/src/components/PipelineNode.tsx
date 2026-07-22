@@ -8,6 +8,8 @@ interface PipelineNodeProps {
   selected: boolean
   status: StepState
   onSelect: () => void
+  /** Roving tabindex: 0 for the selected node, -1 for the rest (toolbar pattern). */
+  tabIndex: number
 }
 
 // Static, deterministic viz geometry (no random, no local state — the design's
@@ -95,7 +97,7 @@ function viz(step: StepInfo, scenes: Scene[]): ReactNode {
   }
 }
 
-export function PipelineNode({ step, scenes, selected, status, onSelect }: PipelineNodeProps) {
+export function PipelineNode({ step, scenes, selected, status, onSelect, tabIndex }: PipelineNodeProps) {
   const classes = [
     'vg-node',
     `vg-node--${step.key}`,
@@ -110,6 +112,7 @@ export function PipelineNode({ step, scenes, selected, status, onSelect }: Pipel
       className={classes}
       data-state={status}
       data-testid={`pipeline-node-${step.key}`}
+      tabIndex={tabIndex}
       onClick={onSelect}
     >
       <span className="vg-node__head">

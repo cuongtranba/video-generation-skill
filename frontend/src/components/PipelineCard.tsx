@@ -1,10 +1,11 @@
-import { Fragment } from 'react'
+import { Fragment, type KeyboardEvent, useRef } from 'react'
 import { useVidgenStore } from '../store/store'
 import { CostBadge } from './CostBadge'
 import { EventLog } from './EventLog'
 import { PipelineNode } from './PipelineNode'
 import { StepDetail } from './StepDetail'
-import { activeStep, capUsd, deriveSteps, type StepInfo } from '../pipeline/derive'
+import { activeStep, capUsd, deriveSteps, lastFailure, retryCommandFor, type StepInfo } from '../pipeline/derive'
+import { hotkeyFor } from '../pipeline/hotkeys'
 
 interface PipelineCardProps {
   projectId: string
@@ -26,12 +27,58 @@ export function PipelineCard({ projectId }: PipelineCardProps) {
   const inFlight = useVidgenStore((state) => state.inFlight[projectId]) ?? {}
   const selectedStep = useVidgenStore((state) => state.selectedSteps[projectId])
   const selectStep = useVidgenStore((state) => state.selectStep)
+  const approveStoryboard = useVidgenStore((state) => state.approveStoryboard)
+  const generateScript = useVidgenStore((state) => state.generateScript)
+  const resolveMaterial = useVidgenStore((state) => state.resolveMaterial)
+  const generateVoiceovers = useVidgenStore((state) => state.generateVoiceovers)
+  const railRef = useRef<HTMLDivElement>(null)
 
   if (!project) return null
 
   const steps = deriveSteps(project, events, inFlight)
   const selected = selectedStep ?? activeStep(steps)
   const detailStep = steps.find((s) => s.key === selected) ?? steps[0]
+
+  // Retry the failed step, mirroring StepDetail's mapping (single retry path).
+  function retryFailedStep(): void {
+    const fail = lastFailure(events)
+    switch (fail ? retryCommandFor(fail.stage) : undefined) {
+      case 'GenerateScript':
+        void generateScript({ projectId })
+        break
+      case 'ResolveMaterial':
+        void resolveMaterial({ projectId })
+        break
+      case 'GenerateVoiceovers':
+        void generateVoiceovers({ projectId })
+        break
+    }
+  }
+
+  // Keyboard control for the rail (ARIA toolbar): arrow/Home/End rove the
+  // selection + focus; scoped action hotkeys act on the selected step. Bound on
+  // the rail, so it never fires while typing elsewhere (e.g. the create form).
+  function onRailKeyDown(e: KeyboardEvent<HTMLDivElement>): void {
+    const idx = steps.findIndex((s) => s.key === selected)
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'Home' || e.key === 'End') {
+      e.preventDefault()
+      const next =
+        e.key === 'ArrowRight' ? Math.min(steps.length - 1, idx + 1)
+        : e.key === 'ArrowLeft' ? Math.max(0, idx - 1)
+        : e.key === 'Home' ? 0
+        : steps.length - 1
+      const key = steps[next].key
+      selectStep(projectId, key)
+      railRef.current?.querySelector<HTMLButtonElement>(`[data-testid="pipeline-node-${key}"]`)?.focus()
+      return
+    }
+    const action = hotkeyFor(detailStep, e.key)
+    if (!action) return
+    e.preventDefault()
+    if (action === 'approve') void approveStoryboard({ projectId })
+    else if (action === 'reject') void generateScript({ projectId })
+    else retryFailedStep()
+  }
 
   const created = events.find((e) => e.type === 'ProjectCreated')
   const idea = created?.type === 'ProjectCreated' ? created.idea : (project.scenes[0]?.narration ?? '')
@@ -46,7 +93,14 @@ export function PipelineCard({ projectId }: PipelineCardProps) {
         <CostBadge projectId={projectId} />
       </div>
 
-      <div className="vg-pipeline-card__rail">
+      <div
+        ref={railRef}
+        className="vg-pipeline-card__rail"
+        role="toolbar"
+        aria-label="Pipeline stages"
+        aria-orientation="horizontal"
+        onKeyDown={onRailKeyDown}
+      >
         {steps.map((step, i) => (
           <Fragment key={step.key}>
             <PipelineNode
@@ -54,6 +108,7 @@ export function PipelineCard({ projectId }: PipelineCardProps) {
               scenes={project.scenes}
               status={step.state}
               selected={step.key === selected}
+              tabIndex={step.key === selected ? 0 : -1}
               onSelect={() => selectStep(projectId, step.key)}
             />
             {i < steps.length - 1 && <div className={edgeClass(steps, i)} />}
