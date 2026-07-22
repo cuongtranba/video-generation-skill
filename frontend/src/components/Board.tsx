@@ -1,5 +1,5 @@
 import { useVidgenStore } from '../store/store'
-import { ProjectCard } from './ProjectCard'
+import { PipelineCard } from './PipelineCard'
 
 export function Board() {
   // Select the stable `projects` object (a fresh Object.keys(...) array from the
@@ -14,7 +14,7 @@ export function Board() {
   return (
     <div className="vg-board">
       {projectIds.map((id) => (
-        <ProjectCard key={id} projectId={id} />
+        <PipelineCard key={id} projectId={id} />
       ))}
     </div>
   )
