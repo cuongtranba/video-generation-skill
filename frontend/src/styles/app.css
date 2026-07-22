@@ -70,6 +70,13 @@ a:hover {
   outline: none;
   box-shadow: var(--focus-ring);
 }
+/* 44px touch target on touch devices (WCAG 2.5.8 / impeccable audit P2);
+   desktop keeps the denser control-room height. */
+@media (pointer: coarse) {
+  .vg-button {
+    min-height: 44px;
+  }
+}
 .vg-button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -213,6 +220,67 @@ a:hover {
   padding: var(--space-4);
   font: var(--weight-regular) var(--text-sm) var(--font-body);
   color: var(--text-muted);
+}
+
+/* board legend — one compact key for the tally/edge vocabulary the nodes speak.
+   Squares mirror .vg-node__tally's data-state colors exactly; keep in sync. */
+.vg-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 0 2px;
+}
+.vg-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: var(--weight-medium) 10px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+}
+.vg-legend__tally {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border: 1px solid var(--ink-3);
+  background: transparent;
+}
+.vg-legend__item[data-state='done'] .vg-legend__tally {
+  background: var(--good);
+  border-color: var(--good);
+}
+.vg-legend__item[data-state='running'] .vg-legend__tally {
+  background: var(--chroma-500);
+  border-color: var(--chroma-500);
+  animation: vg-blink 1s steps(1) infinite;
+}
+.vg-legend__item[data-state='awaiting'] .vg-legend__tally {
+  background: var(--warn);
+  border-color: var(--warn);
+  animation: vg-blink 1s steps(1) infinite;
+}
+.vg-legend__item[data-state='failed'] .vg-legend__tally {
+  background: var(--bad);
+  border-color: var(--bad);
+}
+.vg-legend__edge {
+  width: 22px;
+  height: 2px;
+  flex: none;
+  background: repeating-linear-gradient(90deg, var(--chroma-500) 0 6px, transparent 6px 12px);
+  background-size: 12px 2px;
+  animation: vg-flow 0.5s linear infinite;
+}
+/* Reduced motion: every vg animation is decorative — state is always also
+   carried by text, border, or opacity — so drop them wholesale. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 /* status tally — 8px filled square marker + uppercase mono token, like a
