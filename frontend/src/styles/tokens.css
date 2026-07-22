@@ -1,8 +1,9 @@
 /* Vidgen design tokens — copied verbatim from the Vidgen Design System
    (tokens/{fonts,colors,typography,spacing}.css). The repo ships no font
    binaries, so the three display/body/mono faces load from Google Fonts
-   (all with Vietnamese subsets — vidgen makes Vietnamese-voiced video). */
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700&family=Be+Vietnam+Pro:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+   (all with Vietnamese subsets — vidgen makes Vietnamese-voiced video).
+   The stylesheet is linked from index.html with preconnect hints — a CSS
+   @import here would serialize behind this file and block first paint. */
 
 :root {
   /* color — light control-room editorial. Ink + paper + chroma-key green signal. */
@@ -12,7 +13,9 @@
   --paper-3: #e3e6df; /* inset wells */
   --ink-1: #191c17; /* near-black, green cast */
   --ink-2: #565b52;
-  --ink-3: #8b9184;
+  --ink-3: #606659; /* muted tier — darkened from #8b9184 to clear WCAG AA 4.5:1
+                       on the lightest inset wells (#e3e6df ⇒ 4.7:1). Guarded by
+                       styles/text-contrast.test.ts. */
   --chroma-500: #00b140; /* chroma-key green — the signal color */
   --chroma-600: #009436;
   --chroma-700: #007a2d;

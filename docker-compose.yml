@@ -39,6 +39,14 @@ services:
       # for provider selection; the api reads tts.provider from it to serve
       # GET /api/config { ttsProvider } so the SPA can gate voice/speed controls.
       CONFIG_PATH: /app/config.yaml
+      # Single-user login. Set AUTH_PASSWORD (and SESSION_SECRET) in your
+      # gitignored .env — never commit the password. If AUTH_PASSWORD is unset
+      # the api generates a random per-boot password (logged) and login is
+      # effectively disabled until you set it. SESSION_SECRET signs the
+      # vg_session cookie; set a stable value so restarts don't drop sessions.
+      AUTH_USERNAME: ${AUTH_USERNAME:-admin}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
       # Agent SDK auth for GenerateScript. The SDK bundles its own runtime, so
       # no claude binary is needed — only credentials. A Claude subscription
       # OAuth token (from `claude setup-token`) or ANTHROPIC_API_KEY works;

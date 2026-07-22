@@ -1,26 +1,37 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useVidgenStore } from '../store/store'
 import { Button } from '../ui/Button'
 
-const DEFAULTS = { idea: '', durationSec: 16, sceneCount: 2, tone: 'playful', language: 'English' }
+// Narration language defaults to Vietnamese — vidgen is a Vietnamese-first
+// product. This is the content language of the script/voice/captions, distinct
+// from the UI language (react-i18next). Only Vietnamese and English are
+// supported downstream (TTS voice + whisper `-language`), hence the select.
+const DEFAULTS = { idea: '', durationSec: 60, sceneCount: 6, tone: 'playful', language: 'Vietnamese' }
+
+const LANGUAGE_OPTIONS = [
+  { value: 'Vietnamese', labelKey: 'create.languageVietnamese' },
+  { value: 'English', labelKey: 'create.languageEnglish' },
+] as const
 
 export function CreateProjectForm() {
+  const { t } = useTranslation()
   const createProject = useVidgenStore((s) => s.createProject)
   const [idea, setIdea] = useState(DEFAULTS.idea)
   const [durationSec, setDurationSec] = useState(DEFAULTS.durationSec)
   const [sceneCount, setSceneCount] = useState(DEFAULTS.sceneCount)
   const [tone, setTone] = useState(DEFAULTS.tone)
-  const [language, setLanguage] = useState(DEFAULTS.language)
+  const [language, setLanguage] = useState<string>(DEFAULTS.language)
   const [submitting, setSubmitting] = useState(false)
 
-  const canSubmit = idea.trim().length > 0 && language.trim().length > 0 && !submitting
+  const canSubmit = idea.trim().length > 0 && !submitting
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!canSubmit) return
     setSubmitting(true)
     try {
-      await createProject({ idea: idea.trim(), durationSec, sceneCount, tone: tone.trim(), language: language.trim() })
+      await createProject({ idea: idea.trim(), durationSec, sceneCount, tone: tone.trim(), language })
       setIdea(DEFAULTS.idea)
     } finally {
       setSubmitting(false)
@@ -28,47 +39,42 @@ export function CreateProjectForm() {
   }
 
   return (
-    <form className="vg-create" onSubmit={handleSubmit} aria-label="Create project">
+    <form className="vg-create" onSubmit={handleSubmit} aria-label={t('create.aria')}>
       <div className="vg-create__field vg-create__field--wide">
-        <label htmlFor="create-idea">Idea</label>
+        <label htmlFor="create-idea">{t('create.idea')}</label>
         <textarea
           id="create-idea"
           value={idea}
           onChange={(e) => setIdea(e.target.value)}
-          placeholder="e.g. a calico cat learns to surf at sunrise"
+          placeholder={t('create.ideaPlaceholder')}
           rows={2}
           required
         />
       </div>
 
       <div className="vg-create__field">
-        <label htmlFor="create-language">Language</label>
-        {/* Freeform: the script, voice, and captions all follow this language. */}
-        <input
+        <label htmlFor="create-language">{t('create.language')}</label>
+        <select
           id="create-language"
-          type="text"
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
-          placeholder="English, Vietnamese, Français…"
-          list="create-language-suggestions"
-          aria-label="narration language"
-        />
-        <datalist id="create-language-suggestions">
-          <option value="English" />
-          <option value="Vietnamese" />
-          <option value="Spanish" />
-          <option value="French" />
-          <option value="Japanese" />
-        </datalist>
+          aria-label={t('create.languageAria')}
+        >
+          {LANGUAGE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {t(opt.labelKey)}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="vg-create__field">
-        <label htmlFor="create-tone">Tone</label>
-        <input id="create-tone" type="text" value={tone} onChange={(e) => setTone(e.target.value)} aria-label="tone" />
+        <label htmlFor="create-tone">{t('create.tone')}</label>
+        <input id="create-tone" type="text" value={tone} onChange={(e) => setTone(e.target.value)} aria-label={t('create.toneAria')} />
       </div>
 
       <div className="vg-create__field">
-        <label htmlFor="create-duration">Duration (s)</label>
+        <label htmlFor="create-duration">{t('create.duration')}</label>
         <input
           id="create-duration"
           type="number"
@@ -76,12 +82,12 @@ export function CreateProjectForm() {
           max={90}
           value={durationSec}
           onChange={(e) => setDurationSec(Number(e.target.value))}
-          aria-label="duration seconds"
+          aria-label={t('create.durationAria')}
         />
       </div>
 
       <div className="vg-create__field">
-        <label htmlFor="create-scenes">Scenes</label>
+        <label htmlFor="create-scenes">{t('create.scenes')}</label>
         <input
           id="create-scenes"
           type="number"
@@ -89,13 +95,13 @@ export function CreateProjectForm() {
           max={10}
           value={sceneCount}
           onChange={(e) => setSceneCount(Number(e.target.value))}
-          aria-label="scene count"
+          aria-label={t('create.scenesAria')}
         />
       </div>
 
       <div className="vg-create__actions">
         <Button type="submit" disabled={!canSubmit}>
-          {submitting ? 'Creating…' : 'Create project'}
+          {submitting ? t('create.submitting') : t('create.submit')}
         </Button>
       </div>
     </form>

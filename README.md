@@ -167,6 +167,11 @@ Other routes:
 | `GET /api/projects/:id/assets` | List uploaded assets |
 | `GET /api/projects/:id` | Single project read model |
 | `GET /media/*` | Rendered output + intermediate media from the shared volume |
+| `POST /api/login` | Sign in (`{ username, password }`); sets an HttpOnly signed `vg_session` cookie |
+| `POST /api/logout` | Clear the session cookie |
+| `GET /api/session` | `{ authenticated }` — the SPA probes this on bootstrap |
+
+**Auth.** Every `/api/*` route except `login`/`logout`/`session` requires a valid `vg_session` cookie (401 otherwise); the SPA and `/media` stay public so the login screen loads. Set the credentials as environment variables — `AUTH_USERNAME` (default `admin`) and `AUTH_PASSWORD` — in your gitignored `.env` locally and as Dokploy env vars in production; **the password is never committed**. If `AUTH_PASSWORD` is unset the api generates a random per-boot password (logged) so an unconfigured deploy fails closed. Sessions are stateless HMAC-signed cookies keyed by `SESSION_SECRET` (set a stable value in production, else a restart invalidates sessions). The SPA is Vietnamese by default with an in-header EN/VI switcher (react-i18next; choice persisted to `localStorage`).
 
 ## Event catalogue
 

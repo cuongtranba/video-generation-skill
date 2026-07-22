@@ -6,6 +6,16 @@ import type { Database } from './db.js'
 import type { CommandContext, CreateProjectInput, PublishInput } from './commands.js'
 import type { StyleSpec } from './events.js'
 import type { TtsProvider } from './config.js'
+import {
+  type AuthConfig,
+  SESSION_COOKIE,
+  parseCookies,
+  sessionClearCookie,
+  sessionSetCookie,
+  signSession,
+  verifyCredentials,
+  verifySession,
+} from './auth.js'
 
 export class HttpError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -154,6 +164,46 @@ export interface HttpConfig {
   spaDir: string
   mediaDir: string
   ttsProvider: TtsProvider
+  auth: AuthConfig
+}
+
+function nowSec(): number {
+  return Math.floor(Date.now() / 1000)
+}
+
+/** True when the request carries a valid, unexpired session cookie. */
+export function isAuthenticated(config: HttpConfig, req: IncomingMessage): boolean {
+  const token = parseCookies(req.headers.cookie)[SESSION_COOKIE]
+  return token !== undefined && verifySession(config.auth, token, nowSec())
+}
+
+/** Command surface + asset routes require a session; only the auth endpoints
+ * and the static SPA/media are reachable while anonymous (so the login page
+ * and its assets load). */
+function isPublicPath(method: string | undefined, pathname: string): boolean {
+  if (pathname === '/api/session') return true
+  if (method === 'POST' && (pathname === '/api/login' || pathname === '/api/logout')) return true
+  return !pathname.startsWith('/api/')
+}
+
+async function handleLogin(config: HttpConfig, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const body = await readJsonBody(req)
+  const { username, password } = body
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    throw new HttpError(400, 'login requires username:string, password:string')
+  }
+  if (!verifyCredentials(config.auth, username, password)) {
+    sendJson(res, 401, { authenticated: false, error: 'invalid username or password' })
+    return
+  }
+  const token = signSession(config.auth, nowSec())
+  res.setHeader('Set-Cookie', sessionSetCookie(token, config.auth.ttlSec))
+  sendJson(res, 200, { authenticated: true })
+}
+
+function handleLogout(res: ServerResponse): void {
+  res.setHeader('Set-Cookie', sessionClearCookie())
+  sendJson(res, 200, { authenticated: false })
 }
 
 type CommandHandler = (ctx: CommandContext, body: Record<string, unknown>) => Promise<unknown>
@@ -350,6 +400,24 @@ async function handleListAssets(config: HttpConfig, projectId: string, res: Serv
 async function routeRequest(config: HttpConfig, req: IncomingMessage, res: ServerResponse): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://localhost')
   try {
+    // Auth endpoints (public) + the session probe used by the SPA on bootstrap.
+    if (req.method === 'POST' && url.pathname === '/api/login') {
+      await handleLogin(config, req, res)
+      return
+    }
+    if (req.method === 'POST' && url.pathname === '/api/logout') {
+      handleLogout(res)
+      return
+    }
+    if (req.method === 'GET' && url.pathname === '/api/session') {
+      sendJson(res, 200, { authenticated: isAuthenticated(config, req) })
+      return
+    }
+    // Auth gate: every other /api/* route requires a valid session.
+    if (!isPublicPath(req.method, url.pathname) && !isAuthenticated(config, req)) {
+      sendJson(res, 401, { error: 'authentication required' })
+      return
+    }
     if (req.method === 'POST' && url.pathname.startsWith('/api/commands/')) {
       await handleCommand(config, url.pathname.slice('/api/commands/'.length), req, res)
       return

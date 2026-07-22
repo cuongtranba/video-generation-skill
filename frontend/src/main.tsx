@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import { useVidgenStore } from './store/store'
+import './i18n'
 import './styles/tokens.css'
 import './styles/app.css'
 
@@ -16,14 +17,15 @@ useVidgenStore
     console.error('failed to connect to the event stream', err)
   })
 
-// Fetch the active TTS provider so provider-aware controls (TunePanel voice /
-// speed) render correctly. Independent of the event stream — a failure here
-// only leaves the voice controls enabled, never blocks the board.
+// Probe the session on bootstrap: this resolves `auth` from 'unknown' to
+// 'authenticated' | 'anonymous', which gates the login screen vs the board.
+// On success it also fetches the api config (provider-aware controls) — kept
+// behind auth so an anonymous visitor never hits the gated /api/config.
 useVidgenStore
   .getState()
-  .fetchConfig()
+  .checkSession()
   .catch((err: unknown) => {
-    console.error('failed to fetch api config', err)
+    console.error('failed to probe session', err)
   })
 
 const rootEl = document.getElementById('root')

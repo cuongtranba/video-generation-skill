@@ -1,0 +1,141 @@
+{
+  "app": {
+    "title": "vidgen"
+  },
+  "nav": {
+    "language": "Language"
+  },
+  "lang": {
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "connection": {
+    "connecting": "Connecting…",
+    "live": "Live",
+    "down": "Disconnected"
+  },
+  "board": {
+    "empty": "No projects yet"
+  },
+  "legend": {
+    "aria": "Pipeline state legend",
+    "done": "done",
+    "running": "running",
+    "awaiting": "awaiting",
+    "failed": "failed",
+    "pending": "pending",
+    "flowing": "flowing"
+  },
+  "create": {
+    "aria": "Create project",
+    "idea": "Idea",
+    "ideaPlaceholder": "e.g. a calico cat learns to surf at sunrise",
+    "language": "Narration language",
+    "languageAria": "narration language",
+    "languageVietnamese": "Vietnamese",
+    "languageEnglish": "English",
+    "tone": "Tone",
+    "toneAria": "tone",
+    "duration": "Duration (s)",
+    "durationAria": "duration seconds",
+    "scenes": "Scenes",
+    "scenesAria": "scene count",
+    "submit": "Create project",
+    "submitting": "Creating…"
+  },
+  "pipeline": {
+    "cap": "cap"
+  },
+  "step": {
+    "label": {
+      "script": "script",
+      "material": "material",
+      "voice": "voiceover",
+      "captions": "captions",
+      "gate": "approval",
+      "render": "render"
+    },
+    "title": {
+      "gate": "approval gate"
+    },
+    "sub": {
+      "working": "{{engine}} · working…",
+      "done": "{{engine}} · complete",
+      "doneCost": "{{engine}} · ${{cost}}",
+      "awaiting": "blocking · human decision",
+      "failed": "{{engine}} · failed",
+      "queued": "{{engine}} · queued"
+    },
+    "visualPrefix": "visual:",
+    "searching": "searching…",
+    "voiceLine": "voice: banmai",
+    "voice": {
+      "synthesizing": "synthesizing…",
+      "queued": "queued",
+      "total": "{{total}}s total"
+    },
+    "captionsNote": "karaoke · Arial 64 · word-level timestamps from whisper",
+    "gate": {
+      "approve": "Approve storyboard",
+      "reject": "Reject & rescript",
+      "frozenNote": "Voice, captions, and music are frozen once approved.",
+      "approvedNote": "approved · spec frozen",
+      "waitsNote": "waits for captions"
+    },
+    "render": {
+      "outputName": "output.mp4",
+      "spec": "1080×1920 · h264",
+      "totalCost": "total cost",
+      "running": "concat + captions + music duck",
+      "queued": "queued · 1080×1920 h264"
+    },
+    "error": {
+      "fallback": "{{label}} failed",
+      "retry": "Retry step",
+      "retryNote": "Retries only this step. Upstream artifacts are kept."
+    },
+    "run": {
+      "script": "Generate script",
+      "material": "Resolve material",
+      "voice": "Generate voiceovers",
+      "note": "Next step in the pipeline."
+    }
+  },
+  "node": {
+    "material": {
+      "failed": "step failed"
+    },
+    "captions": {
+      "placeholder": "karaoke word timing"
+    },
+    "gate": {
+      "review": "review needed",
+      "approved": "approved",
+      "waits": "waits for captions",
+      "reviewSub": "{{count}} scenes · click to open",
+      "approvedSub": "spec frozen",
+      "humanSub": "human gate"
+    },
+    "render": {
+      "done": "100% · output.mp4",
+      "running": "encoding…",
+      "waits": "waits for approval"
+    }
+  },
+  "eventLog": {
+    "title": "worker events · nats"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Enter your credentials to continue",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "error": "Invalid username or password",
+    "aria": "Sign in"
+  },
+  "auth": {
+    "logout": "Sign out"
+  }
+}

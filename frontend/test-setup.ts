@@ -10,6 +10,11 @@ GlobalRegistrator.register()
 // evaluate screen with no document and make every screen.* query throw.
 const { cleanup } = await import('@testing-library/react')
 
+// Initialize i18next once for the whole suite (dynamic, post-register). Without
+// this the useTranslation() hook has no active instance and t() returns raw
+// keys. Tests run in the product default language (Vietnamese).
+await import('./src/i18n')
+
 // bun:test does not auto-register RTL cleanup the way Jest/Vitest do, so
 // unmounted components would otherwise persist across tests in the same file —
 // staying subscribed to the zustand store and re-rendering on setState, which
