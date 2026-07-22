@@ -1,0 +1,29 @@
+id: go-no-empty-interface
+snapshots:
+  ? |
+    package p
+
+    func f(v interface{}) {}
+  : labels:
+    - source: interface{}
+      style: primary
+      start: 20
+      end: 31
+  ? |
+    package p
+
+    func g() map[string]any { return nil }
+  : labels:
+    - source: any
+      style: primary
+      start: 31
+      end: 34
+  ? |
+    package p
+
+    var x any
+  : labels:
+    - source: any
+      style: primary
+      start: 17
+      end: 20

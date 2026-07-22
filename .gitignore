@@ -28,3 +28,7 @@ coverage.*
 .okra/runs/
 
 .worktrees/
+
+# Node (root harness)
+node_modules/
+.worktrees/

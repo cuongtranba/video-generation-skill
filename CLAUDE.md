@@ -22,10 +22,19 @@ cd worker && go vet ./...
 
 # frontend (Vite/React)
 cd frontend && bun test
+cd frontend && bun run lint        # oxlint
+cd frontend && bun run typecheck
+
+# ast-grep gates (repo root; rules/ + rule-tests/, config sgconfig.yml)
+bun install                 # once — installs @ast-grep/cli
+bun run test:sg             # rule self-tests (snapshots in rule-tests/__snapshots__)
+bun run lint:sg             # scan: useState ban in frontend components, interface{}/any ban in worker
 
 # full stack + live render
 docker compose up --build
 ```
+
+CI (`.github/workflows/test.yml`) runs four jobs on push/PR to main: ast-grep (rule tests + scan), api (typecheck + `bun test` — integration suites self-skip without NATS/Postgres), worker (`go build`/`vet`/`test ./...`), frontend (oxlint, typecheck, `bun test`, vite build).
 
 ## Architecture (1 minute)
 

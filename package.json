@@ -1,0 +1,14 @@
+{
+  "name": "vidgen-harness",
+  "private": true,
+  "scripts": {
+    "lint:sg": "ast-grep scan --report-style short",
+    "test:sg": "ast-grep test"
+  },
+  "devDependencies": {
+    "@ast-grep/cli": "0.44.1"
+  },
+  "trustedDependencies": [
+    "@ast-grep/cli"
+  ]
+}

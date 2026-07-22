@@ -1,0 +1,23 @@
+id: go-no-empty-interface
+language: go
+severity: error
+message: interface{} / any is banned for data — define a concrete struct or a narrow interface.
+note: |
+  Domain and message data must use concrete types (see C3 rule-no-any-data).
+  `any` as a generic type-parameter constraint ([T any]) is allowed.
+files:
+  - worker/**
+ignores:
+  - worker/**/*_test.go
+rule:
+  any:
+    - all:
+        - kind: interface_type
+          regex: ^interface\{\}$
+    - all:
+        - kind: type_identifier
+          regex: ^any$
+        - not:
+            inside:
+              kind: type_parameter_list
+              stopBy: end
