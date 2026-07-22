@@ -350,8 +350,12 @@ a:hover {
   overflow-x: auto;
 }
 .vg-node {
-  flex: none;
-  width: 132px;
+  /* Flex to share the rail width so all six stages (…→RENDER) always fit the
+     shell — a fixed tile width overflows and clips the final node. The min-width
+     floor keeps labels legible; below it the rail scrolls (overflow-x) on phones
+     instead of crushing tiles. Guarded by styles/pipeline-rail-fit.test.ts. */
+  flex: 1 1 0;
+  min-width: 96px;
   display: flex;
   flex-direction: column;
   background: var(--surface-raised);
@@ -372,7 +376,9 @@ a:hover {
   box-shadow: var(--focus-ring);
 }
 .vg-node--gate {
-  width: 148px;
+  /* The human-approval gate carries more copy ("REVIEW NEEDED"), so let it grow
+     a touch wider than its siblings — via flex, never a fixed width. */
+  flex-grow: 1.2;
 }
 .vg-node[data-state='pending'] {
   opacity: 0.55;

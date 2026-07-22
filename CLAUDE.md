@@ -70,6 +70,7 @@ CI (`.github/workflows/test.yml`) runs four jobs on push/PR to main: ast-grep (r
 - **ElevenLabs is the only TTS provider** (FPT.AI removed). Synthesis is synchronous and uses a **fixed voice ID** (override per-deploy with `ELEVENLABS_VOICE_ID`); the `voice`/`speed` tune fields exist in the event model but are not applied — the SPA shows a read-only "ElevenLabs (fixed)" label instead of a picker. `eleven_turbo_v2_5` for Vietnamese (override `ELEVENLABS_MODEL_ID`)
 - **zoompan** for image scenes uses `durationSec` via `d=`; short stock clips loop via `-stream_loop` only when `mediaDurationSec > 0`
 - **api integration tests** (`*.integration.test.ts`) need live NATS+Postgres; excluded from the unit gate
+- **Pipeline rail tiles must FLEX, never a fixed `width`**: the Pipeline Home rail (`.vg-node` in `frontend/src/styles/app.css`) lays out all six stages (SCRIPT→…→RENDER) in one row. Fixed-width tiles overflow the 960px shell and `overflow-x` silently clips the final RENDER node (no scroll affordance) — a real "hidden UI" bug. Tiles use `flex: 1 1 0` + a `min-width` floor so they always fit; below the floor the rail scrolls. Enforced by `frontend/src/styles/pipeline-rail-fit.test.ts` (fails the frontend `bun test` gate if a fixed pixel width returns to a rail tile). happy-dom computes no layout, so the guard checks the CSS source
 
 ## Keys (.env, gitignored)
 
