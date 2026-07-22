@@ -1,11 +1,6 @@
+import { useTranslation } from 'react-i18next'
 import { Badge } from '../ui/Badge'
 import { useVidgenStore, type ConnectionState } from '../store/store'
-
-const LABEL: Record<ConnectionState, string> = {
-  connecting: 'Connecting…',
-  live: 'Live',
-  down: 'Disconnected',
-}
 
 const TONE: Record<ConnectionState, 'neutral' | 'good' | 'bad'> = {
   connecting: 'neutral',
@@ -14,6 +9,7 @@ const TONE: Record<ConnectionState, 'neutral' | 'good' | 'bad'> = {
 }
 
 export function ConnectionStatus() {
+  const { t } = useTranslation()
   const connection = useVidgenStore((state) => state.connection)
-  return <Badge tone={TONE[connection]}>{LABEL[connection]}</Badge>
+  return <Badge tone={TONE[connection]}>{t(`connection.${connection}`)}</Badge>
 }

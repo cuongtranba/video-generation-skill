@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import type { Scene } from '../store/events'
 import type { StepInfo, StepState } from '../pipeline/derive'
 
@@ -23,7 +25,7 @@ function wellTag(scene: Scene | undefined, failed: boolean): string {
   return scene.materialSource === 'pexels' ? 'PX' : 'LO'
 }
 
-function viz(step: StepInfo, scenes: Scene[]): ReactNode {
+function viz(step: StepInfo, scenes: Scene[], t: TFunction): ReactNode {
   switch (step.key) {
     case 'script':
       return (
@@ -35,7 +37,7 @@ function viz(step: StepInfo, scenes: Scene[]): ReactNode {
       )
     case 'material': {
       if (step.state === 'failed') {
-        return <div className="vg-node__failed">step failed</div>
+        return <div className="vg-node__failed">{t('node.material.failed')}</div>
       }
       const wells = scenes.length > 0 ? scenes.slice(0, 2) : [undefined, undefined]
       return (
@@ -57,7 +59,7 @@ function viz(step: StepInfo, scenes: Scene[]): ReactNode {
         </div>
       )
     case 'captions': {
-      const words = (scenes[0]?.narration ?? 'karaoke word timing').split(' ').slice(0, 4)
+      const words = (scenes[0]?.narration ?? t('node.captions.placeholder')).split(' ').slice(0, 4)
       return (
         <div className="vg-node__words" style={{ ['--vg-karaoke-dur' as string]: `${words.length * 0.4}s` }}>
           {words.map((word, i) => (
@@ -69,13 +71,14 @@ function viz(step: StepInfo, scenes: Scene[]): ReactNode {
       )
     }
     case 'gate': {
-      const text = step.state === 'awaiting' ? 'review needed' : step.state === 'done' ? 'approved' : 'waits for captions'
+      const text =
+        step.state === 'awaiting' ? t('node.gate.review') : step.state === 'done' ? t('node.gate.approved') : t('node.gate.waits')
       const sub =
         step.state === 'awaiting'
-          ? `${scenes.length} scenes · click to open`
+          ? t('node.gate.reviewSub', { count: scenes.length })
           : step.state === 'done'
-            ? 'spec frozen'
-            : 'human gate'
+            ? t('node.gate.approvedSub')
+            : t('node.gate.humanSub')
       return (
         <div className="vg-node__gate">
           <span className="vg-node__gate-text">{text}</span>
@@ -84,7 +87,8 @@ function viz(step: StepInfo, scenes: Scene[]): ReactNode {
       )
     }
     case 'render': {
-      const pct = step.state === 'done' ? '100% · output.mp4' : step.state === 'running' ? 'encoding…' : 'waits for approval'
+      const pct =
+        step.state === 'done' ? t('node.render.done') : step.state === 'running' ? t('node.render.running') : t('node.render.waits')
       return (
         <div className="vg-node__progress">
           <div className="vg-node__progress-track">
@@ -98,6 +102,7 @@ function viz(step: StepInfo, scenes: Scene[]): ReactNode {
 }
 
 export function PipelineNode({ step, scenes, selected, status, onSelect, tabIndex }: PipelineNodeProps) {
+  const { t } = useTranslation()
   const classes = [
     'vg-node',
     `vg-node--${step.key}`,
@@ -117,9 +122,9 @@ export function PipelineNode({ step, scenes, selected, status, onSelect, tabInde
     >
       <span className="vg-node__head">
         <span className="vg-node__tally" />
-        <span className="vg-node__label">{step.label}</span>
+        <span className="vg-node__label">{t(`step.label.${step.key}`)}</span>
       </span>
-      <span className="vg-node__viz">{viz(step, scenes)}</span>
+      <span className="vg-node__viz">{viz(step, scenes, t)}</span>
       <span className="vg-node__foot">
         <span className="vg-node__engine">{step.engine}</span>
         <span className="vg-node__cost">{step.costUsd > 0 ? `$${step.costUsd.toFixed(4)}` : '$0'}</span>

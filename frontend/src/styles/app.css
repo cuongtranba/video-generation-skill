@@ -168,6 +168,7 @@ a:hover {
 }
 .vg-create__field input[type='text'],
 .vg-create__field input[type='number'],
+.vg-create__field input[type='password'],
 .vg-create__field textarea {
   background: var(--paper-2);
   color: var(--ink-1);
@@ -983,4 +984,99 @@ a:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ── auth loading gate ─────────────────────────────────────────────────── */
+.vg-app--loading {
+  min-height: 40vh;
+}
+
+/* ── language switcher (mono segmented tally) ─────────────────────────── */
+.vg-lang {
+  display: inline-flex;
+  border: 1px solid var(--ink-1);
+}
+.vg-lang__opt {
+  font: var(--weight-medium) var(--text-xs) var(--font-mono);
+  letter-spacing: 0.06em;
+  padding: 4px 9px;
+  background: var(--paper-1);
+  color: var(--ink-2);
+  border: none;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) linear,
+    color var(--dur-fast) linear;
+}
+.vg-lang__opt + .vg-lang__opt {
+  border-left: 1px solid var(--ink-1);
+}
+.vg-lang__opt:hover:not(.vg-lang__opt--active) {
+  color: var(--ink-1);
+}
+.vg-lang__opt:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.vg-lang__opt--active {
+  background: var(--ink-1);
+  color: var(--text-on-ink);
+}
+
+/* ── login gate ────────────────────────────────────────────────────────── */
+.vg-login {
+  max-width: 400px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-4);
+}
+.vg-login__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.vg-login__brand {
+  font: var(--weight-bold) var(--text-xl) / var(--leading-tight) var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--ink-1);
+}
+.vg-login__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--surface-card);
+  border: 1px solid var(--ink-1);
+}
+.vg-login__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-1);
+}
+.vg-login__title {
+  margin: 0;
+  font: var(--weight-bold) var(--text-2xl) / var(--leading-tight) var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--ink-1);
+}
+.vg-login__subtitle {
+  margin: 0;
+  font: var(--weight-regular) var(--text-sm) var(--font-body);
+  color: var(--text-secondary);
+}
+.vg-login__card .vg-button {
+  margin-top: var(--space-2);
+}
+.vg-login__error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font: var(--weight-medium) var(--text-sm) var(--font-body);
+  color: var(--bad);
+  background: var(--bad-bg);
+  border: 1px solid var(--bad);
 }

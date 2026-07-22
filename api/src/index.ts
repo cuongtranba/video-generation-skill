@@ -6,6 +6,7 @@ import { createHttpServer } from './http.js'
 import { sdkScriptGenerator } from './script.js'
 import { costCapFromEnv } from './cost.js'
 import { loadTtsProvider } from './config.js'
+import { authConfigFromEnv } from './auth.js'
 
 async function main(): Promise<void> {
   const natsServers = process.env.NATS_URL ?? 'nats://localhost:4223'
@@ -14,6 +15,7 @@ async function main(): Promise<void> {
   const spaDir = process.env.SPA_DIR ?? 'public'
   const mediaDir = process.env.MEDIA_DIR ?? 'media'
   const ttsProvider = await loadTtsProvider(process.env.CONFIG_PATH ?? 'config.yaml')
+  const auth = authConfigFromEnv(process.env)
 
   const db = createPool(databaseUrl)
   await migrate(db)
@@ -29,7 +31,7 @@ async function main(): Promise<void> {
     process.exit(1)
   })
 
-  const server = createHttpServer({ db, ctx, spaDir, mediaDir, ttsProvider })
+  const server = createHttpServer({ db, ctx, spaDir, mediaDir, ttsProvider, auth })
   server.listen(port, () => {
     console.log(`api listening on :${port}`)
   })

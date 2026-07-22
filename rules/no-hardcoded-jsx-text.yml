@@ -1,0 +1,26 @@
+id: no-hardcoded-jsx-text
+language: tsx
+severity: error
+message: Hardcoded user-facing text is banned — render translated copy via i18next t('…').
+note: |
+  100% i18n: every UI string in frontend/src/components/** and frontend/src/ui/**
+  must come from the i18n dictionaries (frontend/src/i18n/locales/{vi,en}.json)
+  through the useTranslation() `t()` function. A bare JSX text node containing
+  letters is a hardcoded string — move the copy into vi.json + en.json and render
+  it as {t('some.key')}.
+
+  Vietnamese is the default language; English is the fallback. Genuinely
+  language-invariant tokens (a filename like output.mp4, a spec like
+  "1080×1920 · h264") still go through a t() key that returns the same value in
+  both locales, so the wall stays at 100% and nothing is special-cased.
+files:
+  - frontend/src/components/**
+  - frontend/src/ui/**
+ignores:
+  - frontend/src/components/**/*.test.ts
+  - frontend/src/components/**/*.test.tsx
+  - frontend/src/ui/**/*.test.ts
+  - frontend/src/ui/**/*.test.tsx
+rule:
+  kind: jsx_text
+  regex: '[A-Za-z]{2,}'

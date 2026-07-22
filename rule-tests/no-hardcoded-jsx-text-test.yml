@@ -1,0 +1,17 @@
+id: no-hardcoded-jsx-text
+valid:
+  - |
+    const a = <span>{t('board.empty')}</span>
+  - |
+    const a = <span>{t('pipeline.cap')} ${cap}</span>
+  - |
+    const a = <div>{count} · {other}</div>
+  - |
+    const a = <span>{'output.mp4'}</span>
+invalid:
+  - |
+    const a = <span>No projects yet</span>
+  - |
+    const a = <div>Approve storyboard</div>
+  - |
+    const a = <button>Retry step</button>

@@ -13,6 +13,7 @@ ignores:
   - frontend/src/components/**/*.test.tsx
   - frontend/src/components/TunePanel.tsx
   - frontend/src/components/CreateProjectForm.tsx
+  - frontend/src/components/LoginForm.tsx
 rule:
   any:
     - pattern: useState($$$ARGS)

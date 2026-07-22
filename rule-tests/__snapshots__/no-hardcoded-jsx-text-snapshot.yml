@@ -1,0 +1,23 @@
+id: no-hardcoded-jsx-text
+snapshots:
+  ? |
+    const a = <button>Retry step</button>
+  : labels:
+    - source: Retry step
+      style: primary
+      start: 18
+      end: 28
+  ? |
+    const a = <div>Approve storyboard</div>
+  : labels:
+    - source: Approve storyboard
+      style: primary
+      start: 15
+      end: 33
+  ? |
+    const a = <span>No projects yet</span>
+  : labels:
+    - source: No projects yet
+      style: primary
+      start: 16
+      end: 31

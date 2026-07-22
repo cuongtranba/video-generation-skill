@@ -13,11 +13,11 @@ afterEach(() => {
 })
 
 describe('CreateProjectForm', () => {
-  it('renders a freeform language field defaulting to English', () => {
+  it('renders a freeform language field defaulting to Vietnamese', () => {
     render(<CreateProjectForm />)
-    const lang = screen.getByLabelText(/narration language/i) as HTMLInputElement
+    const lang = screen.getByLabelText(/ngôn ngữ lời thoại/i) as HTMLInputElement
     expect(lang).toBeInTheDocument()
-    expect(lang.value).toBe('English')
+    expect(lang.value).toBe('Vietnamese')
   })
 
   it('submits CreateProject with the chosen language', async () => {
@@ -25,9 +25,9 @@ describe('CreateProjectForm', () => {
     globalThis.fetch = fetchMock as unknown as typeof fetch
     render(<CreateProjectForm />)
 
-    fireEvent.change(screen.getByLabelText(/idea/i), { target: { value: 'a snail race' } })
-    fireEvent.change(screen.getByLabelText(/narration language/i), { target: { value: 'Vietnamese' } })
-    fireEvent.click(screen.getByRole('button', { name: /create project/i }))
+    fireEvent.change(screen.getByLabelText(/ý tưởng/i), { target: { value: 'a snail race' } })
+    fireEvent.change(screen.getByLabelText(/ngôn ngữ lời thoại/i), { target: { value: 'Vietnamese' } })
+    fireEvent.click(screen.getByRole('button', { name: /tạo dự án/i }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
