@@ -8,11 +8,15 @@
 #     api's migrate() hit Postgres before it accepted connections and crashed.
 #   - api & nats join Dokploy's external `dokploy-network` so Traefik can route
 #     the domains. No host port bindings (routing is via Traefik).
+#   - services are named `vidgen-postgres` / `vidgen-nats` (not the generic
+#     `postgres`/`nats`): on the shared `dokploy-network` the api would otherwise
+#     resolve `postgres`/`nats` to another stack's containers (DNS alias
+#     collision) and connect to the wrong database. Unique names are unambiguous.
 #
 # Dokploy injects the compose Environment into ./.env (repo root), satisfying the
 # worker's `env_file` and the api's ${VAR:-} interpolation.
 services:
-  nats:
+  vidgen-nats:
     image: nats:2.10-alpine
     command: ["-c", "/etc/nats/nats.conf"]
     volumes:
@@ -28,7 +32,7 @@ services:
       - dokploy-network
     restart: unless-stopped
 
-  postgres:
+  vidgen-postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: vidgen
@@ -50,13 +54,13 @@ services:
       args:
         VITE_NATS_WS_URL: wss://vidgen.lowbit.link/nats
     depends_on:
-      postgres:
+      vidgen-postgres:
         condition: service_healthy
-      nats:
+      vidgen-nats:
         condition: service_healthy
     environment:
-      NATS_URL: nats://nats:4222
-      DATABASE_URL: postgres://vidgen:vidgen@postgres:5432/vidgen
+      NATS_URL: nats://vidgen-nats:4222
+      DATABASE_URL: postgres://vidgen:vidgen@vidgen-postgres:5432/vidgen
       COST_CAP_USD: "0.15"
       PORT: "8080"
       SPA_DIR: /app/public
@@ -77,10 +81,10 @@ services:
       context: ./worker
       dockerfile: Dockerfile
     depends_on:
-      nats:
+      vidgen-nats:
         condition: service_healthy
     environment:
-      NATS_URL: nats://nats:4222
+      NATS_URL: nats://vidgen-nats:4222
       VIDGEN_ENV_PATH: /app/.env
       VIDGEN_CONFIG_PATH: /app/config.yaml
     env_file:
