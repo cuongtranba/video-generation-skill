@@ -24,7 +24,7 @@ func TestAlignNarrationExactCountKeepsTimings(t *testing.T) {
 }
 
 func TestAlignNarrationMismatchSpreadsEvenly(t *testing.T) {
-	// whisper heard 2 garbled words spanning 0..2s; narration has 4 words.
+	// the transcriber heard 2 garbled words spanning 0..2s; narration has 4 words.
 	timed := []WordTimestamp{{Word: "x", Start: 0, End: 1}, {Word: "y", Start: 1, End: 2}}
 	got := AlignNarration("một hai ba bốn", timed)
 	if len(got) != 4 {
@@ -37,14 +37,14 @@ func TestAlignNarrationMismatchSpreadsEvenly(t *testing.T) {
 		t.Errorf("first start = %v, want 0", got[0].Start)
 	}
 	if got[3].End != 2 {
-		t.Errorf("last end = %v, want 2 (whisper span)", got[3].End)
+		t.Errorf("last end = %v, want 2 (transcriber span)", got[3].End)
 	}
 }
 
 func TestAlignNarrationEmptyFallsBackToTimed(t *testing.T) {
 	timed := []WordTimestamp{{Word: "keep", Start: 0, End: 1}}
 	if got := AlignNarration("", timed); len(got) != 1 || got[0].Word != "keep" {
-		t.Errorf("empty narration should keep whisper words, got %+v", got)
+		t.Errorf("empty narration should keep transcriber words, got %+v", got)
 	}
 	if got := AlignNarration("text", nil); got != nil {
 		t.Errorf("no timings should return nil, got %+v", got)

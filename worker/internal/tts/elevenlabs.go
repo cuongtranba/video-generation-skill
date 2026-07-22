@@ -3,6 +3,7 @@ package tts
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/cuongtranba/video-generation-skill/worker/internal/caption"
 )
 
 const (
@@ -101,14 +104,14 @@ func (p *ElevenLabsProvider) Synthesize(ctx context.Context, req SynthesizeReque
 		return SynthesizeResult{}, fmt.Errorf("marshal elevenlabs request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/v1/text-to-speech/%s?output_format=%s", p.baseURL, p.voiceID, p.outputFormat)
+	url := fmt.Sprintf("%s/v1/text-to-speech/%s/with-timestamps?output_format=%s", p.baseURL, p.voiceID, p.outputFormat)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return SynthesizeResult{}, fmt.Errorf("build elevenlabs request: %w", err)
 	}
 	httpReq.Header.Set("xi-api-key", p.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Accept", "audio/mpeg")
+	httpReq.Header.Set("Accept", "application/json")
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -121,12 +124,21 @@ func (p *ElevenLabsProvider) Synthesize(ctx context.Context, req SynthesizeReque
 		return SynthesizeResult{}, fmt.Errorf("ElevenLabs TTS rejected request (status %d): %s", resp.StatusCode, strings.TrimSpace(string(msg)))
 	}
 
-	audio, err := io.ReadAll(resp.Body)
+	var tsResp elevenLabsTimestampResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tsResp); err != nil {
+		return SynthesizeResult{}, fmt.Errorf("decode elevenlabs timestamps response: %w", err)
+	}
+	audio, err := base64.StdEncoding.DecodeString(tsResp.AudioBase64)
 	if err != nil {
-		return SynthesizeResult{}, fmt.Errorf("read elevenlabs audio: %w", err)
+		return SynthesizeResult{}, fmt.Errorf("decode elevenlabs audio_base64: %w", err)
 	}
 	if err := os.WriteFile(destPath, audio, 0o644); err != nil {
 		return SynthesizeResult{}, fmt.Errorf("write audio to %s: %w", destPath, err)
+	}
+
+	wordsPath, err := writeWordsSidecar(destPath, tsResp.alignmentWords())
+	if err != nil {
+		return SynthesizeResult{}, fmt.Errorf("write words sidecar for %s: %w", destPath, err)
 	}
 
 	duration, err := p.durationProbe(ctx, destPath)
@@ -138,5 +150,43 @@ func (p *ElevenLabsProvider) Synthesize(ctx context.Context, req SynthesizeReque
 		AudioPath:    destPath,
 		DurationSec:  duration,
 		CharsCharged: chars,
+		WordsPath:    wordsPath,
 	}, nil
+}
+
+type elevenLabsTimestampResponse struct {
+	AudioBase64         string               `json:"audio_base64"`
+	Alignment           *elevenLabsAlignment `json:"alignment"`
+	NormalizedAlignment *elevenLabsAlignment `json:"normalized_alignment"`
+}
+
+// alignmentWords prefers the literal alignment (matches the narration text the
+// caption aligner expects) and falls back to the normalized alignment.
+func (r elevenLabsTimestampResponse) alignmentWords() []caption.WordTimestamp {
+	if w := wordsFromAlignment(r.Alignment); len(w) > 0 {
+		return w
+	}
+	return wordsFromAlignment(r.NormalizedAlignment)
+}
+
+// writeWordsSidecar atomically writes words next to destPath as a .words.json
+// sidecar. When there are no words (API returned no usable alignment) it writes
+// nothing and returns an empty path — the caption stage will then fail loudly.
+func writeWordsSidecar(destPath string, words []caption.WordTimestamp) (string, error) {
+	if len(words) == 0 {
+		return "", nil
+	}
+	path := caption.WordsSidecarPath(destPath)
+	data, err := json.Marshal(caption.WordsSidecar{Words: words})
+	if err != nil {
+		return "", fmt.Errorf("marshal words sidecar: %w", err)
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return "", fmt.Errorf("write temp sidecar %s: %w", tmp, err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		return "", fmt.Errorf("rename sidecar %s: %w", path, err)
+	}
+	return path, nil
 }

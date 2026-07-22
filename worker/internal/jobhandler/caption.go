@@ -16,7 +16,7 @@ type Transcriber interface {
 	Transcribe(ctx context.Context, audioPath string) ([]caption.WordTimestamp, error)
 }
 
-var _ Transcriber = (*caption.WhisperRunner)(nil)
+var _ Transcriber = (*caption.SidecarReader)(nil)
 
 // CaptionHandler consumes caption jobs, transcribes every scene's audio,
 // writes one merged ASS file for the project, and publishes CaptionsBuilt
@@ -38,7 +38,7 @@ func (h *CaptionHandler) Handle(ctx context.Context, subject string, job Caption
 		if err != nil {
 			return publishFailure(ctx, h.store, job.ProjectID, "caption", -1, fmt.Errorf("transcribe %s: %w", ref.AudioPath, err))
 		}
-		// Display the authoritative narration text on whisper's timings.
+		// Display the authoritative narration text on the transcriber's timing.
 		words = caption.AlignNarration(ref.Narration, words)
 		for _, w := range words {
 			allWords = append(allWords, caption.WordTimestamp{

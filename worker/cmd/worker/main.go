@@ -44,11 +44,6 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("resolve ffprobe: %w", err)
 	}
-	whisperBin, err := checker.Resolve("whisper")
-	if err != nil {
-		return fmt.Errorf("resolve whisper: %w", err)
-	}
-
 	cfg, err := config.Load(envPath)
 	if err != nil {
 		return fmt.Errorf("load env config %s: %w", envPath, err)
@@ -87,7 +82,7 @@ func run() error {
 
 	materialHandler := jobhandler.NewMaterialHandler(materialSource, material.DurationProbe(probe), store)
 	ttsHandler := jobhandler.NewTTSHandler(ttsProvider, store)
-	captionHandler := jobhandler.NewCaptionHandler(caption.NewWhisperRunner(whisperBin), caption.NewASSWriter(), store)
+	captionHandler := jobhandler.NewCaptionHandler(caption.NewSidecarReader(), caption.NewASSWriter(), store)
 	renderHandler := jobhandler.NewRenderHandler(render.NewFFmpegRenderer(ffmpegBin, ffprobeBin), musicSource, store)
 
 	type consumer struct {

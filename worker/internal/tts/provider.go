@@ -25,6 +25,7 @@ type SynthesizeResult struct {
 	AudioPath    string
 	DurationSec  float64
 	CharsCharged int
+	WordsPath    string
 }
 
 type TTSProvider interface {

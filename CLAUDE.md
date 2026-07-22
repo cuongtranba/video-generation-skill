@@ -2,7 +2,7 @@
 
 MIT-licensed. README carries CI, release, license, and tech-stack badges; keep them and the README's command/event tables in sync when the HTTP surface or event catalogue changes.
 
-Event-sourced webapp generating 9:16 Vietnamese-voiced short videos: idea → script → material (stock + local uploads) → TTS → whisper captions → FFmpeg render. Three services: `api/` (TypeScript/Bun), `worker/` (Go), `frontend/` (Vite/React/Zustand) over NATS JetStream + Postgres. Full docs in README.md.
+Event-sourced webapp generating 9:16 Vietnamese-voiced short videos: idea → script → material (stock + local uploads) → TTS (+word-timestamp sidecars) → captions → FFmpeg render. Three services: `api/` (TypeScript/Bun), `worker/` (Go), `frontend/` (Vite/React/Zustand) over NATS JetStream + Postgres. Full docs in README.md.
 
 ## Architecture docs (C3)
 
@@ -65,9 +65,10 @@ CI (`.github/workflows/test.yml`) runs four jobs on push/PR to main: ast-grep (r
 ## Gotchas (learned the hard way)
 
 - **ffmpeg needs libass**: worker image installs a libass-capable ffmpeg; the `ass=` filter fails with "Could not create a libass track" if `captions.ass` is missing/unreadable
-- **Render is gated on inputs**: `ApproveStoryboard` returns 400 until every scene has voiceover + material and `captionsReady` (folded from `CaptionsBuilt`). Whisper transcription takes ~2-3 min after voiceovers — approving earlier is refused
+- **Render is gated on inputs**: `ApproveStoryboard` returns 400 until every scene has voiceover + material and `captionsReady` (folded from `CaptionsBuilt`). Captions land within seconds of the last voiceover — approving earlier is refused
 - **VoiceSynthesized carries `durationSec`** (audio length); `approveStoryboard` folds it + `MaterialResolved.assetPath` per scene to build the RenderJob (real paths, durations, `isImage` by extension). Do not revert to hardcoded `material{idx}.mp4`/`durationSec:0`
 - **ElevenLabs is the only TTS provider** (FPT.AI removed). Synthesis is synchronous and uses a **fixed voice ID** (override per-deploy with `ELEVENLABS_VOICE_ID`); the `voice`/`speed` tune fields exist in the event model but are not applied — the SPA shows a read-only "ElevenLabs (fixed)" label instead of a picker. `eleven_turbo_v2_5` for Vietnamese (override `ELEVENLABS_MODEL_ID`)
+- **Captions come from ElevenLabs `/with-timestamps`**: synthesis returns word timings alongside the audio; the tts step writes a `tts{idx}.words.json` sidecar next to each mp3 and the caption handler reads it (no transcription step, no CPU-bound wait). `captionsReady` now lands right after the last voiceover. If a sidecar is missing (e.g. audio synthesized before this change), the caption job fails loudly rather than guessing timings — re-run voiceovers to regenerate the sidecars.
 - **zoompan** for image scenes uses `durationSec` via `d=`; short stock clips loop via `-stream_loop` only when `mediaDurationSec > 0`
 - **api integration tests** (`*.integration.test.ts`) need live NATS+Postgres; excluded from the unit gate
 - **Pipeline rail tiles must FLEX, never a fixed `width`**: the Pipeline Home rail (`.vg-node` in `frontend/src/styles/app.css`) lays out all six stages (SCRIPT→…→RENDER) in one row. Fixed-width tiles overflow the 960px shell and `overflow-x` silently clips the final RENDER node (no scroll affordance) — a real "hidden UI" bug. Tiles use `flex: 1 1 0` + a `min-width` floor so they always fit; below the floor the rail scrolls. Enforced by `frontend/src/styles/pipeline-rail-fit.test.ts` (fails the frontend `bun test` gate if a fixed pixel width returns to a rail tile). happy-dom computes no layout, so the guard checks the CSS source

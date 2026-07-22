@@ -43,11 +43,6 @@ func NewChecker() *Checker {
 				VersionFlag: "-version",
 				VersionRe:   `ffprobe version (\d+)`,
 			},
-			{
-				Name:        "whisper",
-				EnvOverride: "WHISPER_BIN",
-				DefaultBin:  "whisper",
-			},
 		},
 		resolved: map[string]string{},
 	}
