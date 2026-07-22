@@ -1,5 +1,7 @@
 # vidgen — Claude Code project guide
 
+MIT-licensed. README carries CI, release, license, and tech-stack badges; keep them and the README's command/event tables in sync when the HTTP surface or event catalogue changes.
+
 Event-sourced webapp generating 9:16 Vietnamese-voiced short videos: idea → script → material (stock + local uploads) → TTS → whisper captions → FFmpeg render. Three services: `api/` (TypeScript/Bun), `worker/` (Go), `frontend/` (Vite/React/Zustand) over NATS JetStream + Postgres. Full docs in README.md.
 
 ## Architecture docs (C3)
@@ -33,6 +35,8 @@ bun run lint:sg             # scan: useState ban in frontend components, interfa
 # full stack + live render
 docker compose up --build
 ```
+
+**Release.** Versioning is automated by release-please (single root: `release-type: simple`, config `release-please-config.json` + `.release-please-manifest.json`, workflow `.github/workflows/release-please.yml`). Land Conventional Commits on `main`; a Release PR bumps the version + `CHANGELOG.md`; merging it tags `vX.Y.Z` + a GitHub Release. `feat:` → minor, `fix:` → patch, `feat!:`/`BREAKING CHANGE:` → major.
 
 CI (`.github/workflows/test.yml`) runs four jobs on push/PR to main: ast-grep (rule tests + scan), api (typecheck + `bun test` — integration suites self-skip without NATS/Postgres), worker (`go build`/`vet`/`test ./...`), frontend (oxlint, typecheck, `bun test`, vite build).
 

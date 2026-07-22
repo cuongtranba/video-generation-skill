@@ -1,3 +1,182 @@
+# Docs Refresh + Release Automation Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Rewrite the README with status badges, add an MIT LICENSE, sync CLAUDE.md, and wire up release-please for automated single-root versioning.
+
+**Architecture:** Documentation + CI config only — no changes to api/worker/frontend source or to frozen C3 architecture facts. release-please runs single-root (`release-type: simple`): one version, one `vX.Y.Z` tag, one `CHANGELOG.md`, driven by the Conventional Commits already in the history.
+
+**Tech Stack:** Markdown, MIT license text, shields.io badges, `googleapis/release-please-action@v4` (config-file + manifest-file mode), GitHub Actions.
+
+## Global Constraints
+
+- Repo slug (verbatim, all badge + workflow URLs): `cuongtranba/video-generation-skill`
+- Work in git worktree `.worktrees/docs-release-automation` on branch `docs/readme-release-automation`. Never commit to `main`.
+- Seed release version: `1.0.0` → first tag `v1.0.0`.
+- Conventional Commit messages for every commit (release-please parses them): `feat:`, `fix:`, `docs:`, `ci:`, `chore:`.
+- README accuracy — do NOT regress these facts (from CLAUDE.md gotchas):
+  - ElevenLabs is the **only** TTS provider; `voice`/`speed` are **read-only labels**, not pickers.
+  - Cost wall: `Σ VoiceSynthesized.ttsUsd ≤ COST_CAP_USD` (default `$0.15`) — never weaken.
+  - `ApproveStoryboard` returns `400` until every scene has voiceover + material and captions are built.
+  - `dispatchJob` does no key remapping (api payload keys == worker json tags).
+- Exact command names (`POST /api/commands/<Name>`): `CreateProject`, `GenerateScript`, `TuneProject`, `ResolveMaterial`, `GenerateVoiceovers`, `RequestApproval`, `ApproveStoryboard`, `Publish`.
+- Exact `VidgenEvent` union: `ProjectCreated`, `ScriptGenerated`, `StyleSet`, `MaterialResolved`, `VoiceSynthesized`, `CaptionsBuilt`, `CostProjected`, `AwaitingApproval`, `ApprovalGranted`, `RenderCompleted`, `Published`, `RunFailed`.
+- YAML/JSON validation uses Bun (already a project dep): `bun -e '...'` with `Bun.YAML.parse` / `JSON.parse`.
+
+---
+
+### Task 1: MIT LICENSE
+
+**Files:**
+- Create: `LICENSE`
+
+**Interfaces:**
+- Produces: an MIT `LICENSE` file at repo root so the shields.io license badge (Task 3) resolves to "MIT".
+
+- [ ] **Step 1: Write the LICENSE file**
+
+Create `LICENSE` with exactly:
+
+```text
+MIT License
+
+Copyright (c) 2026 cuong.tran
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+- [ ] **Step 2: Verify GitHub will detect it as MIT**
+
+Run: `head -1 LICENSE`
+Expected: `MIT License` (GitHub's licensee classifier keys on the standard text — the badge will read "MIT").
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add LICENSE
+git commit -m "docs: add MIT license"
+```
+
+---
+
+### Task 2: release-please automation
+
+**Files:**
+- Create: `release-please-config.json`
+- Create: `.release-please-manifest.json`
+- Create: `.github/workflows/release-please.yml`
+
+**Interfaces:**
+- Consumes: nothing from other tasks.
+- Produces: the `test.yml` sibling workflow that opens/updates a Release PR and, on merge, cuts tag `vX.Y.Z` + a GitHub Release. Task 3's release badge reads `github/v/release`.
+
+- [ ] **Step 1: Write the release-please config**
+
+Create `release-please-config.json`:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "changelog-path": "CHANGELOG.md",
+      "include-component-in-tag": false,
+      "bump-minor-pre-major": false
+    }
+  }
+}
+```
+
+- [ ] **Step 2: Write the manifest (seed version)**
+
+Create `.release-please-manifest.json`:
+
+```json
+{
+  ".": "1.0.0"
+}
+```
+
+- [ ] **Step 3: Write the workflow**
+
+Create `.github/workflows/release-please.yml` (v4 usage verified against Context7 `googleapis/release-please-action`):
+
+```yaml
+name: release-please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+```
+
+- [ ] **Step 4: Validate the JSON and YAML parse**
+
+Run:
+```bash
+bun -e 'JSON.parse(await Bun.file("release-please-config.json").text()); JSON.parse(await Bun.file(".release-please-manifest.json").text()); Bun.YAML.parse(await Bun.file(".github/workflows/release-please.yml").text()); console.log("OK")'
+```
+Expected: `OK` (no parse exception).
+
+- [ ] **Step 5: Verify the manifest version matches api**
+
+Run: `grep '"version"' api/package.json`
+Expected: `"version": "1.0.0",` — must equal the manifest's `1.0.0` seed so the first Release PR is a no-op-to-`v1.0.0` (or the next `feat`/`fix` bumps from a correct base).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add release-please-config.json .release-please-manifest.json .github/workflows/release-please.yml
+git commit -m "ci: add release-please for automated single-root versioning"
+```
+
+---
+
+### Task 3: README full rewrite (with badges)
+
+**Files:**
+- Modify (overwrite): `README.md`
+
+**Interfaces:**
+- Consumes: `LICENSE` (Task 1) for the license badge; `release-please.yml` (Task 2) for the release badge; `test.yml` (existing) for the CI badge.
+- Produces: the canonical project README. CLAUDE.md (Task 4) is reconciled against it.
+
+- [ ] **Step 1: Overwrite `README.md` with the full rewrite**
+
+Write `README.md` with exactly this content:
+
+````markdown
 # vidgen
 
 [![CI](https://img.shields.io/github/actions/workflow/status/cuongtranba/video-generation-skill/test.yml?branch=main&label=CI&logo=github)](https://github.com/cuongtranba/video-generation-skill/actions/workflows/test.yml)
@@ -278,3 +457,137 @@ Versioning is automated by [release-please](https://github.com/googleapis/releas
 
 - Stock footage: [Pexels](https://pexels.com) / [Pixabay](https://pixabay.com)
 - Music: [Jamendo](https://jamendo.com)
+````
+
+- [ ] **Step 2: Verify the mermaid block is balanced and badges/links are well-formed**
+
+Run:
+```bash
+grep -c '```mermaid' README.md; grep -c '^```$' README.md; grep -c 'img.shields.io' README.md
+```
+Expected: `1` mermaid fence; an even count of bare ` ``` ` closers; `8` shields badges.
+
+- [ ] **Step 3: Verify no accuracy regressions (constraint scan)**
+
+Run:
+```bash
+grep -q 'only supported TTS provider' README.md && grep -q 'COST_CAP_USD' README.md && grep -q 'returns .400.' README.md && grep -q 'read-only' README.md && echo "CONSTRAINTS OK"
+```
+Expected: `CONSTRAINTS OK`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add README.md
+git commit -m "docs: rewrite README with badges, component inventory, command/event reference, release process"
+```
+
+---
+
+### Task 4: Sync CLAUDE.md
+
+**Files:**
+- Modify: `CLAUDE.md`
+
+**Interfaces:**
+- Consumes: the rewritten README (Task 3) and the release workflow (Task 2) for consistent wording.
+- Produces: project guide reconciled with the README + a release note. No frozen C3 fact changes.
+
+- [ ] **Step 1: Add a Release subsection under the Commands section**
+
+In `CLAUDE.md`, immediately after the closing ``` of the Commands code block (the line with `docker compose up --build`), insert:
+
+```markdown
+
+**Release.** Versioning is automated by release-please (single root: `release-type: simple`, config `release-please-config.json` + `.release-please-manifest.json`, workflow `.github/workflows/release-please.yml`). Land Conventional Commits on `main`; a Release PR bumps the version + `CHANGELOG.md`; merging it tags `vX.Y.Z` + a GitHub Release. `feat:` → minor, `fix:` → patch, `feat!:`/`BREAKING CHANGE:` → major.
+```
+
+- [ ] **Step 2: Note license + badges in the intro line**
+
+Change the first content line of `CLAUDE.md` from:
+
+```markdown
+# vidgen — Claude Code project guide
+```
+
+to:
+
+```markdown
+# vidgen — Claude Code project guide
+
+MIT-licensed. README carries CI, release, license, and tech-stack badges; keep them and the README's command/event tables in sync when the HTTP surface or event catalogue changes.
+```
+
+- [ ] **Step 3: Verify the two insertions landed and nothing else changed**
+
+Run:
+```bash
+grep -q 'release-please (single root' CLAUDE.md && grep -q 'MIT-licensed' CLAUDE.md && echo "CLAUDE.md OK"
+git diff --stat CLAUDE.md
+```
+Expected: `CLAUDE.md OK`; the diff touches only `CLAUDE.md` with a small insertion count.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add CLAUDE.md
+git commit -m "docs: sync CLAUDE.md with README rewrite + release-please note"
+```
+
+---
+
+### Task 5: Land the branch
+
+**Files:** none (integration).
+
+- [ ] **Step 1: Final verification sweep**
+
+Run:
+```bash
+bun -e 'JSON.parse(await Bun.file("release-please-config.json").text()); JSON.parse(await Bun.file(".release-please-manifest.json").text()); Bun.YAML.parse(await Bun.file(".github/workflows/release-please.yml").text()); Bun.YAML.parse(await Bun.file(".github/workflows/test.yml").text()); console.log("workflows+config OK")'
+test -f LICENSE && head -1 LICENSE
+git status --short
+git log --oneline -6
+```
+Expected: `workflows+config OK`; `MIT License`; a clean working tree; five Conventional-Commit messages on the branch.
+
+- [ ] **Step 2: Push and open the PR**
+
+```bash
+git push -u origin docs/readme-release-automation
+gh pr create --base main --title "docs: README rewrite + badges, MIT license, release-please automation" \
+  --body "$(cat <<'EOF'
+## Summary
+- Full README rewrite: status badges, C3 component inventory, command API + event catalogue reference, project layout, release process.
+- Add MIT LICENSE.
+- Add release-please (single root, `release-type: simple`): config + manifest + workflow.
+- Sync CLAUDE.md with the README and add a release-process note.
+
+Docs + CI config only — no api/worker/frontend source changes, no frozen C3 fact changes.
+
+## Test plan
+- `release-please-config.json`, `.release-please-manifest.json`, both workflows parse (Bun JSON/YAML).
+- README: single mermaid fence, 8 badges, accuracy-constraint scan passes.
+- Manifest seed `1.0.0` matches `api/package.json`.
+EOF
+)"
+```
+
+- [ ] **Step 3: Report the PR URL to the user** and note that merging the release-please Release PR (created after this lands) will cut `v1.0.0`.
+
+---
+
+## Self-Review
+
+**Spec coverage:**
+- README full rewrite → Task 3 ✓ (badges, architecture+component table, quick start, command API, event catalogue, tune, providers, project layout, development, release process, license, attribution — every spec §2 section present).
+- CLAUDE.md sync → Task 4 ✓ (release subsection + license/badge note).
+- CI badges → Task 3 Step 1 ✓ (CI, release, license, Bun, Go, React, NATS, Postgres = 8).
+- release-please → Task 2 ✓ (config + manifest + workflow, verified against Context7).
+- LICENSE MIT → Task 1 ✓.
+- Seed version 1.0.0 → Task 2 Steps 2, 5 ✓.
+- Worktree + PR workflow → Task 5 ✓.
+
+**Placeholder scan:** No TBD/TODO; all file contents are literal; every verification has an exact command + expected output.
+
+**Type/name consistency:** Command names, event names, and route paths in the README tables match the Global Constraints (extracted from `api/src/http.ts` + `api/src/events.ts`). Badge repo slug is identical across all URLs. Manifest path `.` matches config package key `.`.
