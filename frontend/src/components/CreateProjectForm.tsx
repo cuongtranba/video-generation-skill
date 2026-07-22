@@ -5,8 +5,14 @@ import { Button } from '../ui/Button'
 
 // Narration language defaults to Vietnamese — vidgen is a Vietnamese-first
 // product. This is the content language of the script/voice/captions, distinct
-// from the UI language (react-i18next).
-const DEFAULTS = { idea: '', durationSec: 16, sceneCount: 2, tone: 'playful', language: 'Vietnamese' }
+// from the UI language (react-i18next). Only Vietnamese and English are
+// supported downstream (TTS voice + whisper `-language`), hence the select.
+const DEFAULTS = { idea: '', durationSec: 60, sceneCount: 6, tone: 'playful', language: 'Vietnamese' }
+
+const LANGUAGE_OPTIONS = [
+  { value: 'Vietnamese', labelKey: 'create.languageVietnamese' },
+  { value: 'English', labelKey: 'create.languageEnglish' },
+] as const
 
 export function CreateProjectForm() {
   const { t } = useTranslation()
@@ -15,17 +21,17 @@ export function CreateProjectForm() {
   const [durationSec, setDurationSec] = useState(DEFAULTS.durationSec)
   const [sceneCount, setSceneCount] = useState(DEFAULTS.sceneCount)
   const [tone, setTone] = useState(DEFAULTS.tone)
-  const [language, setLanguage] = useState(DEFAULTS.language)
+  const [language, setLanguage] = useState<string>(DEFAULTS.language)
   const [submitting, setSubmitting] = useState(false)
 
-  const canSubmit = idea.trim().length > 0 && language.trim().length > 0 && !submitting
+  const canSubmit = idea.trim().length > 0 && !submitting
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!canSubmit) return
     setSubmitting(true)
     try {
-      await createProject({ idea: idea.trim(), durationSec, sceneCount, tone: tone.trim(), language: language.trim() })
+      await createProject({ idea: idea.trim(), durationSec, sceneCount, tone: tone.trim(), language })
       setIdea(DEFAULTS.idea)
     } finally {
       setSubmitting(false)
@@ -48,23 +54,18 @@ export function CreateProjectForm() {
 
       <div className="vg-create__field">
         <label htmlFor="create-language">{t('create.language')}</label>
-        {/* Freeform: the script, voice, and captions all follow this language. */}
-        <input
+        <select
           id="create-language"
-          type="text"
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
-          placeholder={t('create.languagePlaceholder')}
-          list="create-language-suggestions"
           aria-label={t('create.languageAria')}
-        />
-        <datalist id="create-language-suggestions">
-          <option value="Vietnamese" />
-          <option value="English" />
-          <option value="Spanish" />
-          <option value="French" />
-          <option value="Japanese" />
-        </datalist>
+        >
+          {LANGUAGE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {t(opt.labelKey)}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="vg-create__field">
